@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: you
+      changes:
+        - createTable:
+            tableName: account
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: domain
+                  type: varchar(255)
+              - column:
+                  name: plan_id
+                  type: bigint
+              - column:
+                  name: status
+                  type: varchar(255)
+              - column:
+                  name: type
+                  type: varchar(255)
