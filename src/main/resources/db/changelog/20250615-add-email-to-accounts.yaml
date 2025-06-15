@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20250615-add-email-column
+      author: prabu
+      changes:
+        - addColumn:
+            tableName: accounts
+            columns:
+              - column:
+                  name: email
+                  type: varchar(255)

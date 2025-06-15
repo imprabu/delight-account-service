@@ -4,7 +4,7 @@ databaseChangeLog:
       author: you
       changes:
         - createTable:
-            tableName: account
+            tableName: accounts
             columns:
               - column:
                   name: id
@@ -24,3 +24,5 @@ databaseChangeLog:
               - column:
                   name: type
                   type: varchar(255)
+  - include:
+      file: db/changelog/20250615-add-email-to-accounts.yaml
