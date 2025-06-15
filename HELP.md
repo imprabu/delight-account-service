@@ -30,6 +30,7 @@ The following guides illustrate how to use some features concretely:
 * [Managing Transactions](https://spring.io/guides/gs/managing-transactions/)
 * [Accessing Data with JPA](https://spring.io/guides/gs/accessing-data-jpa/)
 * [Accessing data with MySQL](https://spring.io/guides/gs/accessing-data-mysql/)
+  (TiDB is MySQL compatible)
 * [Messaging with Redis](https://spring.io/guides/gs/messaging-redis/)
 * [Samples for using Apache Kafka Streams with Spring Cloud stream](https://github.com/spring-cloud/spring-cloud-stream-samples/tree/master/kafka-streams-samples)
 * [Creating a Batch Service](https://spring.io/guides/gs/batch-processing/)
@@ -43,7 +44,7 @@ These additional references should also help you:
 This project contains a Docker Compose file named `compose.yaml`.
 In this file, the following services have been defined:
 
-* mysql: [`mysql:latest`](https://hub.docker.com/_/mysql)
+* tidb: [`pingcap/tidb:latest`](https://hub.docker.com/r/pingcap/tidb)
 * redis: [`redis:latest`](https://hub.docker.com/_/redis)
 
 Please review the tags of the used images and set them to the same as you're running in production.
