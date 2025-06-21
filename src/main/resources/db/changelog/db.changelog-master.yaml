@@ -31,3 +31,7 @@ databaseChangeLog:
       file: db/changelog/20250620-create-users-table.yaml
   - include:
       file: db/changelog/20250621-partition-users-table.yaml
+  - include:
+      file: db/changelog/20250622-add-user-details.yaml
+  - include:
+      file: db/changelog/20250623-add-companyName-to-accounts.yaml
