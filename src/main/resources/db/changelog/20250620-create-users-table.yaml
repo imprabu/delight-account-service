@@ -1,0 +1,47 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20250620-create-users-table
+      author: codex
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: account_id
+                  type: bigint
+              - column:
+                  name: user_name
+                  type: varchar(255)
+              - column:
+                  name: dob
+                  type: date
+              - column:
+                  name: email_address
+                  type: varchar(255)
+              - column:
+                  name: language_pref
+                  type: varchar(64)
+              - column:
+                  name: working_time_from
+                  type: time
+              - column:
+                  name: working_time_to
+                  type: time
+              - column:
+                  name: timezone
+                  type: varchar(64)
+        - addUniqueConstraint:
+            tableName: users
+            columnNames: account_id
+            constraintName: uq_users_account
+        - addUniqueConstraint:
+            tableName: users
+            columnNames: email_address
+            constraintName: uq_users_email
+

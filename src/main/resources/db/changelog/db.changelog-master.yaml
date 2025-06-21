@@ -26,3 +26,5 @@ databaseChangeLog:
                   type: varchar(255)
   - include:
       file: db/changelog/20250615-add-email-to-accounts.yaml
+  - include:
+      file: db/changelog/20250620-create-users-table.yaml
