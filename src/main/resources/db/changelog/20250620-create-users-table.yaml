@@ -9,6 +9,7 @@ databaseChangeLog:
               - column:
                   name: id
                   type: bigint
+                  autoIncrement: true
                   constraints:
                     primaryKey: true
                     nullable: false
@@ -38,10 +39,6 @@ databaseChangeLog:
                   type: varchar(64)
         - addUniqueConstraint:
             tableName: users
-            columnNames: account_id
-            constraintName: uq_users_account
-        - addUniqueConstraint:
-            tableName: users
-            columnNames: email_address
-            constraintName: uq_users_email
+            columnNames: account_id, email_address
+            constraintName: uq_users_account_email
 
