@@ -10,6 +10,8 @@ URL is `jdbc:mysql://localhost:4000/delight-accounts?createDatabaseIfNotExist=tr
 ## Configuration
 The application reads a few settings from the environment:
 
+- `DB_URL` sets the JDBC connection URL.
+- `DB_USER` sets the database username.
 - `DB_PASSWORD` sets the database password used for connecting to TiDB.
 - `LOG_LEVEL` controls the root logging level (defaults to `INFO`).
 - `LOG_DIR` defines where log files are written (defaults to a `logs` folder).
@@ -17,15 +19,8 @@ The application reads a few settings from the environment:
 Logging is handled by Log4j2 using the YAML file `log4j2-spring.yml`. Log files
 rotate daily and are stored in the folder specified by `LOG_DIR`.
 
-Additional property files provide defaults for specific environments:
-
-- `application-staging.properties`
-- `application-prod.properties`
-
-Gradle reads the `ENV` environment variable to determine which profile is active.
-Set it before running the application:
+To run the application:
 
 ```bash
-export ENV=staging
 ./gradlew bootRun
 ```
