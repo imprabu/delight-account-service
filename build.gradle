@@ -33,8 +33,10 @@ dependencies {
         implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.apache.kafka:kafka-streams'
 	implementation 'org.liquibase:liquibase-core'
-	implementation 'org.springframework.kafka:spring-kafka'
-	compileOnly 'org.projectlombok:lombok'
+        implementation 'org.springframework.kafka:spring-kafka'
+        implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+        implementation 'org.springframework.boot:spring-boot-starter-aop'
+        compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
         // TiDB is MySQL compatible; use the MySQL driver to connect
@@ -55,3 +57,11 @@ tasks.named('bootBuildImage') {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+
+def env = System.getenv("ENV") ?: "staging"
+
+bootRun {
+    systemProperty "spring.profiles.active", env
+}
+
