@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20250623-add-companyname-to-accounts
+      author: codex
+      changes:
+        - addColumn:
+            tableName: accounts
+            columns:
+              - column:
+                  name: company_name
+                  type: varchar(255)
