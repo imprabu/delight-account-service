@@ -6,9 +6,9 @@ plugins {
 group = 'com.delight'
 version = '0.0.1-SNAPSHOT'
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(24)
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 configurations {
 	compileOnly {
@@ -48,5 +48,35 @@ tasks.named('bootBuildImage') {
 	builder = 'paketobuildpacks/builder-jammy-base:latest'
 }
 tasks.named('test') {
-	useJUnitPlatform()
+        useJUnitPlatform()
+}
+
+import org.apache.tools.ant.filters.ReplaceTokens
+
+def env = System.getenv('ENV') ?: 'staging'
+def envFile = file("envVariables_${env}")
+def envProps = [:]
+if (envFile.exists()) {
+    envFile.eachLine { line ->
+        def parts = line.split('=', 2)
+        if (parts.length == 2) envProps[parts[0]] = parts[1]
+    }
+}
+
+tasks.named('processResources') {
+    filesMatching('application.properties') {
+        filter(ReplaceTokens, tokens: envProps)
+    }
+    filesMatching('log4j2-spring.yml') {
+        filter(ReplaceTokens, tokens: envProps)
+    }
+}
+
+tasks.named('processTestResources') {
+    filesMatching('application.properties') {
+        filter(ReplaceTokens, tokens: envProps)
+    }
+    filesMatching('log4j2-spring.yml') {
+        filter(ReplaceTokens, tokens: envProps)
+    }
 }

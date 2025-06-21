@@ -1,0 +1,5 @@
+DB_URL=jdbc:mysql://staging-host:4000/delight-accounts?createDatabaseIfNotExist=true
+DB_USER=staging_user
+DB_PASSWORD=staging_password
+LOG_LEVEL=INFO
+LOG_DIR=logs

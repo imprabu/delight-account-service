@@ -8,13 +8,28 @@ MySQL JDBC driver (`com.mysql:mysql-connector-j`) to connect. The default JDBC
 URL is `jdbc:mysql://localhost:4000/delight-accounts?createDatabaseIfNotExist=true`.
 
 ## Configuration
-The application reads a few settings from the environment:
+The application uses a single `application.properties` file. During the build
+process Gradle copies values from an environment specific file into this
+properties file. Two sample files are provided:
 
-- `DB_URL` sets the JDBC connection URL.
-- `DB_USER` sets the database username.
-- `DB_PASSWORD` sets the database password used for connecting to TiDB.
-- `LOG_LEVEL` controls the root logging level (defaults to `INFO`).
-- `LOG_DIR` defines where log files are written (defaults to a `logs` folder).
+- `envVariables_staging`
+- `envVariables_prod`
+
+Select which one to use by setting the `ENV` environment variable before
+running the build:
+
+```bash
+export ENV=staging   # or "prod"
+./gradlew bootRun
+```
+
+Each `envVariables_*` file defines values for:
+
+- `DB_URL` – the JDBC connection URL
+- `DB_USER` – the database username
+- `DB_PASSWORD` – the database password used for connecting to TiDB
+- `LOG_LEVEL` – the root logging level
+- `LOG_DIR` – folder where log files are written
 
 Logging is handled by Log4j2 using the YAML file `log4j2-spring.yml`. Log files
 rotate daily and are stored in the folder specified by `LOG_DIR`.
