@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20250621-partition-users-table
+      author: codex
+      changes:
+        - sql:
+            splitStatements: false
+            stripComments: true
+            sql: |
+              ALTER TABLE users PARTITION BY KEY(account_id) PARTITIONS 4;
