@@ -1,0 +1,5 @@
+DB_URL=jdbc:mysql://localhost:4000/delight-accounts?createDatabaseIfNotExist=true
+DB_USER=root
+DB_PASSWORD=
+LOG_LEVEL=INFO
+LOG_DIR=logs

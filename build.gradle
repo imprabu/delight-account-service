@@ -3,16 +3,13 @@ plugins {
 	id 'org.springframework.boot' version '3.4.6'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
-
 group = 'com.delight'
 version = '0.0.1-SNAPSHOT'
-
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(24)
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
-
 configurations {
     compileOnly {
         extendsFrom annotationProcessor
@@ -22,11 +19,9 @@ configurations {
         exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
     }
 }
-
 repositories {
 	mavenCentral()
 }
-
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-batch'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -37,8 +32,10 @@ dependencies {
         implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.apache.kafka:kafka-streams'
 	implementation 'org.liquibase:liquibase-core'
-	implementation 'org.springframework.kafka:spring-kafka'
-	compileOnly 'org.projectlombok:lombok'
+        implementation 'org.springframework.kafka:spring-kafka'
+        implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+        implementation 'org.springframework.boot:spring-boot-starter-aop'
+        compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
         // TiDB is MySQL compatible; use the MySQL driver to connect
@@ -51,11 +48,39 @@ dependencies {
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
-
 tasks.named('bootBuildImage') {
 	builder = 'paketobuildpacks/builder-jammy-base:latest'
 }
-
 tasks.named('test') {
-	useJUnitPlatform()
+        useJUnitPlatform()
+}
+
+import org.apache.tools.ant.filters.ReplaceTokens
+
+def env = System.getenv('ENV') ?: 'staging'
+def envFile = file("envVariables_${env}")
+def envProps = [:]
+if (envFile.exists()) {
+    envFile.eachLine { line ->
+        def parts = line.split('=', 2)
+        if (parts.length == 2) envProps[parts[0]] = parts[1]
+    }
+}
+
+tasks.named('processResources') {
+    filesMatching('application.properties') {
+        filter(ReplaceTokens, tokens: envProps)
+    }
+    filesMatching('log4j2-spring.yml') {
+        filter(ReplaceTokens, tokens: envProps)
+    }
+}
+
+tasks.named('processTestResources') {
+    filesMatching('application.properties') {
+        filter(ReplaceTokens, tokens: envProps)
+    }
+    filesMatching('log4j2-spring.yml') {
+        filter(ReplaceTokens, tokens: envProps)
+    }
 }
