@@ -1,0 +1,167 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20250624-create-modules
+      author: codex
+      changes:
+        - createTable:
+            tableName: modules
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: account_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: modules
+            columnNames: account_id, name
+            constraintName: uq_modules_account_name
+  - changeSet:
+      id: 20250624-create-field-definitions
+      author: codex
+      changes:
+        - createTable:
+            tableName: field_definitions
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: module_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: field_key
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: field_label
+                  type: varchar(100)
+              - column:
+                  name: field_type
+                  type: varchar(50)
+              - column:
+                  name: is_required
+                  type: boolean
+              - column:
+                  name: is_unique
+                  type: boolean
+        - addUniqueConstraint:
+            tableName: field_definitions
+            columnNames: module_id, field_key
+            constraintName: uq_field_definitions_module_key
+        - addForeignKeyConstraint:
+            baseTableName: field_definitions
+            baseColumnNames: module_id
+            referencedTableName: modules
+            referencedColumnNames: id
+            constraintName: fk_field_definitions_module
+  - changeSet:
+      id: 20250624-create-module-data
+      author: codex
+      changes:
+        - createTable:
+            tableName: module_data
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: module_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data
+                  type: json
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: int
+                  defaultValueNumeric: 0
+              - column:
+                  name: created_at
+                  type: datetime
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: datetime
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addForeignKeyConstraint:
+            baseTableName: module_data
+            baseColumnNames: module_id
+            referencedTableName: modules
+            referencedColumnNames: id
+            constraintName: fk_module_data_module
+  - changeSet:
+      id: 20250624-create-unique-field-values
+      author: codex
+      changes:
+        - createTable:
+            tableName: unique_field_values
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: module_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: field_key
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: field_value
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: module_data_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: unique_field_values
+            columnNames: module_id, field_key, field_value
+            constraintName: uq_unique_field_value
+        - addForeignKeyConstraint:
+            baseTableName: unique_field_values
+            baseColumnNames: module_id
+            referencedTableName: modules
+            referencedColumnNames: id
+            constraintName: fk_unique_field_values_module
+        - addForeignKeyConstraint:
+            baseTableName: unique_field_values
+            baseColumnNames: module_data_id
+            referencedTableName: module_data
+            referencedColumnNames: id
+            constraintName: fk_unique_field_values_module_data
