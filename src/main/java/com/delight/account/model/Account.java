@@ -9,7 +9,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "accounts")
+@Table(name = "accounts",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"domain", "status"}))
 public class Account {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

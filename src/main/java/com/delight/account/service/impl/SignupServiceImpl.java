@@ -28,7 +28,7 @@ public class SignupServiceImpl implements SignupService {
     @Transactional
     public void signup(SignupRequest request) {
         String domain = request.getCompanyName();
-        if (accountRepository.findByDomain(domain).isPresent()) {
+        if (accountRepository.findByDomainAndStatus(domain, AccountStatus.ACTIVE).isPresent()) {
             domain = domain + random.nextInt(90000) + 10000;
         }
         Account account = new Account();

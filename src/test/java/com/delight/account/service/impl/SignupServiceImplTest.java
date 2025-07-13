@@ -49,7 +49,8 @@ class SignupServiceImplTest {
 
     @Test
     void signupCreatesAccountAndUser() {
-        when(accountRepository.findByDomain("TestCo")).thenReturn(Optional.empty());
+        when(accountRepository.findByDomainAndStatus("TestCo", AccountStatus.ACTIVE))
+            .thenReturn(Optional.empty());
 
         signupService.signup(request);
 
@@ -75,7 +76,8 @@ class SignupServiceImplTest {
 
     @Test
     void signupAddsRandomNumberWhenDomainExists() {
-        when(accountRepository.findByDomain("TestCo")).thenReturn(Optional.of(new Account()));
+        when(accountRepository.findByDomainAndStatus("TestCo", AccountStatus.ACTIVE))
+            .thenReturn(Optional.of(new Account()));
         // make random deterministic
         ReflectionTestUtils.setField(signupService, "random", new Random(0));
 
