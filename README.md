@@ -5,7 +5,8 @@ The service is developed to manage account signup and account-plan informations.
 This service uses [TiDB](https://tidb.io) for persistence. Because TiDB is
 compatible with the MySQL protocol, the application relies on the standard
 MySQL JDBC driver (`com.mysql:mysql-connector-j`) to connect. The default JDBC
-URL is `jdbc:mysql://localhost:4000/delight-accounts?createDatabaseIfNotExist=true`.
+URL is `jdbc:mysql://localhost:4000/delight-accounts?createDatabaseIfNotExist=true&characterEncoding=UTF-8`.
+The extra `characterEncoding=UTF-8` option ensures TiDB uses the standard UTF-8 charset.
 
 ## Configuration
 The application uses a single `application.properties` file. During the build
