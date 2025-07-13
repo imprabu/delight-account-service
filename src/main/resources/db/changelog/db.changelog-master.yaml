@@ -41,3 +41,5 @@ databaseChangeLog:
       file: db/changelog/20250625-create-user-credentials.yaml
   - include:
       file: db/changelog/20250713-add-unique-domain-status.yaml
+  - include:
+      file: db/changelog/20250714-add-domain-status-unique.yaml
