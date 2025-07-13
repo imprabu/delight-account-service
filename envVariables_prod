@@ -1,4 +1,4 @@
-DB_URL=jdbc:mysql://prod-host:4000/delight-accounts?createDatabaseIfNotExist=true&characterEncoding=utf8mb4
+DB_URL=jdbc:mysql://prod-host:4000/delight-accounts?createDatabaseIfNotExist=true&characterEncoding=UTF-8
 DB_USER=root
 DB_PASSWORD=
 LOG_LEVEL=WARN

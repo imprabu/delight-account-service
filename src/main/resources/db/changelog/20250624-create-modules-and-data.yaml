@@ -67,12 +67,6 @@ databaseChangeLog:
             tableName: field_definitions
             columnNames: module_id, field_key
             constraintName: uq_field_definitions_module_key
-        - addForeignKeyConstraint:
-            baseTableName: field_definitions
-            baseColumnNames: module_id
-            referencedTableName: modules
-            referencedColumnNames: id
-            constraintName: fk_field_definitions_module
   - changeSet:
       id: 20250624-create-module-data
       author: codex
@@ -109,12 +103,6 @@ databaseChangeLog:
                   name: updated_at
                   type: datetime
                   defaultValueComputed: CURRENT_TIMESTAMP
-        - addForeignKeyConstraint:
-            baseTableName: module_data
-            baseColumnNames: module_id
-            referencedTableName: modules
-            referencedColumnNames: id
-            constraintName: fk_module_data_module
   - changeSet:
       id: 20250624-create-unique-field-values
       author: codex
@@ -153,15 +141,3 @@ databaseChangeLog:
             tableName: unique_field_values
             columnNames: module_id, field_key, field_value
             constraintName: uq_unique_field_value
-        - addForeignKeyConstraint:
-            baseTableName: unique_field_values
-            baseColumnNames: module_id
-            referencedTableName: modules
-            referencedColumnNames: id
-            constraintName: fk_unique_field_values_module
-        - addForeignKeyConstraint:
-            baseTableName: unique_field_values
-            baseColumnNames: module_data_id
-            referencedTableName: module_data
-            referencedColumnNames: id
-            constraintName: fk_unique_field_values_module_data
