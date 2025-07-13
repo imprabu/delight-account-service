@@ -5,6 +5,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+
+/**
+ * Represents a user within an account.
+ */
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -33,4 +38,11 @@ public class User {
 
     @Column(name = "company_name")
     private String companyName;
+
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
+    @Enumerated(EnumType.STRING)
+    private UserStatus status;
 }
+
