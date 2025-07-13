@@ -43,3 +43,5 @@ databaseChangeLog:
       file: db/changelog/20250713-add-unique-domain-status.yaml
   - include:
       file: db/changelog/20250714-add-domain-status-unique.yaml
+  - include:
+      file: db/changelog/20250715-set-utf8mb4.yaml
