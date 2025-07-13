@@ -1,0 +1,17 @@
+
+databaseChangeLog:
+  - changeSet:
+      id: 20250715-set-utf8mb4
+      author: codex
+      changes:
+        - sql:
+            splitStatements: false
+            stripComments: true
+            sql: |
+              ALTER TABLE accounts CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+              ALTER TABLE users CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+              ALTER TABLE modules CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+              ALTER TABLE field_definitions CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+              ALTER TABLE module_data CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+              ALTER TABLE unique_field_values CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+              ALTER TABLE user_credentials CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
