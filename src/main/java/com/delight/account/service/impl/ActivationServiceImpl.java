@@ -42,21 +42,32 @@ public class ActivationServiceImpl implements ActivationService {
             throw new ApiException("error.validation");
         }
 
-        User user = new User();
         Account account = new Account();
         account.setId(accountId);
+
+        User user = userRepository.findByAccountId(accountId)
+            .orElseGet(() -> {
+                User newUser = new User();
+                newUser.setAccount(account);
+                return newUser;
+            });
         user.setAccount(account);
         user.setUserName(request.getFirstName() + request.getLastName());
         user.setEmailAddress(request.getEmailAddress());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setCompanyName(country); // store country in companyName for demo
+        user.setPhoneNumber(request.getPhoneNumber());
         user.setStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        UserCredential credential = new UserCredential();
-        credential.setUser(user);
-        credential.setAccount(account);
+        UserCredential credential = credentialRepository.findByUser(user)
+            .orElseGet(() -> {
+                UserCredential newCredential = new UserCredential();
+                newCredential.setUser(user);
+                newCredential.setAccount(account);
+                return newCredential;
+            });
         credential.setPasswordHash(encrypt(request.getPassword()));
         credentialRepository.save(credential);
     }
