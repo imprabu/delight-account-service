@@ -12,7 +12,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/account")
 public class SigninController {
 
     private final SigninService signinService;

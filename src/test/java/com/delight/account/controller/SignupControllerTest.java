@@ -32,7 +32,7 @@ class SignupControllerTest {
         request.setFirstName("John");
         request.setLastName("Doe");
 
-        mockMvc.perform(post("/api/signup")
+        mockMvc.perform(post("/account/signup")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
@@ -45,7 +45,7 @@ class SignupControllerTest {
         request.setCompanyName("");
         request.setEmailAddress("not-an-email");
 
-        mockMvc.perform(post("/api/signup")
+        mockMvc.perform(post("/account/signup")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest())
