@@ -40,3 +40,21 @@ To run the application:
 ```bash
 ./gradlew bootRun
 ```
+
+## Deploying with Helm
+A Helm chart is available in `helm/delight-account-service` for deploying this service to Kubernetes.
+First build an OCI image and push it to your registry:
+
+```bash
+./gradlew bootBuildImage --imageName=myregistry/delight-account-service:latest
+```
+
+Install the chart by providing your image location and any required environment overrides:
+
+```bash
+helm install account-service helm/delight-account-service \
+  --set image.repository=myregistry/delight-account-service \
+  --set image.tag=latest
+```
+
+Environment values such as database connection details can be customised with additional `--set env.VAR=value` flags.
