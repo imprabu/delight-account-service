@@ -43,12 +43,22 @@ To run the application:
 
 ## Deploying with Helm
 A Helm chart is available in `helm/delight-account-service` for deploying this service to Kubernetes.
-First build an OCI image and push it to your registry:
+
+### Build the container image
+Build the application using the provided `Dockerfile` and push it to your registry:
+
+```bash
+docker build -t myregistry/delight-account-service:latest .
+docker push myregistry/delight-account-service:latest
+```
+
+You can also build an image with buildpacks using Gradle:
 
 ```bash
 ./gradlew bootBuildImage --imageName=myregistry/delight-account-service:latest
 ```
 
+### Install the chart
 Install the chart by providing your image location and any required environment overrides:
 
 ```bash
