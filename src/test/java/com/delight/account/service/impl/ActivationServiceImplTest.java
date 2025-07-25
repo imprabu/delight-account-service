@@ -56,7 +56,8 @@ class ActivationServiceImplTest {
         credential.setUser(existingUser);
         credential.setAccount(account);
 
-        when(userRepository.findByAccountId(accountId)).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByAccountIdAndEmailAddress(accountId, "john@example.com"))
+            .thenReturn(Optional.of(existingUser));
         when(credentialRepository.findByUser(existingUser)).thenReturn(Optional.of(credential));
 
         activationService.activateUser(accountId, request, "US");
