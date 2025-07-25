@@ -17,7 +17,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/account")
 public class ActivationController {
 
     private static final Logger logger = LoggerFactory.getLogger(ActivationController.class);

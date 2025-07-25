@@ -75,7 +75,7 @@ class SigninControllerTest {
         request.setEmailAddress("john@example.com");
         request.setPassword("pass");
 
-        String response = mockMvc.perform(post("/api/signin")
+        String response = mockMvc.perform(post("/account/signin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
@@ -90,7 +90,7 @@ class SigninControllerTest {
         request.setEmailAddress("missing@example.com");
         request.setPassword("pass");
 
-        mockMvc.perform(post("/api/signin")
+        mockMvc.perform(post("/account/signin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest());

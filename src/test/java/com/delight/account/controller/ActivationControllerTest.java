@@ -46,7 +46,7 @@ class ActivationControllerTest {
     void activationValidationFailureReturnsBadRequest() throws Exception {
         ActivationRequest request = new ActivationRequest();
 
-        mockMvc.perform(post("/api/activate")
+        mockMvc.perform(post("/account/activate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest())

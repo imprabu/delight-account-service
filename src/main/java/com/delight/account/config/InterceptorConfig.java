@@ -20,6 +20,6 @@ public class InterceptorConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(domainAccountInterceptor)
             .addPathPatterns("/**")
-            .excludePathPatterns("/api/signup");
+            .excludePathPatterns("/account/signup");
     }
 }
