@@ -1,0 +1,6 @@
+apiVersion: v2
+name: delight-account-service
+description: A Helm chart for deploying the Delight account service
+version: 0.1.0
+appVersion: "0.0.1"
+type: application
