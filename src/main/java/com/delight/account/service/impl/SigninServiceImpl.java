@@ -1,5 +1,6 @@
 package com.delight.account.service.impl;
 
+import com.delight.account.aop.LoggingAspect;
 import com.delight.account.dto.SigninRequest;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.Account;
@@ -15,6 +16,9 @@ import java.util.Base64;
 import java.util.Date;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +30,7 @@ public class SigninServiceImpl implements SigninService {
     private final String passwordSecret;
     private final String jwtSecret;
     private final long jwtExpiration;
-
+    private static final Logger logger = LoggerFactory.getLogger(SigninServiceImpl.class);
     public SigninServiceImpl(UserRepository userRepository,
                              UserCredentialRepository credentialRepository,
                              @Value("${security.password.secret}") String passwordSecret,
@@ -41,10 +45,11 @@ public class SigninServiceImpl implements SigninService {
 
     @Override
     public String signin(Long accountId, SigninRequest request) {
+        logger.info("UserEmail address object -> " , request.getEmailAddress());
         User user = userRepository
             .findByAccountIdAndEmailAddress(accountId, request.getEmailAddress())
             .orElseThrow(() -> new ApiException("error.validation"));
-
+        logger.info("User object -> " , user);
         UserCredential credential = credentialRepository.findByUser(user)
             .orElseThrow(() -> new ApiException("error.validation"));
 
