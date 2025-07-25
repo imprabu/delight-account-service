@@ -45,10 +45,12 @@ public class ActivationServiceImpl implements ActivationService {
         Account account = new Account();
         account.setId(accountId);
 
-        User user = userRepository.findByAccountId(accountId)
+        User user = userRepository
+            .findByAccountIdAndEmailAddress(accountId, request.getEmailAddress())
             .orElseGet(() -> {
                 User newUser = new User();
                 newUser.setAccount(account);
+                newUser.setEmailAddress(request.getEmailAddress());
                 return newUser;
             });
         user.setAccount(account);
