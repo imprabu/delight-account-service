@@ -4,6 +4,6 @@ import com.delight.account.dto.SigninRequest;
 
 public interface SigninService {
 
-    String signin(Long accountId, SigninRequest request);
+    String signin(Long accountId, String domain, SigninRequest request);
 }
 

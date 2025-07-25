@@ -43,29 +43,29 @@ public class SigninServiceImpl implements SigninService {
     }
 
     @Override
-    public String signin(Long accountId, SigninRequest request) {
-        logger.info("Signin attempt accountId={} emailAddress={}", accountId, request.getEmailAddress());
+    public String signin(Long accountId, String domain, SigninRequest request) {
+        logger.info("Signin attempt domain={} accountId={} emailAddress={}", domain, accountId, request.getEmailAddress());
 
         User user = userRepository
             .findByAccountIdAndEmailAddress(accountId, request.getEmailAddress())
             .orElseThrow(() -> {
-                logger.warn("User not found accountId={} emailAddress={}", accountId, request.getEmailAddress());
+                logger.warn("User not found domain={} accountId={} emailAddress={}", domain, accountId, request.getEmailAddress());
                 return new ApiException("error.user.notfound");
             });
 
         UserCredential credential = credentialRepository.findByUser(user)
             .orElseThrow(() -> {
-                logger.warn("Credential missing for userId={}", user.getId());
+                logger.warn("Credential missing for userId={} domain={}", user.getId(), domain);
                 return new ApiException("error.signin.invalid");
             });
 
         String encrypted = encrypt(request.getPassword());
         if (!encrypted.equals(credential.getPasswordHash())) {
-            logger.warn("Invalid password for userId={}", user.getId());
+            logger.warn("Invalid password for userId={} domain={}", user.getId(), domain);
             throw new ApiException("error.signin.invalid");
         }
 
-        logger.info("Signin successful userId={} accountId={}", user.getId(), accountId);
+        logger.info("Signin successful domain={} userId={} accountId={}", domain, user.getId(), accountId);
 
         return Jwts.builder()
             .setSubject(user.getEmailAddress())

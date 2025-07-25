@@ -25,7 +25,8 @@ public class SigninController {
     public ResponseEntity<String> signin(@Valid @RequestBody SigninRequest request) {
         ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
         Long accountId = (Long) attr.getRequest().getAttribute("accountId");
-        String token = signinService.signin(accountId, request);
+        String domain = attr.getRequest().getServerName();
+        String token = signinService.signin(accountId, domain, request);
         return ResponseEntity.ok(token);
     }
 }

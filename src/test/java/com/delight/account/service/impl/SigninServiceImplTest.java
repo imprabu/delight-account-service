@@ -75,7 +75,7 @@ class SigninServiceImplTest {
             .thenReturn(Optional.of(user));
         when(credentialRepository.findByUser(user)).thenReturn(Optional.of(credential));
 
-        String token = signinService.signin(1L, request);
+        String token = signinService.signin(1L, "localhost", request);
 
         Claims claims = Jwts.parser()
             .verifyWith(Keys.hmacShaKeyFor("sampleJwtSecret123sampleJwtSecret123".getBytes(StandardCharsets.UTF_8)))
@@ -111,7 +111,7 @@ class SigninServiceImplTest {
             .thenReturn(Optional.of(user));
         when(credentialRepository.findByUser(user)).thenReturn(Optional.of(credential));
 
-        assertThrows(ApiException.class, () -> signinService.signin(1L, request));
+        assertThrows(ApiException.class, () -> signinService.signin(1L, "localhost", request));
     }
 
     @Test
@@ -123,7 +123,7 @@ class SigninServiceImplTest {
         when(userRepository.findByAccountIdAndEmailAddress(1L, "missing@example.com"))
             .thenReturn(Optional.empty());
 
-        assertThrows(ApiException.class, () -> signinService.signin(1L, request));
+        assertThrows(ApiException.class, () -> signinService.signin(1L, "localhost", request));
     }
 
     private String encrypt(String value) {
