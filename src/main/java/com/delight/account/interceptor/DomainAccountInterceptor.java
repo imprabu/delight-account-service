@@ -4,6 +4,7 @@ import com.delight.account.exception.ApiException;
 import com.delight.account.model.Account;
 import com.delight.account.model.AccountStatus;
 import com.delight.account.repository.AccountRepository;
+import com.delight.account.filter.MutableHttpServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
@@ -22,12 +23,22 @@ public class DomainAccountInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        if (request.getAttribute("accountId") != null) {
+            return true;
+        }
+
         String host = request.getServerName();
         Optional<Account> accountOpt = accountRepository.findByDomainAndStatus(host, AccountStatus.ACTIVE);
         if (accountOpt.isEmpty()) {
             throw new ApiException("error.account.notfound");
         }
-        request.setAttribute("accountId", accountOpt.get().getId());
+
+        Long accountId = accountOpt.get().getId();
+        request.setAttribute("accountId", accountId);
+        if (request instanceof MutableHttpServletRequest mutable) {
+            mutable.putHeader("accountId", String.valueOf(accountId));
+        }
+
         return true;
     }
 }
