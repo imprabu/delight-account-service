@@ -68,12 +68,12 @@ public class SigninServiceImpl implements SigninService {
         logger.info("Signin successful domain={} userId={} accountId={}", domain, user.getId(), accountId);
 
         return Jwts.builder()
-            .setSubject(user.getEmailAddress())
+            .subject(user.getEmailAddress())
             .claim("accountId", accountId)
             .claim("userId", user.getId())
-            .setIssuedAt(new Date())
-            .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
-            .signWith(Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8)), io.jsonwebtoken.SignatureAlgorithm.HS256)
+            .issuedAt(new Date())
+            .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
+            .signWith(Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8)))
             .compact();
     }
 
