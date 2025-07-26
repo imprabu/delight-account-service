@@ -24,7 +24,7 @@ Configuration:
         max: 30
   Loggers:
     Root:
-      level: "${LOG_LEVEL}"
+      level: "@LOG_LEVEL@"
       AppenderRef:
         - ref: Console
         - ref: RollingFile
