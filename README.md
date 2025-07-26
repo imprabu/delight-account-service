@@ -38,7 +38,11 @@ rotate daily and are stored in the folder specified by `LOG_DIR`.
 Values from the selected `envVariables_*` file are substituted into
 `application.properties` **and** `log4j2-spring.yml` when Gradle processes
 resources. Ensure the `ENV` variable is set before running any build task so the
-resulting jar contains the resolved `LOG_DIR` value. For example:
+resulting jar contains the resolved `LOG_DIR` value. The `fileName` and
+`filePattern` entries still contain `${LOG_DIR}` because Log4j2 uses the
+property defined earlier in the YAML at runtime. After running `processResources`
+you should see `LOG_DIR` resolved in the `Properties` section of
+`build/resources/main/log4j2-spring.yml`. For example:
 
 ```bash
 ENV=prod ./gradlew bootJar
