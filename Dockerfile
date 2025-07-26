@@ -8,5 +8,9 @@ RUN ./gradlew bootJar --no-daemon
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 COPY --from=build /workspace/app/build/libs/*.jar app.jar
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENV LOG_DIR=/app/logs
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","/app/app.jar"]
+VOLUME ["/app/logs"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
