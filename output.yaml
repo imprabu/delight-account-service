@@ -1,0 +1,64 @@
+---
+# Source: delight-account-service/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: delight-account-service-my-app
+  labels:
+    app.kubernetes.io/name: delight-account-service
+    app.kubernetes.io/instance: my-app
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app.kubernetes.io/name: delight-account-service
+    app.kubernetes.io/instance: my-app
+---
+# Source: delight-account-service/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: delight-account-service-my-app
+  labels:
+    app.kubernetes.io/name: delight-account-service
+    app.kubernetes.io/instance: my-app
+    app.kubernetes.io/version: 0.0.1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: delight-account-service
+      app.kubernetes.io/instance: my-app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: delight-account-service
+        app.kubernetes.io/instance: my-app
+    spec:
+      #hostNetwork: true               # ✅ Add this line
+      containers:
+        - name: delight-account-service
+          image: "localhost/delight-account-service:latest"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_PASSWORD
+              value: ""
+            - name: DB_URL
+              value: "jdbc:mysql://192.168.68.108:4000/delight-accounts?createDatabaseIfNotExist=true&characterEncoding=UTF-8"
+            - name: DB_USER
+              value: "root"
+            - name: JWT_EXPIRATION
+              value: "86400000"
+            - name: JWT_SECRET
+              value: "sampleJwtSecret123sampleJwtSecret123"
+            - name: LOG_DIR
+              value: "/var/log/app"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: PASSWORD_KEY
+              value: "sampleSecretKey123"
+          resources: {}

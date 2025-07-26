@@ -1,5 +1,5 @@
 image:
-  repository: delight-account-service
+  repository: localhost/delight-account-service
   tag: latest
   pullPolicy: IfNotPresent
 
@@ -8,7 +8,7 @@ service:
   port: 8080
 
 env:
-  DB_URL: jdbc:mysql://tidb:4000/delight-accounts?createDatabaseIfNotExist=true&characterEncoding=UTF-8
+  DB_URL: jdbc:mysql://192.168.68.108:4000/delight-accounts?createDatabaseIfNotExist=true&characterEncoding=UTF-8
   DB_USER: root
   DB_PASSWORD: ""
   LOG_LEVEL: INFO
