@@ -35,6 +35,15 @@ Each `envVariables_*` file defines values for:
 Logging is handled by Log4j2 using the YAML file `log4j2-spring.yml`. Log files
 rotate daily and are stored in the folder specified by `LOG_DIR`.
 
+Values from the selected `envVariables_*` file are substituted into
+`application.properties` **and** `log4j2-spring.yml` when Gradle processes
+resources. Ensure the `ENV` variable is set before running any build task so the
+resulting jar contains the resolved `LOG_DIR` value. For example:
+
+```bash
+ENV=prod ./gradlew bootJar
+```
+
 To run the application:
 
 ```bash
