@@ -58,7 +58,7 @@ class SignupServiceImplTest {
         verify(accountRepository).save(accountCaptor.capture());
         Account savedAccount = accountCaptor.getValue();
         assertThat(savedAccount.getDomain()).isEqualTo("TestCo");
-        assertThat(savedAccount.getPlanId()).isEqualTo(PlanType.TRIAL);
+        assertThat(savedAccount.getPlan()).isEqualTo(PlanType.TRIAL);
         assertThat(savedAccount.getStatus()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(savedAccount.getIndustryType()).isEqualTo("IT");
         assertThat(savedAccount.getEmail()).isEqualTo("test@example.com");
