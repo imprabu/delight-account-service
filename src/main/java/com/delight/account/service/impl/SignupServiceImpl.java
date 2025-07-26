@@ -36,7 +36,7 @@ public class SignupServiceImpl implements SignupService {
             }
             Account account = new Account();
             account.setDomain(domain);
-            account.setPlanId(PlanType.TRIAL);
+            account.setPlan(PlanType.TRIAL);
             account.setStatus(AccountStatus.ACTIVE);
             account.setIndustryType(request.getIndustryType());
             account.setEmail(request.getEmailAddress());

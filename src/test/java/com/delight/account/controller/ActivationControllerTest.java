@@ -37,7 +37,7 @@ class ActivationControllerTest {
     void setUp() {
         Account account = new Account();
         account.setDomain("localhost");
-        account.setPlanId(PlanType.TRIAL);
+        account.setPlan(PlanType.TRIAL);
         account.setStatus(AccountStatus.ACTIVE);
         accountRepository.save(account);
     }
