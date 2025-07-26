@@ -78,7 +78,7 @@ tasks.named('processResources') {
     filesMatching('application.properties') {
         filter(ReplaceTokens, tokens: envProps)
     }
-    filesMatching('log4j2-spring.yml') {
+    filesMatching('log4j2-spring.xml') {
         filter(ReplaceTokens, tokens: envProps)
     }
 }
@@ -87,7 +87,7 @@ tasks.named('processTestResources') {
     filesMatching('application.properties') {
         filter(ReplaceTokens, tokens: envProps)
     }
-    filesMatching('log4j2-spring.yml') {
+    filesMatching('log4j2-spring.xml') {
         filter(ReplaceTokens, tokens: envProps)
     }
 }

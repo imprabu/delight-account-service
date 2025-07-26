@@ -32,15 +32,15 @@ Each `envVariables_*` file defines values for:
 - `LOG_LEVEL` – the root logging level
 - `LOG_DIR` – folder where log files are written
 
-Logging is handled by Log4j2 using the YAML file `log4j2-spring.yml`. Log files
+Logging is handled by Log4j2 using the YAML file `log4j2-spring.xml`. Log files
 rotate daily and are stored in the folder specified by `LOG_DIR`.
 
 Values from the selected `envVariables_*` file are substituted into
-`application.properties` **and** `log4j2-spring.yml` when Gradle processes
+`application.properties` **and** `log4j2-spring.xml` when Gradle processes
 resources. Ensure the `ENV` variable is set before running any build task so the
 resulting jar contains the resolved `LOG_DIR` value. After running
 `processResources` you should see the `fileName` and `filePattern` entries in
-`build/resources/main/log4j2-spring.yml` expanded with that directory instead of
+`build/resources/main/log4j2-spring.xml` expanded with that directory instead of
 `${LOG_DIR}`. The `LOG_DIR` property itself is also resolved in the
 `Properties` section. For example:
 
