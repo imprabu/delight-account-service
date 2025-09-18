@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="TRACE">
     <Properties>
-        <Property name="LOG_DIR">@LOG_DIR@</Property>
-        <Property name="LOG_LEVEL">@LOG_LEVEL@</Property>
+        <Property name="LOG_DIR">${env:LOG_DIR:-logs}</Property>
+        <Property name="LOG_LEVEL">${env:LOG_LEVEL:-INFO}</Property>
     </Properties>
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
