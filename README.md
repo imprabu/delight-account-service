@@ -54,11 +54,14 @@ To run the application:
 ./gradlew bootRun
 ```
 
-## Deploying with Helm
-A Helm chart is available in `helm/delight-account-service` for deploying this service to Kubernetes.
+## Running with Docker
+The application service now runs as a standalone Docker container while TiDB and
+Redis continue to be hosted in Kubernetes. Ensure that the Docker host can reach
+the Kubernetes cluster network so the application can access those services.
 
 ### Build the container image
-Build the application using the provided `Dockerfile` and push it to your registry:
+Build the application using the provided `Dockerfile` and push it to your
+registry:
 
 ```bash
 docker build -t myregistry/delight-account-service:latest .
@@ -71,13 +74,23 @@ You can also build an image with buildpacks using Gradle:
 ./gradlew bootBuildImage --imageName=myregistry/delight-account-service:latest
 ```
 
-### Install the chart
-Install the chart by providing your image location and any required environment overrides:
+### Run the container
+Start the container and provide the configuration needed to connect to TiDB (and
+any other dependencies) via environment variables. For example:
 
 ```bash
-helm install account-service helm/delight-account-service \
-  --set image.repository=myregistry/delight-account-service \
-  --set image.tag=latest
+docker run --rm -p 8080:8080 \
+  -e DB_URL="jdbc:mysql://<tidb-host>:4000/delight-accounts?createDatabaseIfNotExist=true&characterEncoding=UTF-8" \
+  -e DB_USER=root \
+  -e DB_PASSWORD=secret \
+  -e LOG_LEVEL=INFO \
+  -e LOG_DIR=/var/log/app \
+  -e PASSWORD_KEY=sampleSecretKey123 \
+  -e JWT_SECRET=sampleJwtSecret123sampleJwtSecret123 \
+  -e JWT_EXPIRATION=86400000 \
+  myregistry/delight-account-service:latest
 ```
 
-Environment values such as database connection details can be customised with additional `--set env.VAR=value` flags.
+Adjust the values to match the endpoints exposed by your Kubernetes-hosted
+TiDB and Redis instances. Mount a volume at `LOG_DIR` if you need to persist log
+files outside of the container.
