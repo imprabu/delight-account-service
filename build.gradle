@@ -64,13 +64,41 @@ tasks.named('test') {
 
 import org.apache.tools.ant.filters.ReplaceTokens
 
-def env = System.getenv('ENV') ?: 'staging'
+// Get environment from command line argument or system environment variable
+def env = project.hasProperty('env') ? project.property('env') : (System.getenv('ENV') ?: 'staging')
+logger.lifecycle("Using environment: ${env}")
+
 def envFile = file("envVariables_${env}")
 def envProps = [:]
+
+// Load environment variables from file
 if (envFile.exists()) {
+    logger.lifecycle("Loading environment variables from: ${envFile}")
     envFile.eachLine { line ->
         def parts = line.split('=', 2)
         if (parts.length == 2) envProps[parts[0]] = parts[1]
+    }
+}
+
+// Override with any properties passed directly via command line
+project.properties.each { key, value ->
+    if (key.startsWith('env.')) {
+        def envKey = key.substring(4)
+        envProps[envKey] = value
+        logger.lifecycle("Overriding ${envKey} from command line argument")
+    }
+}
+
+// Apply environment variables to all tasks
+allprojects {
+    tasks.withType(JavaExec) {
+        // Pass environment variables to all JavaExec tasks (including bootRun)
+        environment envProps
+    }
+    
+    tasks.withType(Test) {
+        // Pass environment variables to all Test tasks
+        environment envProps
     }
 }
 
@@ -89,5 +117,18 @@ tasks.named('processTestResources') {
     }
     filesMatching('log4j2-spring.xml') {
         filter(ReplaceTokens, tokens: envProps)
+    }
+}
+
+// Configure bootRun task specifically
+tasks.named('bootRun') {
+    // Ensure bootRun gets the environment variables
+    environment envProps
+    
+    // Allow passing system properties to the application
+    systemProperties = System.properties.findAll { key, value ->
+        key.startsWith("app.")
+    }.collectEntries { key, value ->
+        [(key.substring(4)): value]
     }
 }
