@@ -66,9 +66,13 @@ import org.apache.tools.ant.filters.ReplaceTokens
 
 // Get environment from command line argument or system environment variable
 def env = project.hasProperty('env') ? project.property('env') : (System.getenv('ENV') ?: 'staging')
-logger.lifecycle("Using environment: ${env}")
 
-def envFile = file("envVariables_${env}")
+// Support shorthand alias: "dl" -> "docker_local"
+def resolvedEnv = (env == 'dl') ? 'docker_local' : env
+
+logger.lifecycle("Using environment: ${env} (resolved: ${resolvedEnv})")
+
+def envFile = file("envVariables_${resolvedEnv}")
 def envProps = [:]
 
 // Load environment variables from file
