@@ -2,6 +2,11 @@ databaseChangeLog:
   - changeSet:
       id: 20250624-create-modules
       author: codex
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            tableExists:
+              tableName: modules
       changes:
         - createTable:
             tableName: modules
@@ -30,6 +35,11 @@ databaseChangeLog:
   - changeSet:
       id: 20250624-create-field-definitions
       author: codex
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            tableExists:
+              tableName: field_definitions
       changes:
         - createTable:
             tableName: field_definitions
@@ -70,6 +80,11 @@ databaseChangeLog:
   - changeSet:
       id: 20250624-create-module-data
       author: codex
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            tableExists:
+              tableName: module_data
       changes:
         - createTable:
             tableName: module_data
@@ -106,6 +121,11 @@ databaseChangeLog:
   - changeSet:
       id: 20250624-create-unique-field-values
       author: codex
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            tableExists:
+              tableName: unique_field_values
       changes:
         - createTable:
             tableName: unique_field_values
