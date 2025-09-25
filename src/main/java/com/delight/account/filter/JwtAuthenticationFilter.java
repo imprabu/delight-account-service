@@ -19,6 +19,10 @@ import com.delight.account.filter.MutableHttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -112,6 +116,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 mutableRequest.putHeader("role", role);
                 mutableRequest.setAttribute("role", role);
             }
+
+            // Set Spring Security Authentication so .authenticated() passes
+            List<SimpleGrantedAuthority> authorities = role != null
+                ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                : List.of();
+            UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(String.valueOf(userId), null, authorities);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
 
             filterChain.doFilter(mutableRequest, response);
         } catch (JwtException ex) {
