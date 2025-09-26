@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -48,23 +49,29 @@ class SigninControllerTest {
     @Autowired
     private UserCredentialRepository credentialRepository;
 
+    private Account activeAccount;
+    private User activeUser;
+
     @BeforeEach
     void setUp() throws Exception {
-        Account account = new Account();
-        account.setDomain("localhost");
-        account.setPlan(PlanType.TRIAL);
-        account.setStatus(AccountStatus.ACTIVE);
-        accountRepository.save(account);
+        // Create active account with localhost domain
+        activeAccount = new Account();
+        activeAccount.setDomain("localhost");
+        activeAccount.setPlan(PlanType.TRIAL);
+        activeAccount.setStatus(AccountStatus.ACTIVE);
+        accountRepository.save(activeAccount);
 
-        User user = new User();
-        user.setAccount(account);
-        user.setEmailAddress("john@example.com");
-        user.setStatus(UserStatus.ACTIVE);
-        userRepository.save(user);
+        // Create active user
+        activeUser = new User();
+        activeUser.setAccount(activeAccount);
+        activeUser.setEmailAddress("john@example.com");
+        activeUser.setStatus(UserStatus.ACTIVE);
+        userRepository.save(activeUser);
 
+        // Create user credential
         UserCredential credential = new UserCredential();
-        credential.setAccount(account);
-        credential.setUser(user);
+        credential.setAccount(activeAccount);
+        credential.setUser(activeUser);
         credential.setPasswordHash(encrypt("pass"));
         credentialRepository.save(credential);
     }
@@ -93,7 +100,184 @@ class SigninControllerTest {
         mockMvc.perform(post("/account/signin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("User not found"));
+    }
+
+    @Test
+    void signinWithInvalidPasswordReturnsError() throws Exception {
+        SigninRequest request = new SigninRequest();
+        request.setEmailAddress("john@example.com");
+        request.setPassword("wrongpassword");
+
+        mockMvc.perform(post("/account/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Invalid credentials"));
+    }
+
+    @Test
+    void signinWithInactiveAccountReturnsError() throws Exception {
+        // Create inactive account
+        Account inactiveAccount = new Account();
+        inactiveAccount.setDomain("inactive.com");
+        inactiveAccount.setPlan(PlanType.TRIAL);
+        inactiveAccount.setStatus(AccountStatus.SUSPENDED);
+        accountRepository.save(inactiveAccount);
+
+        User inactiveUser = new User();
+        inactiveUser.setAccount(inactiveAccount);
+        inactiveUser.setEmailAddress("inactive@inactive.com");
+        inactiveUser.setStatus(UserStatus.ACTIVE);
+        userRepository.save(inactiveUser);
+
+        UserCredential inactiveCredential = new UserCredential();
+        inactiveCredential.setAccount(inactiveAccount);
+        inactiveCredential.setUser(inactiveUser);
+        inactiveCredential.setPasswordHash(encrypt("pass"));
+        credentialRepository.save(inactiveCredential);
+
+        SigninRequest request = new SigninRequest();
+        request.setEmailAddress("inactive@inactive.com");
+        request.setPassword("pass");
+
+        mockMvc.perform(post("/account/signin")
+                .servletPath("/account/signin")
+                .with(req -> {
+                    req.setServerName("inactive.com");
+                    return req;
+                })
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Account is not active"));
+    }
+
+    @Test
+    void signinWithInactiveUserReturnsError() throws Exception {
+        // Create inactive user
+        User inactiveUser = new User();
+        inactiveUser.setAccount(activeAccount);
+        inactiveUser.setEmailAddress("inactive@example.com");
+        inactiveUser.setStatus(UserStatus.DEACTIVATED);
+        userRepository.save(inactiveUser);
+
+        UserCredential inactiveCredential = new UserCredential();
+        inactiveCredential.setAccount(activeAccount);
+        inactiveCredential.setUser(inactiveUser);
+        inactiveCredential.setPasswordHash(encrypt("pass"));
+        credentialRepository.save(inactiveCredential);
+
+        SigninRequest request = new SigninRequest();
+        request.setEmailAddress("inactive@example.com");
+        request.setPassword("pass");
+
+        mockMvc.perform(post("/account/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("User is not active"));
+    }
+
+    @Test
+    void signinWithDifferentDomainReturnsError() throws Exception {
+        // Create account with different domain
+        Account differentAccount = new Account();
+        differentAccount.setDomain("different.com");
+        differentAccount.setPlan(PlanType.TRIAL);
+        differentAccount.setStatus(AccountStatus.ACTIVE);
+        accountRepository.save(differentAccount);
+
+        User differentUser = new User();
+        differentUser.setAccount(differentAccount);
+        differentUser.setEmailAddress("user@different.com");
+        differentUser.setStatus(UserStatus.ACTIVE);
+        userRepository.save(differentUser);
+
+        UserCredential differentCredential = new UserCredential();
+        differentCredential.setAccount(differentAccount);
+        differentCredential.setUser(differentUser);
+        differentCredential.setPasswordHash(encrypt("pass"));
+        credentialRepository.save(differentCredential);
+
+        SigninRequest request = new SigninRequest();
+        request.setEmailAddress("user@different.com");
+        request.setPassword("pass");
+
+        // Request to localhost should fail for different.com domain user
+        mockMvc.perform(post("/account/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("User not found"));
+    }
+
+    @Test
+    void signinWithEmptyEmailReturnsError() throws Exception {
+        SigninRequest request = new SigninRequest();
+        request.setEmailAddress("");
+        request.setPassword("pass");
+
+        mockMvc.perform(post("/account/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void signinWithNullEmailReturnsError() throws Exception {
+        SigninRequest request = new SigninRequest();
+        request.setEmailAddress(null);
+        request.setPassword("pass");
+
+        mockMvc.perform(post("/account/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void signinWithEmptyPasswordReturnsError() throws Exception {
+        SigninRequest request = new SigninRequest();
+        request.setEmailAddress("john@example.com");
+        request.setPassword("");
+
+        mockMvc.perform(post("/account/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void signinWithNullPasswordReturnsError() throws Exception {
+        SigninRequest request = new SigninRequest();
+        request.setEmailAddress("john@example.com");
+        request.setPassword(null);
+
+        mockMvc.perform(post("/account/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void signinWithInvalidJsonReturnsError() throws Exception {
+        mockMvc.perform(post("/account/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{invalid json"))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void signinWithMissingContentTypeReturnsError() throws Exception {
+        SigninRequest request = new SigninRequest();
+        request.setEmailAddress("john@example.com");
+        request.setPassword("pass");
+
+        mockMvc.perform(post("/account/signin")
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isUnsupportedMediaType());
     }
 
     private String encrypt(String value) throws Exception {
