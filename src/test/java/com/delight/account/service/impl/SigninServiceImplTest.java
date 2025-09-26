@@ -6,6 +6,8 @@ import com.delight.account.model.Account;
 import com.delight.account.model.User;
 import com.delight.account.model.UserCredential;
 import com.delight.account.model.UserStatus;
+import com.delight.account.repository.AccountRepository;
+import com.delight.account.repository.MembershipRepository;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
 import io.jsonwebtoken.Claims;
@@ -38,6 +40,12 @@ class SigninServiceImplTest {
     @Mock
     private UserCredentialRepository credentialRepository;
 
+    @Mock
+    private MembershipRepository membershipRepository;
+
+    @Mock
+    private AccountRepository accountRepository;
+
     private SigninServiceImpl signinService;
 
     @BeforeEach
@@ -47,7 +55,9 @@ class SigninServiceImplTest {
             credentialRepository,
             "1234567890123456",
             "sampleJwtSecret123sampleJwtSecret123",
-            TimeUnit.HOURS.toMillis(24)
+            TimeUnit.HOURS.toMillis(24),
+            membershipRepository,
+            accountRepository
         );
     }
 

@@ -4,8 +4,13 @@ import com.delight.account.dto.SigninRequest;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.User;
 import com.delight.account.model.UserCredential;
+import com.delight.account.model.Membership;
+import com.delight.account.model.MembershipStatus;
+import com.delight.account.model.Account;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
+import com.delight.account.repository.MembershipRepository;
+import com.delight.account.repository.AccountRepository;
 import com.delight.account.service.SigninService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -29,17 +34,23 @@ public class SigninServiceImpl implements SigninService {
     private final String passwordSecret;
     private final String jwtSecret;
     private final long jwtExpiration;
+    private final MembershipRepository membershipRepository;
+    private final AccountRepository accountRepository;
 
     public SigninServiceImpl(UserRepository userRepository,
                              UserCredentialRepository credentialRepository,
                              @Value("${security.password.secret}") String passwordSecret,
                              @Value("${security.jwt.secret}") String jwtSecret,
-                             @Value("${security.jwt.expiration}") long jwtExpiration) {
+                             @Value("${security.jwt.expiration}") long jwtExpiration,
+                             MembershipRepository membershipRepository,
+                             AccountRepository accountRepository) {
         this.userRepository = userRepository;
         this.credentialRepository = credentialRepository;
         this.passwordSecret = passwordSecret;
         this.jwtSecret = jwtSecret;
         this.jwtExpiration = jwtExpiration;
+        this.membershipRepository = membershipRepository;
+        this.accountRepository = accountRepository;
     }
 
     @Override
@@ -65,12 +76,40 @@ public class SigninServiceImpl implements SigninService {
             throw new ApiException("error.signin.invalid");
         }
 
+        // Check active membership in this account
+        Membership membership = membershipRepository
+            .findByUserIdAndAccountId(user.getId(), accountId)
+            .orElseThrow(() -> {
+                logger.warn("No membership for userId={} accountId={} domain={}", user.getId(), accountId, domain);
+                return new ApiException("error.signin.invalid");
+            });
+        if (membership.getStatus() != MembershipStatus.ACTIVE) {
+            logger.warn("Inactive membership for userId={} accountId={} status={}", user.getId(), accountId, membership.getStatus());
+            throw new ApiException("error.signin.invalid");
+        }
+
         logger.info("Signin successful domain={} userId={} accountId={}", domain, user.getId(), accountId);
+
+        // Resolve organization id and product code from account
+        Long orgId = null;
+        String productCode = null;
+        Account account = accountRepository.findById(accountId).orElse(null);
+        if (account != null) {
+            if (account.getOrganization() != null) {
+                orgId = account.getOrganization().getId();
+            }
+            if (account.getProduct() != null) {
+                productCode = account.getProduct().getCode();
+            }
+        }
 
         return Jwts.builder()
             .subject(user.getEmailAddress())
             .claim("accountId", accountId)
             .claim("userId", user.getId())
+            .claim("role", membership.getRole().name())
+            .claim("orgId", orgId)
+            .claim("productCode", productCode)
             .issuedAt(new Date())
             .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
             .signWith(Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8)))
@@ -90,4 +129,3 @@ public class SigninServiceImpl implements SigninService {
         }
     }
 }
-

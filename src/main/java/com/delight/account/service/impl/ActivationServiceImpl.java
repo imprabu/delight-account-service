@@ -5,6 +5,7 @@ import com.delight.account.exception.ApiException;
 import com.delight.account.model.*;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
+import com.delight.account.repository.MembershipRepository;
 import com.delight.account.service.ActivationService;
 import jakarta.transaction.Transactional;
 import java.nio.charset.StandardCharsets;
@@ -23,13 +24,16 @@ public class ActivationServiceImpl implements ActivationService {
 
     private final UserRepository userRepository;
     private final UserCredentialRepository credentialRepository;
+    private final MembershipRepository membershipRepository;
     private final String secretKey;
 
     public ActivationServiceImpl(UserRepository userRepository,
                                  UserCredentialRepository credentialRepository,
+                                 MembershipRepository membershipRepository,
                                  @Value("${security.password.secret}") String secretKey) {
         this.userRepository = userRepository;
         this.credentialRepository = credentialRepository;
+        this.membershipRepository = membershipRepository;
         this.secretKey = secretKey;
     }
 
@@ -72,6 +76,19 @@ public class ActivationServiceImpl implements ActivationService {
             });
         credential.setPasswordHash(encrypt(request.getPassword()));
         credentialRepository.save(credential);
+
+        // Ensure membership exists and is ACTIVE for this account
+        Membership membership = membershipRepository
+            .findByUserIdAndAccountId(user.getId(), accountId)
+            .orElseGet(() -> {
+                Membership m = new Membership();
+                m.setUser(user);
+                m.setAccount(account);
+                m.setRole(Role.MEMBER);
+                return m;
+            });
+        membership.setStatus(MembershipStatus.ACTIVE);
+        membershipRepository.save(membership);
     }
 
     private String encrypt(String value) {
