@@ -91,7 +91,7 @@ class AccountServiceTest {
         assertThat(result.getEmail()).isEqualTo("test@example.com");
         assertThat(result.getCompanyName()).isEqualTo("Test Company");
         assertThat(result.getCurrentUserId()).isEqualTo(1L);
-        assertThat(result.getCurrentUserRole()).isEqualTo("USER");
+        assertThat(result.getCurrentUserRole()).isEqualTo("MEMBER");
         assertThat(result.getOrganizationId()).isEqualTo(1L);
         assertThat(result.getOrganizationName()).isEqualTo("Test Organization");
         assertThat(result.getOrganizationPrimaryDomain()).isEqualTo("test.com");

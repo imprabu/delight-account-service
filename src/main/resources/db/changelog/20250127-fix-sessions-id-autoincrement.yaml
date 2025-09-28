@@ -1,0 +1,116 @@
+databaseChangeLog:
+  - changeSet:
+      id: fix-sessions-id-autoincrement
+      author: system
+      comment: Fix sessions table id column to be BIGINT AUTO_INCREMENT for TiDB
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: sessions
+      changes:
+        - sql:
+            sql: "DROP TABLE sessions;"
+        - createTable:
+            tableName: sessions
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: account_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: jwt_token
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_agent
+                  type: varchar(500)
+              - column:
+                  name: ip_address
+                  type: varchar(45)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_accessed_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role
+                  type: varchar(50)
+                  defaultValue: "MEMBER"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: session_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_active
+                  type: tinyint(4)
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: sessions
+            indexName: idx_sessions_user_id
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            tableName: sessions
+            indexName: idx_sessions_account_id
+            columns:
+              - column:
+                  name: account_id
+        - createIndex:
+            tableName: sessions
+            indexName: idx_sessions_expires_at
+            columns:
+              - column:
+                  name: expires_at
+        - createIndex:
+            tableName: sessions
+            indexName: idx_sessions_last_accessed_at
+            columns:
+              - column:
+                  name: last_accessed_at
+        - addUniqueConstraint:
+            tableName: sessions
+            columnNames: session_id
+            constraintName: uk_sessions_session_id
+        - createIndex:
+            tableName: sessions
+            indexName: idx_sessions_session_id
+            columns:
+              - column:
+                  name: session_id
+        - sql:
+            sql: "CREATE INDEX idx_sessions_jwt_token ON sessions(jwt_token(255))"
+      rollback:
+        - sql:
+            sql: "-- Cannot rollback table recreation"

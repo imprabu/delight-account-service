@@ -3,6 +3,7 @@ package com.delight.account.service.impl;
 import com.delight.account.dto.ActivationRequest;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.*;
+import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
 import com.delight.account.repository.MembershipRepository;
@@ -25,15 +26,18 @@ public class ActivationServiceImpl implements ActivationService {
     private final UserRepository userRepository;
     private final UserCredentialRepository credentialRepository;
     private final MembershipRepository membershipRepository;
+    private final AccountRepository accountRepository;
     private final String secretKey;
 
     public ActivationServiceImpl(UserRepository userRepository,
                                  UserCredentialRepository credentialRepository,
                                  MembershipRepository membershipRepository,
+                                 AccountRepository accountRepository,
                                  @Value("${security.password.secret}") String secretKey) {
         this.userRepository = userRepository;
         this.credentialRepository = credentialRepository;
         this.membershipRepository = membershipRepository;
+        this.accountRepository = accountRepository;
         this.secretKey = secretKey;
     }
 
@@ -46,8 +50,8 @@ public class ActivationServiceImpl implements ActivationService {
             throw new ApiException("error.validation");
         }
 
-        Account account = new Account();
-        account.setId(accountId);
+        Account account = accountRepository.findById(accountId)
+            .orElseThrow(() -> new ApiException("error.account.notfound"));
 
         User user = userRepository
             .findByAccountIdAndEmailAddress(accountId, request.getEmailAddress())
@@ -84,7 +88,7 @@ public class ActivationServiceImpl implements ActivationService {
                 Membership m = new Membership();
                 m.setUser(user);
                 m.setAccount(account);
-                m.setRole(Role.MEMBER);
+                m.setRole(Role.OWNER); // Default to OWNER for first user in account
                 return m;
             });
         membership.setStatus(MembershipStatus.ACTIVE);

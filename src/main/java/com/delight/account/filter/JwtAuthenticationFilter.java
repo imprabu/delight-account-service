@@ -8,6 +8,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -29,11 +30,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final String jwtSecret;
     private final MembershipRepository membershipRepository;
+    private final ObjectMapper objectMapper;
 
     public JwtAuthenticationFilter(@Value("${security.jwt.secret}") String jwtSecret,
-                                   MembershipRepository membershipRepository) {
+                                   MembershipRepository membershipRepository,
+                                   ObjectMapper objectMapper) {
         this.jwtSecret = jwtSecret;
         this.membershipRepository = membershipRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -41,23 +45,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         return path.equals("/account/signup") || path.equals("/account/activate") || path.equals("/account/signin") ||
                path.equals("/swagger-ui.html") || path.startsWith("/swagger-ui/") || 
-               path.equals("/v3/api-docs") || path.startsWith("/v3/api-docs/");
+               path.equals("/v3/api-docs") || path.startsWith("/v3/api-docs/") ||
+               path.equals("/actuator/health");
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String header = request.getHeader("Authorization");
-        System.out.println("DEBUG: JwtAuthenticationFilter - Authorization header: " + header);
+        String token = extractJwtToken(request);
+        System.out.println("DEBUG: JwtAuthenticationFilter - Extracted token: " + (token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "null"));
         
-        if (header == null || !header.startsWith("Bearer ")) {
-            System.out.println("DEBUG: JwtAuthenticationFilter - Missing or invalid Authorization header");
-            writeUnauthorized(request, response, "error.unauthorized", "Missing or invalid Authorization header");
+        if (token == null) {
+            System.out.println("DEBUG: JwtAuthenticationFilter - No JWT token found in Authorization header or hrsession cookie");
+            writeUnauthorized(request, response, "error.unauthorized", "Missing or invalid JWT token");
             return;
         }
-
-        String token = header.substring(7);
-        System.out.println("DEBUG: JwtAuthenticationFilter - Extracted token: " + token.substring(0, Math.min(20, token.length())) + "...");
         
         try {
             Claims claims = Jwts.parser()
@@ -131,6 +133,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * Extracts JWT token from either Authorization header (Bearer token) or hrsession cookie
+     */
+    private String extractJwtToken(HttpServletRequest request) {
+        // First, try to get token from Authorization header
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
+        
+        // If not found in header, try to get from hrsession cookie
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("hrsession".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        
+        return null;
+    }
+
     private void writeUnauthorized(HttpServletRequest request, HttpServletResponse response, String code, String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
@@ -142,6 +167,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             .code(code)
             .path(request.getRequestURI())
             .build();
-        new ObjectMapper().writeValue(response.getWriter(), body);
+        objectMapper.writeValue(response.getWriter(), body);
     }
 }

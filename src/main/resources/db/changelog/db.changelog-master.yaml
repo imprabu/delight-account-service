@@ -58,3 +58,9 @@ databaseChangeLog:
       file: db/changelog/20250925-create-memberships.yaml
   - include:
       file: db/changelog/20250925-backfill-organizations.yaml
+  - include:
+      file: db/changelog/20250126-create-sessions-table.yaml
+  - include:
+      file: db/changelog/20250127-add-sessions-missing-columns-v2.yaml
+  - include:
+      file: db/changelog/20250127-fix-sessions-id-autoincrement.yaml

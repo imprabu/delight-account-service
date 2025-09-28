@@ -2,6 +2,8 @@ package com.delight.account.service.impl;
 
 import com.delight.account.dto.ActivationRequest;
 import com.delight.account.model.*;
+import com.delight.account.repository.AccountRepository;
+import com.delight.account.repository.MembershipRepository;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +28,12 @@ class ActivationServiceImplTest {
     @Mock
     private UserCredentialRepository credentialRepository;
 
+    @Mock
+    private AccountRepository accountRepository;
+
+    @Mock
+    private MembershipRepository membershipRepository;
+
     @InjectMocks
     private ActivationServiceImpl activationService;
 
@@ -49,6 +57,7 @@ class ActivationServiceImplTest {
         account.setId(accountId);
 
         User existingUser = new User();
+        existingUser.setId(1L);
         existingUser.setAccount(account);
         existingUser.setStatus(UserStatus.INSERTED);
 
@@ -56,9 +65,18 @@ class ActivationServiceImplTest {
         credential.setUser(existingUser);
         credential.setAccount(account);
 
+        Membership membership = new Membership();
+        membership.setUser(existingUser);
+        membership.setAccount(account);
+        membership.setRole(Role.OWNER);
+        membership.setStatus(MembershipStatus.ACTIVE);
+
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
         when(userRepository.findByAccountIdAndEmailAddress(accountId, "john@example.com"))
             .thenReturn(Optional.of(existingUser));
         when(credentialRepository.findByUser(existingUser)).thenReturn(Optional.of(credential));
+        when(membershipRepository.findByUserIdAndAccountId(existingUser.getId(), accountId))
+            .thenReturn(Optional.of(membership));
 
         activationService.activateUser(accountId, request, "US");
 
@@ -70,5 +88,8 @@ class ActivationServiceImplTest {
 
         verify(credentialRepository).save(credential);
         assertThat(credential.getPasswordHash()).isNotNull();
+        
+        verify(membershipRepository).save(membership);
+        assertThat(membership.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
     }
 }

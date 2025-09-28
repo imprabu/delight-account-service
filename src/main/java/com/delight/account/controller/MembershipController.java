@@ -29,9 +29,10 @@ public class MembershipController {
 
     public MembershipController(MembershipService membershipService) {
         this.membershipService = membershipService;
+        System.out.println("=== MembershipController constructor called ===");
     }
 
-    @GetMapping
+    @GetMapping(produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @Operation(
         summary = "List members",
         description = "Lists user memberships for the current account",
@@ -76,22 +77,33 @@ public class MembershipController {
     public ResponseEntity<List<MemberResponse>> listMembers(
         @RequestHeader(name = "Authorization") String authorization
     ) {
+        System.out.println("=== MembershipController.listMembers called ===");
+        System.out.println("Authorization header: " + authorization);
         ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+        System.out.println("Got RequestContextHolder attributes");
         Object accountIdAttr = attr.getRequest().getAttribute("accountId");
         Object productCodeAttr = attr.getRequest().getAttribute("productCode");
+        System.out.println("accountIdAttr: " + accountIdAttr + ", productCodeAttr: " + productCodeAttr);
         if (accountIdAttr == null) {
+            System.out.println("Throwing ApiException for missing accountId");
             throw new ApiException("error.account.notfound");
         }
         if (productCodeAttr == null) {
+            System.out.println("Throwing ApiException for missing productCode");
             throw new ApiException("error.authorization");
         }
         Long accountId = (Long) accountIdAttr;
         String productCode = productCodeAttr.toString();
+        System.out.println("Calling membershipService.listMembers with accountId=" + accountId + ", productCode=" + productCode);
         List<MemberResponse> members = membershipService.listMembers(accountId, productCode);
-        return ResponseEntity.ok(members);
+        System.out.println("Got members from service: " + members);
+        return ResponseEntity
+            .ok()
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+            .body(members);
     }
 
-    @PatchMapping("/{userId}")
+    @PatchMapping(value = "/{userId}", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE, produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @Operation(
         summary = "Update member",
         description = "Updates a user's role and/or status in the current account. Requires ADMIN or OWNER.",
@@ -179,7 +191,13 @@ public class MembershipController {
         Long accountId = (Long) accountIdAttr;
         Role actorRole = Role.valueOf(roleAttr.toString());
         String productCode = productCodeAttr.toString();
+        System.out.println("updateMember: accountId=" + accountId + ", userId=" + userId + ", actorRole=" + actorRole + ", productCode=" + productCode);
+        System.out.println("updateMember: request role=" + (request.getRole() == null ? null : request.getRole().name()) + ", status=" + (request.getStatus() == null ? null : request.getStatus().name()));
         MemberResponse response = membershipService.updateMember(accountId, userId, request, actorRole, productCode);
-        return ResponseEntity.ok(response);
+        System.out.println("updateMember: service response=" + response);
+        return ResponseEntity
+            .ok()
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+            .body(response);
     }
 }

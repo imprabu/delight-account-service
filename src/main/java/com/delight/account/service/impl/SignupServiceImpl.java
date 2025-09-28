@@ -5,6 +5,7 @@ import com.delight.account.model.Account;
 import com.delight.account.model.AccountStatus;
 import com.delight.account.model.PlanType;
 import com.delight.account.model.User;
+import com.delight.account.model.UserStatus;
 import com.delight.account.model.Membership;
 import com.delight.account.model.MembershipStatus;
 import com.delight.account.model.Role;
@@ -48,7 +49,8 @@ public class SignupServiceImpl implements SignupService {
     @Transactional
     public void signup(SignupRequest request) {
         try {
-            String domain = request.getCompanyName();
+            String domain = request.getCompanyName().toLowerCase().replaceAll("\\s+", "");
+
             if (accountRepository.findByDomainAndStatus(domain, AccountStatus.ACTIVE).isPresent()) {
                 domain = domain + random.nextInt(90000) + 10000;
             }
@@ -86,6 +88,7 @@ public class SignupServiceImpl implements SignupService {
             user.setFirstName(request.getFirstName());
             user.setLastName(request.getLastName());
             user.setCompanyName(request.getCompanyName());
+            user.setStatus(UserStatus.ACTIVE);
             userRepository.save(user);
 
             Membership membership = new Membership();

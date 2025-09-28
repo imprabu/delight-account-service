@@ -7,11 +7,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.MessageSource;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.util.Locale;
 
@@ -21,10 +25,15 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(SignupController.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@AutoConfigureWebMvc
+@TestPropertySource(properties = {
+    "spring.jpa.hibernate.ddl-auto=none",
+    "spring.datasource.url=jdbc:h2:mem:testdb",
+    "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect"
+})
 class SignupControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
     @MockBean
@@ -34,12 +43,17 @@ class SignupControllerTest {
     private MessageSource messageSource;
 
     @Autowired
+    private WebApplicationContext webApplicationContext;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     private SignupRequest validRequest;
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+        
         validRequest = new SignupRequest();
         validRequest.setCompanyName("TestCo");
         validRequest.setEmailAddress("test@example.com");

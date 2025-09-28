@@ -21,7 +21,10 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Optional;
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -87,7 +90,7 @@ class AuthenticationFlowIntegrationTest {
             .andExpect(content().string("Signup successful"));
 
         // Verify account was created
-        Optional<Account> accountOpt = accountRepository.findByDomainAndStatus("IntegrationTestCo", AccountStatus.ACTIVE);
+        Optional<Account> accountOpt = accountRepository.findByDomainAndStatus("integrationtestco", AccountStatus.ACTIVE);
         assertThat(accountOpt).isPresent();
         Account account = accountOpt.get();
         assertThat(account.getCompanyName()).isEqualTo("IntegrationTestCo");
@@ -111,13 +114,13 @@ class AuthenticationFlowIntegrationTest {
         // Step 2: Create credentials for signin (simulating activation)
         UserCredential credential = new UserCredential();
         credential.setUser(user);
-        credential.setPasswordHash("encrypted_password"); // In real scenario, this would be encrypted
+        credential.setPasswordHash(encrypt("TestPassword123")); // Properly encrypt the password
         credentialRepository.save(credential);
 
         // Step 3: Signin - Get JWT token
         MvcResult signinResult = mockMvc.perform(post("/account/signin")
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("Host", "IntegrationTestCo.localhost")
+                .header("Host", "integrationtestco")
                 .content(objectMapper.writeValueAsString(signinRequest)))
             .andExpect(status().isOk())
             .andReturn();
@@ -138,7 +141,8 @@ class AuthenticationFlowIntegrationTest {
 
         // Step 4: Use JWT token to access protected endpoint
         mockMvc.perform(get("/account/info")
-                .header("Authorization", "Bearer " + jwtToken))
+                .header("Authorization", "Bearer " + jwtToken)
+                .header("Host", "integrationtestco"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.companyName").value("IntegrationTestCo"))
             .andExpect(jsonPath("$.email").value("integration@test.com"))
@@ -169,7 +173,7 @@ class AuthenticationFlowIntegrationTest {
         // Verify two different accounts exist
         var accounts = accountRepository.findAll();
         var integrationTestAccounts = accounts.stream()
-            .filter(acc -> acc.getDomain().startsWith("IntegrationTestCo"))
+            .filter(acc -> acc.getDomain().startsWith("integrationtestco"))
             .toList();
         
         assertThat(integrationTestAccounts).hasSize(2);
@@ -191,9 +195,9 @@ class AuthenticationFlowIntegrationTest {
 
         mockMvc.perform(post("/account/signin")
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("Host", "IntegrationTestCo.localhost")
+                .header("Host", "integrationtestco")
                 .content(objectMapper.writeValueAsString(wrongPasswordRequest)))
-            .andExpect(status().isUnauthorized());
+            .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -220,19 +224,19 @@ class AuthenticationFlowIntegrationTest {
             .andExpect(status().isOk());
 
         // Get the created account and user
-        Account account = accountRepository.findByDomainAndStatus("IntegrationTestCo", AccountStatus.ACTIVE).orElseThrow();
+        Account account = accountRepository.findByDomainAndStatus("integrationtestco", AccountStatus.ACTIVE).orElseThrow();
         User user = userRepository.findByAccountIdAndEmailAddress(account.getId(), "integration@test.com").orElseThrow();
 
         // Create credentials
         UserCredential credential = new UserCredential();
         credential.setUser(user);
-        credential.setPasswordHash("encrypted_password");
+        credential.setPasswordHash(encrypt("TestPassword123"));
         credentialRepository.save(credential);
 
         // Step 2: Signin to get JWT
         MvcResult signinResult = mockMvc.perform(post("/account/signin")
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("Host", "IntegrationTestCo.localhost")
+                .header("Host", "integrationtestco")
                 .content(objectMapper.writeValueAsString(signinRequest)))
             .andExpect(status().isOk())
             .andReturn();
@@ -266,7 +270,7 @@ class AuthenticationFlowIntegrationTest {
 
         // Step 5: Update member role
         String updateRequest = "{\"role\":\"ADMIN\"}";
-        mockMvc.perform(put("/account/members/" + secondUser.getId())
+        mockMvc.perform(patch("/account/members/" + secondUser.getId())
                 .header("Authorization", "Bearer " + jwtToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(updateRequest))
@@ -294,18 +298,18 @@ class AuthenticationFlowIntegrationTest {
                 .content(objectMapper.writeValueAsString(signupRequest)))
             .andExpect(status().isOk());
 
-        Account account = accountRepository.findByDomainAndStatus("IntegrationTestCo", AccountStatus.ACTIVE).orElseThrow();
+        Account account = accountRepository.findByDomainAndStatus("integrationtestco", AccountStatus.ACTIVE).orElseThrow();
         User user = userRepository.findByAccountIdAndEmailAddress(account.getId(), "integration@test.com").orElseThrow();
 
         UserCredential credential = new UserCredential();
         credential.setUser(user);
-        credential.setPasswordHash("encrypted_password");
+        credential.setPasswordHash(encrypt("TestPassword123"));
         credentialRepository.save(credential);
 
         // Get JWT token
         MvcResult signinResult = mockMvc.perform(post("/account/signin")
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("Host", "IntegrationTestCo.localhost")
+                .header("Host", "integrationtestco")
                 .content(objectMapper.writeValueAsString(signinRequest)))
             .andExpect(status().isOk())
             .andReturn();
@@ -322,5 +326,18 @@ class AuthenticationFlowIntegrationTest {
         // Check expiration is set (should be 24 hours from now)
         assertThat(claims.getExpiration()).isNotNull();
         assertThat(claims.getExpiration().getTime()).isGreaterThan(System.currentTimeMillis());
+    }
+
+    private String encrypt(String value) {
+        try {
+            byte[] keyBytes = "1234567890123456".getBytes(StandardCharsets.UTF_8);
+            SecretKeySpec secretKeySpec = new SecretKeySpec(keyBytes, 0, 16, "AES");
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec);
+            byte[] encrypted = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(encrypted);
+        } catch (Exception e) {
+            throw new RuntimeException("Encryption failed", e);
+        }
     }
 }

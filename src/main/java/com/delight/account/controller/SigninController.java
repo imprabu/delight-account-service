@@ -1,11 +1,15 @@
 package com.delight.account.controller;
 
 import com.delight.account.dto.SigninRequest;
+import com.delight.account.dto.SigninResponse;
 import com.delight.account.service.SigninService;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.model.Account;
 import com.delight.account.model.AccountStatus;
 import com.delight.account.exception.ApiException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -82,7 +86,9 @@ public class SigninController {
             )
         }
     )
-    public ResponseEntity<String> signin(@Valid @RequestBody SigninRequest request) {
+    public ResponseEntity<String> signin(@Valid @RequestBody SigninRequest request, 
+                                         HttpServletRequest httpRequest, 
+                                         HttpServletResponse httpResponse) {
         ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
         String domain = attr.getRequest().getServerName();
         
@@ -99,7 +105,39 @@ public class SigninController {
         Long accountId = accountOpt.get().getId();
         System.out.println("DEBUG: SigninController - resolved accountId: " + accountId);
         
-        String token = signinService.signin(accountId, domain, request);
-        return ResponseEntity.ok(token);
+        // Extract user agent and IP address for session tracking
+        String userAgent = httpRequest.getHeader("User-Agent");
+        String ipAddress = getClientIpAddress(httpRequest);
+        
+        // Use the new session-based signin method
+        SigninResponse signinResponse = signinService.signinWithSession(accountId, domain, request, userAgent, ipAddress);
+        
+        // Set the JWT token as an HTTP-only cookie
+        Cookie sessionCookie = new Cookie("hrsession", signinResponse.getJwtToken());
+        sessionCookie.setHttpOnly(true);
+        sessionCookie.setSecure(false); // Set to true in production with HTTPS
+        sessionCookie.setPath("/");
+        sessionCookie.setMaxAge(24 * 60 * 60); // 24 hours
+        httpResponse.addCookie(sessionCookie);
+        
+        // Return the JWT token in the response body for backward compatibility
+        return ResponseEntity.ok(signinResponse.getJwtToken());
+    }
+    
+    /**
+     * Extracts the client IP address from the request, considering proxy headers
+     */
+    private String getClientIpAddress(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isEmpty()) {
+            return xRealIp;
+        }
+        
+        return request.getRemoteAddr();
     }
 }
