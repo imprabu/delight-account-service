@@ -20,7 +20,7 @@ public class InterceptorConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(domainAccountInterceptor)
             .addPathPatterns("/**")
-            .excludePathPatterns("/account/signup", "/account/activate", "/account/signin", 
+            .excludePathPatterns("/account/signup", "/account/signin", 
                               "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
                               "/actuator/health");
     }
