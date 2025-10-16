@@ -48,4 +48,7 @@ public class SessionResponse {
     
     @Schema(description = "Whether session is active")
     private Boolean isActive;
+
+    @Schema(description = "JWT token for this session")
+    private String token;
 }

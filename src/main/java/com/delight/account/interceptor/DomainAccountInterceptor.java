@@ -27,7 +27,22 @@ public class DomainAccountInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        String host = request.getServerName();
+        // Prefer Host header to support subdomain emulation without DNS changes
+        String host = request.getHeader("Host");
+        if (host == null || host.isBlank()) {
+            host = request.getServerName();
+        }
+        if (host != null) {
+            host = host.toLowerCase();
+            int colon = host.indexOf(':');
+            if (colon > 0) {
+                host = host.substring(0, colon);
+            }
+            int dot = host.indexOf('.');
+            if (dot > 0) {
+                host = host.substring(0, dot);
+            }
+        }
         Optional<Account> accountOpt = accountRepository.findByDomainAndStatus(host, AccountStatus.ACTIVE);
         if (accountOpt.isEmpty()) {
             throw new ApiException("error.account.notfound");

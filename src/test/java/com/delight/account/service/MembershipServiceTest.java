@@ -32,6 +32,9 @@ class MembershipServiceTest {
     @Mock
     private AccountRepository accountRepository;
 
+    @Mock
+    private CacheService cacheService;
+
     @InjectMocks
     private MembershipServiceImpl membershipService;
 
@@ -166,6 +169,9 @@ class MembershipServiceTest {
         verify(accountRepository).findById(1L);
         verify(membershipRepository).findByUserIdAndAccountId(2L, 1L);
         verify(membershipRepository).save(testMembership2);
+
+        // Verify cache invalidation for account info
+        verify(cacheService).evict(String.format("account:info:%d", 1L));
     }
 
     @Test

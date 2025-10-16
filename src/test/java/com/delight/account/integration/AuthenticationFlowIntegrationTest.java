@@ -125,8 +125,8 @@ class AuthenticationFlowIntegrationTest {
             .andExpect(status().isOk())
             .andReturn();
 
-        String jwtToken = signinResult.getResponse().getContentAsString();
-        assertThat(jwtToken).isNotEmpty();
+        String jwtToken = objectMapper.readTree(signinResult.getResponse().getContentAsString()).get("token").asText();
+        assertThat(jwtToken).isNotBlank();
 
         // Verify JWT token contents
         Claims claims = Jwts.parser()
@@ -241,7 +241,7 @@ class AuthenticationFlowIntegrationTest {
             .andExpect(status().isOk())
             .andReturn();
 
-        String jwtToken = signinResult.getResponse().getContentAsString();
+        String jwtToken = objectMapper.readTree(signinResult.getResponse().getContentAsString()).get("token").asText();
 
         // Step 3: List members
         mockMvc.perform(get("/account/members")
@@ -314,7 +314,7 @@ class AuthenticationFlowIntegrationTest {
             .andExpect(status().isOk())
             .andReturn();
 
-        String jwtToken = signinResult.getResponse().getContentAsString();
+        String jwtToken = objectMapper.readTree(signinResult.getResponse().getContentAsString()).get("token").asText();
 
         // Verify token is valid
         Claims claims = Jwts.parser()

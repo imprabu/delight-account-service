@@ -1,10 +1,15 @@
 package com.delight.account.controller;
 
+import com.delight.account.annotation.RateLimit;
 import com.delight.account.dto.ActivationRequest;
 import com.delight.account.exception.ApiException;
 import com.delight.account.service.ActivationService;
+import com.delight.account.repository.AccountRepository;
+import com.delight.account.model.Account;
+import com.delight.account.model.AccountStatus;
 import jakarta.validation.Valid;
 import java.util.Locale;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
@@ -14,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,13 +34,16 @@ public class ActivationController {
 
     private final ActivationService activationService;
     private final MessageSource messageSource;
+    private final AccountRepository accountRepository;
 
-    public ActivationController(ActivationService activationService, MessageSource messageSource) {
+    public ActivationController(ActivationService activationService, MessageSource messageSource, AccountRepository accountRepository) {
         this.activationService = activationService;
         this.messageSource = messageSource;
+        this.accountRepository = accountRepository;
     }
 
     @PostMapping("/activate")
+    @RateLimit(keyPrefix = "activation")
     @Operation(
         summary = "Activate user",
         description = "Sets password and activates membership for the current account domain",
@@ -79,11 +88,33 @@ public class ActivationController {
                                            @RequestHeader(name = "Accept-Language", required = false) Locale locale) {
         ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
         
-        // Get accountId from request attribute (set by DomainAccountInterceptor)
-        Long accountId = (Long) attr.getRequest().getAttribute("accountId");
-        if (accountId == null) {
+        // Since activation is excluded from DomainAccountInterceptor, we need to resolve accountId manually
+        String host = attr.getRequest().getHeader("Host");
+        if (host == null || host.isBlank()) {
+            host = attr.getRequest().getServerName();
+        }
+        if (host != null) {
+            host = host.toLowerCase();
+            int colon = host.indexOf(':');
+            if (colon > 0) {
+                host = host.substring(0, colon);
+            }
+            int dot = host.indexOf('.');
+            if (dot > 0) {
+                host = host.substring(0, dot);
+            }
+        }
+        
+        logger.info("Activation request - processing domain: {} for email: {}", host, request.getEmailAddress());
+        
+        Optional<Account> accountOpt = accountRepository.findByDomainAndStatus(host, AccountStatus.ACTIVE);
+        if (accountOpt.isEmpty()) {
+            logger.warn("No active account found for domain: {}", host);
             throw new ApiException("error.account.notfound");
         }
+        
+        Long accountId = accountOpt.get().getId();
+        logger.info("Resolved accountId: {} for domain: {}", accountId, host);
         
         String country = attr.getRequest().getLocale().getCountry();
         logger.info("Activation request accountId={} emailAddress={} firstName={} lastName={} phoneNumber={} country={}",
@@ -93,4 +124,6 @@ public class ActivationController {
             locale == null ? Locale.ENGLISH : locale);
         return ResponseEntity.ok(message);
     }
+
+
 }

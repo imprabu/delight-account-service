@@ -15,7 +15,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
-@RequestMapping("/account")
+@RequestMapping({"/account", "/api/account"})
 @Tag(name = "Account")
 public class AccountInfoController {
 
@@ -67,6 +67,7 @@ public class AccountInfoController {
         }
     )
     @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "cookieAuth")
     public ResponseEntity<AccountInfoResponse> getAccountInfo(
         @RequestHeader(name = "Authorization") String authorization
     ) {

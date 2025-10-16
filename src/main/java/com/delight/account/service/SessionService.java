@@ -45,4 +45,9 @@ public interface SessionService {
      * Cleans up expired sessions
      */
     void cleanupExpiredSessions();
+
+    /**
+     * Updates the JWT token for an existing session
+     */
+    void updateSessionToken(String sessionId, String jwtToken);
 }

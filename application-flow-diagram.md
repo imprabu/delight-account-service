@@ -98,14 +98,16 @@ flowchart TD
     C --> C3[/account/activate]
     
     D --> E[Domain Account Interceptor]
-    E --> F{Account Found by Domain?}
+    E --> F{Account Found by Host domain?}
     F -->|No| G[ApiException: Account Not Found]
     F -->|Yes| H[Set Account Context]
     
     H --> I[Protected Endpoints]
     I --> I1[/account/info]
     I --> I2[/account/members]
-    I --> I3[/accounts/sessions]
+    I --> I3[/accounts/session]
+    I --> I4[/accounts/logout]
+    I --> I5[/accounts/logout-all]
     
     C1 --> J[SignupService]
     C2 --> K[SigninService]
@@ -114,6 +116,8 @@ flowchart TD
     I1 --> M[AccountService]
     I2 --> N[MembershipService]
     I3 --> O[SessionService]
+    I4 --> O
+    I5 --> O
     
     J --> P[(Database)]
     K --> P
@@ -121,6 +125,15 @@ flowchart TD
     M --> P
     N --> P
     O --> P
+
+    subgraph Note[Host-based Routing]
+      note1[All endpoints except /account/signup use HTTP Host header as company domain. For local dev, send Host: companyDomain while targeting localhost.]
+    end
+
+    subgraph ApiAlias[/api Alias Behavior]
+      api1[/api/... endpoints mirror regular paths except signup/signin/activation\nBearer-only for protected endpoints (cookies not accepted)\nGlobal rate limits apply (on non-/api global endpoints)/]
+    end
+    ApiAlias -. applies to .-> I
 ```
 
 ## Signup Flow
@@ -149,7 +162,7 @@ sequenceDiagram
     DB-->>SignupService: Account
     
     SignupService->>DB: Create User
-    Note over SignupService,DB: status=ACTIVE, account linked
+    Note over SignupService,DB: status=INSERTED (activation pending), account linked
     DB-->>SignupService: User
     
     SignupService->>DB: Create Membership
@@ -160,13 +173,14 @@ sequenceDiagram
     SignupController-->>Client: 200 "Signup successful"
 ```
 
-## Signin Flow
+## Signin + Session Flow
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant SigninController
     participant SigninService
+    participant SessionService
     participant DB as Database
     
     Client->>SigninController: POST /account/signin
@@ -175,7 +189,7 @@ sequenceDiagram
     SigninController->>DB: Find Account by domain
     DB-->>SigninController: Account
     
-    SigninController->>SigninService: signin(accountId, domain, request)
+    SigninController->>SigninService: signinWithSession(accountId, domain, request, userAgent, ip)
     
     SigninService->>DB: Find User by email + account
     DB-->>SigninService: User
@@ -191,10 +205,10 @@ sequenceDiagram
     SigninService->>SigninService: Validate Account/Organization status
     
     SigninService->>SigninService: Generate JWT Token
-    Note over SigninService: Contains: userId, accountId, orgId, productCode, role
-    
-    SigninService-->>SigninController: JWT Token
-    SigninController-->>Client: 200 JWT Token
+    Note over SigninService: Claims: userId, accountId, orgId, productCode, role, sub=email
+    SigninService->>SessionService: createSession(user, account, role, jwt, ua, ip)
+    SessionService-->>SigninService: session persisted
+    SigninController-->>Client: 200 JWT token (text) + Set-Cookie: hrsession
 ```
 
 ## Authentication & Authorization Flow
@@ -203,7 +217,7 @@ sequenceDiagram
 flowchart TD
     A[Incoming Request] --> B[JwtAuthenticationFilter]
     B --> C{JWT Token Present?}
-    C -->|No| D[Continue without auth]
+    C -->|No| G1[401 Unauthorized]
     C -->|Yes| E[Validate JWT Token]
     
     E --> F{Token Valid?}
@@ -229,6 +243,12 @@ flowchart TD
     T --> P
     
     P --> U[Controller Method]
+
+    subgraph Sources[JWT Sources]
+      src1[Authorization: Bearer <token>]
+      src2[Cookie: hrsession]
+    end
+    Sources --> B
 ```
 
 ## Membership Management Flow
@@ -249,7 +269,7 @@ sequenceDiagram
     MembershipController-->>Client: 200 JSON Array
     
     Note over Client,DB: Update Member Flow
-    Client->>MembershipController: PUT /account/members/{userId}
+    Client->>MembershipController: PATCH /account/members/{userId}
     Note over Client,MembershipController: UpdateMemberRequest: role, status
     MembershipController->>MembershipService: updateMember(accountId, userId, request, actorRole, productCode)
     MembershipService->>DB: Find Target Membership
@@ -265,15 +285,15 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> UserCreated : Signup
+    [*] --> UserCreated : System Start
     
     state "User Lifecycle" as UserLife {
-        [*] --> ACTIVE : Account Creation
+        [*] --> INSERTED : Signup (pending activation)
+        INSERTED --> ACTIVE : Activation
         ACTIVE --> DEACTIVATED : Admin Action
         ACTIVE --> BLOCKED : Security Issue
         DEACTIVATED --> ACTIVE : Reactivation
         BLOCKED --> ACTIVE : Unblock
-        ACTIVE --> INSERTED : Data Migration
     }
     
     state "Membership Lifecycle" as MemberLife {
@@ -313,6 +333,7 @@ flowchart LR
         A4[AccountInfoController]
         A5[ActivationController]
         A6[SessionController]
+        A0[BaseApiController\n(dual routing helper)]
     end
     
     subgraph "Security Layer"
@@ -340,8 +361,15 @@ flowchart LR
         J7[SessionRepository]
     end
     
-    subgraph "Database"
-        K[(MySQL Database)]
+    subgraph "Caching"
+        L1[CacheService]
+        L2[RedisCacheServiceImpl]
+        L3[CacheKeyManager\nVersionedCacheKeyManager]
+    end
+    
+    subgraph "Datastores"
+        K[(TiDB/MySQL)]
+        R[(Redis)]
     end
     
     A --> B
@@ -352,6 +380,11 @@ flowchart LR
     C --> A4
     C --> A5
     C --> A6
+    
+    %% Dual routing helper
+    A0 -. extends .-> A3
+    A0 -. extends .-> A4
+    A0 -. extends .-> A6
     
     A1 --> D
     A2 --> E
@@ -365,26 +398,34 @@ flowchart LR
     D --> J3
     D --> J4
     D --> J5
+    D --> L1
     
     E --> J1
     E --> J2
     E --> J3
     E --> J6
+    E --> L1
     
     F --> J1
     F --> J3
+    F --> L1
     
     G --> J1
     G --> J3
+    G --> L1
     
     H --> J1
     H --> J2
     H --> J3
     H --> J6
+    H --> L1
     
     I --> J7
     
     J --> K
+    L1 --> L2
+    L1 --> L3
+    L2 --> R
 ```
 
 ## Enum Values Reference

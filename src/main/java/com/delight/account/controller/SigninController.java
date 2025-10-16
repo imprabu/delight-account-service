@@ -1,5 +1,6 @@
 package com.delight.account.controller;
 
+import com.delight.account.annotation.RateLimit;
 import com.delight.account.dto.SigninRequest;
 import com.delight.account.dto.SigninResponse;
 import com.delight.account.service.SigninService;
@@ -36,6 +37,7 @@ public class SigninController {
     }
 
     @PostMapping("/signin")
+    @RateLimit(keyPrefix = "signin")
     @Operation(
         summary = "User signin",
         description = "Validates credentials and membership, returns JWT for the current account domain",

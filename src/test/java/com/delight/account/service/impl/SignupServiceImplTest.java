@@ -4,6 +4,7 @@ import com.delight.account.dto.SignupRequest;
 import com.delight.account.exception.AccountCreationException;
 import com.delight.account.model.*;
 import com.delight.account.repository.*;
+import com.delight.account.service.CacheService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +41,9 @@ class SignupServiceImplTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private CacheService cacheService;
 
     @InjectMocks
     private SignupServiceImpl signupService;
@@ -116,6 +120,10 @@ class SignupServiceImplTest {
         assertThat(savedMembership.getUser()).isEqualTo(savedUser);
         assertThat(savedMembership.getRole()).isEqualTo(Role.OWNER);
         assertThat(savedMembership.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
+
+        // Verify cache warming for the newly created user
+        verify(cacheService).put(eq(String.format("user:account:%d:email:%s", savedAccount.getId(), "test@example.com")), 
+                                 eq(savedUser), any());
     }
 
     @Test

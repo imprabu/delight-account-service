@@ -16,15 +16,11 @@ public class LoggingAspect {
     public Object logAround(ProceedingJoinPoint joinPoint) throws Throwable {
         if (logger.isDebugEnabled()) {
             logger.debug("Enter: {} with args {}", joinPoint.getSignature(), joinPoint.getArgs());
-        } else {
-            logger.info("Enter: {}", joinPoint.getSignature());
         }
         try {
             Object result = joinPoint.proceed();
             if (logger.isDebugEnabled()) {
                 logger.debug("Exit: {} with result {}", joinPoint.getSignature(), result);
-            } else {
-                logger.info("Exit: {}", joinPoint.getSignature());
             }
             return result;
         } catch (Throwable e) {

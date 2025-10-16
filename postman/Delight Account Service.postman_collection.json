@@ -1,0 +1,357 @@
+{
+  "info": {
+    "name": "Delight Account Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for Delight Account Service APIs. For Signup, use localhost. For all other APIs, the Host header must be the company domain (lowercased, spaces removed). Set base URL via {{baseUrl}}, set company name via {{companyName}} (we derive {{companyDomain}}), and bearer token via {{jwt}}."
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Derive companyDomain from companyName (lowercased, trimmed spaces)",
+          "try {",
+          "  const name = pm.variables.get('companyName');",
+          "  if (name && typeof name === 'string') {",
+          "    const domain = name.toLowerCase().replace(/\\s+/g, '');",
+          "    pm.environment.set('companyDomain', domain);",
+          "  }",
+          "} catch (e) { /* noop */ }"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Signup",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept-Language", "value": "en" }
+            ],
+            "url": "{{baseUrl}}/account/signup",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"Acme Corp\",\n  \"emailAddress\": \"owner@{{companyDomain}}.com\",\n  \"industryType\": \"Software\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\"\n}"
+            },
+            "description": "Creates Organization, HRMS Account, initial User and OWNER membership"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Signup success', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+                  "// Capture assigned domain from response header if provided",
+                  "const hdr = pm.response.headers.get('X-Account-Domain');",
+                  "if (hdr) { pm.environment.set('companyDomain', hdr); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Activate",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept-Language", "value": "en" },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/account/activate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emailAddress\": \"owner@{{companyDomain}}.com\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"phoneNumber\": \"+1-555-123-4567\",\n  \"password\": \"P@ssw0rd123\",\n  \"retypePassword\": \"P@ssw0rd123\"\n}"
+            },
+            "description": "Sets password and activates membership for the current account domain"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.code;",
+                  "let ok = false;",
+                  "if (s === 200) ok = true;",
+                  "try {",
+                  "  const body = pm.response.json();",
+                  "  if (s === 400 && body && body.code === 'error.user.already.active') ok = true;",
+                  "  if (s === 429 && body && body.code === 'error.rate.limit.exceeded') ok = true;",
+                  "} catch(e) { /* non-JSON on 200 OK */ }",
+                  "pm.test('Activation handled (200 or already active or rate-limited)', function () { pm.expect(ok).to.be.true; });"
+                ]
+              }
+            }
+          ]
+          }
+        },
+        {
+          "name": "Signin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/account/signin",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emailAddress\": \"owner@{{companyDomain}}.com\",\n  \"password\": \"P@ssw0rd123\"\n}"
+            },
+            "description": "Validates credentials and membership. Sets httpOnly 'hrsession' cookie with JWT and returns the JWT token as plain text in the response body."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Save JWT from response text",
+                  "const t = pm.response.text();",
+                  "if (t) { pm.environment.set('jwt', t.trim()); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Account",
+      "item": [
+        {
+          "name": "Get Account Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/account/info",
+            "description": "Returns account, organization and product details with current user role"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Session",
+      "item": [
+        {
+          "name": "Validate Session",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "disabled": false },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/accounts/session",
+            "description": "Checks if the current session is valid and returns session information. Reads JWT from 'hrsession' cookie or Authorization header."
+          }
+        },
+        {
+          "name": "Validate Session (After Logout)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "disabled": false },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/accounts/session",
+            "description": "Should return 401/403 after logout"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unauthorized after logout', function () { pm.expect([401,403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "disabled": false },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/accounts/logout",
+            "description": "Invalidates the current session and clears the session cookie"
+          }
+        },
+        {
+          "name": "Logout All",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "disabled": false },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/accounts/logout-all",
+            "description": "Invalidates all sessions for the current user"
+          }
+        }
+        ,
+        {
+          "name": "Validate Session (After Logout All)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "disabled": false },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/accounts/session",
+            "description": "Should return 401/403 after logout-all"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unauthorized after logout-all', function () { pm.expect([401,403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Memberships",
+      "item": [
+        {
+          "name": "List Members",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/account/members",
+            "description": "Lists user memberships for the current account"
+          }
+        },
+        {
+          "name": "Update Member",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/account/members/{{userId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "description": "Updates role and/or status for a member. Provide path variable {{userId}}."
+          }
+        }
+      ]
+    },
+    {
+      "name": "API-Prefixed (Alias)",
+      "item": [
+        {
+          "name": "Get Account Info (API)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/api/account/info",
+            "description": "Alias for account info under /api; accepts Bearer only (no cookies)."
+          }
+        },
+        {
+          "name": "List Members (API)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/api/account/members",
+            "description": "Alias for listing members under /api; accepts Bearer only."
+          }
+        },
+        {
+          "name": "Update Member (API)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/api/account/members/{{userId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "description": "Alias for updating a member under /api; accepts Bearer only."
+          }
+        },
+        {
+          "name": "Validate Session (API)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/api/accounts/session",
+            "description": "Alias for session validation under /api; accepts Bearer only."
+          }
+        },
+        {
+          "name": "Logout (API)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/api/accounts/logout",
+            "description": "Alias for logout under /api; accepts Bearer only."
+          }
+        },
+        {
+          "name": "Logout All (API)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Host", "value": "{{companyDomain}}" }
+            ],
+            "url": "{{baseUrl}}/api/accounts/logout-all",
+            "description": "Alias for logout-all under /api; accepts Bearer only."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "companyName", "value": "Acme Corp" },
+    { "key": "companyDomain", "value": "acmecorp" },
+    { "key": "jwt", "value": "" },
+    { "key": "userId", "value": "1" },
+    { "key": "accountId", "value": "1" }
+  ]
+}

@@ -87,8 +87,8 @@ class SigninControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
             .andReturn().getResponse().getContentAsString();
-
-        assertThat(response).isNotBlank();
+        String token = objectMapper.readTree(response).get("token").asText();
+        assertThat(token).isNotBlank();
     }
 
     @Test

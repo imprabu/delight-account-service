@@ -47,6 +47,10 @@ public class GlobalExceptionHandler {
         if (messageKey.contains("signin.invalid")) {
             return HttpStatus.BAD_REQUEST;
         }
+        // Rate limit exceeded -> 429 Too Many Requests
+        if (messageKey.contains("rate.limit")) {
+            return HttpStatus.TOO_MANY_REQUESTS;
+        }
         if (messageKey.contains("session.invalid") || messageKey.contains("session.notfound")) {
             return HttpStatus.UNAUTHORIZED;
         }

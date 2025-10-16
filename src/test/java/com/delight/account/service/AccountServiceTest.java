@@ -1,10 +1,12 @@
 package com.delight.account.service;
 
+import com.delight.account.cache.CacheKeyManager;
 import com.delight.account.dto.AccountInfoResponse;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.*;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.MembershipRepository;
+import com.delight.account.service.CacheService;
 import com.delight.account.service.impl.AccountServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
 class AccountServiceTest {
@@ -27,6 +30,12 @@ class AccountServiceTest {
     @Mock
     private MembershipRepository membershipRepository;
 
+    @Mock
+    private CacheService cacheService;
+
+    @Mock
+    private CacheKeyManager cacheKeyManager;
+
     private AccountService accountService;
     private Account testAccount;
     private User testUser;
@@ -36,7 +45,7 @@ class AccountServiceTest {
 
     @BeforeEach
     void setUp() {
-        accountService = new AccountServiceImpl(accountRepository, membershipRepository);
+        accountService = new AccountServiceImpl(accountRepository, membershipRepository, cacheService, cacheKeyManager);
 
         testOrganization = new Organization();
         testOrganization.setId(1L);
@@ -69,6 +78,15 @@ class AccountServiceTest {
         testMembership.setAccount(testAccount);
         testMembership.setRole(Role.MEMBER);
         testMembership.setStatus(MembershipStatus.ACTIVE);
+
+        // Delegate cache lookups to repository fallbacks for unit tests
+        when(cacheService.get(anyString(), any(), any(), any()))
+            .thenAnswer(invocation -> {
+                @SuppressWarnings("unchecked")
+                java.util.function.Supplier<Optional<?>> supplier = (java.util.function.Supplier<Optional<?>>) invocation.getArgument(1);
+                Optional<?> result = supplier.get();
+                return (Optional) result;
+            });
     }
 
     @Test

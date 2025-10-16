@@ -19,9 +19,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/accounts")
+@RequestMapping({"/accounts", "/api/accounts"})
 @Tag(name = "Session")
 @SecurityRequirement(name = "bearerAuth")
+@SecurityRequirement(name = "cookieAuth")
 public class SessionController {
 
     private static final Logger logger = LoggerFactory.getLogger(SessionController.class);

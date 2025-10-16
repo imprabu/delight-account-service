@@ -1,11 +1,14 @@
 package com.delight.account.service.impl;
 
+import com.delight.account.cache.CacheKeyManager;
 import com.delight.account.dto.ActivationRequest;
 import com.delight.account.model.*;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.MembershipRepository;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
+import com.delight.account.service.CacheService;
+import com.delight.account.util.PasswordValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,12 +37,23 @@ class ActivationServiceImplTest {
     @Mock
     private MembershipRepository membershipRepository;
 
+    @Mock
+    private CacheService cacheService;
+
+    @Mock
+    private CacheKeyManager cacheKeyManager;
+
+    @Mock
+    private PasswordValidator passwordValidator;
+
     @InjectMocks
     private ActivationServiceImpl activationService;
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(activationService, "secretKey", "1234567890123456");
+        ReflectionTestUtils.setField(activationService, "passwordSecret", "1234567890123456");
+        // Mock password validator to return true for valid passwords
+        when(passwordValidator.isValid(anyString())).thenReturn(true);
     }
 
     @Test
@@ -77,6 +91,10 @@ class ActivationServiceImplTest {
         when(credentialRepository.findByUser(existingUser)).thenReturn(Optional.of(credential));
         when(membershipRepository.findByUserIdAndAccountId(existingUser.getId(), accountId))
             .thenReturn(Optional.of(membership));
+        when(cacheKeyManager.getUserAccountKey(accountId, "john@example.com"))
+            .thenReturn("user:account:1:email:john@example.com");
+        when(cacheKeyManager.getAccountInfoKey(accountId, existingUser.getId()))
+            .thenReturn("account:info:1:user:1");
 
         activationService.activateUser(accountId, request, "US");
 
@@ -91,5 +109,10 @@ class ActivationServiceImplTest {
         
         verify(membershipRepository).save(membership);
         assertThat(membership.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
+
+        // Verify cache invalidation for user and account info
+        verify(cacheKeyManager).getUserAccountKey(accountId, "john@example.com");
+        verify(cacheKeyManager).getAccountInfoKey(accountId, existingUser.getId());
+        verify(cacheService, times(2)).evict(anyString());
     }
 }

@@ -21,7 +21,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
-@RequestMapping("/account/members")
+@RequestMapping({"/account/members", "/api/account/members"})
 @Tag(name = "Memberships")
 public class MembershipController {
 
@@ -74,6 +74,8 @@ public class MembershipController {
         }
     )
     @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "cookieAuth")
+    @SecurityRequirement(name = "cookieAuth")
     public ResponseEntity<List<MemberResponse>> listMembers(
         @RequestHeader(name = "Authorization") String authorization
     ) {
@@ -170,6 +172,7 @@ public class MembershipController {
         }
     )
     @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "cookieAuth")
     public ResponseEntity<MemberResponse> updateMember(
         @PathVariable("userId") Long userId,
         @RequestBody UpdateMemberRequest request,

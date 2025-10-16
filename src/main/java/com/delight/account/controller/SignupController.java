@@ -1,5 +1,6 @@
 package com.delight.account.controller;
 
+import com.delight.account.annotation.RateLimit;
 import com.delight.account.dto.SignupRequest;
 import com.delight.account.service.SignupService;
 import jakarta.validation.Valid;
@@ -29,6 +30,7 @@ public class SignupController {
     }
 
     @PostMapping("/signup")
+    @RateLimit(keyPrefix = "signup")
     @Operation(
         summary = "Signup new organization and HRMS account",
         description = "Creates Organization, HRMS Account, initial User and OWNER membership",

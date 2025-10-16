@@ -1,5 +1,6 @@
 package com.delight.account.service.impl;
 
+import com.delight.account.cache.CacheKeyManager;
 import com.delight.account.dto.SigninRequest;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.Account;
@@ -11,6 +12,7 @@ import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.MembershipRepository;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
+import com.delight.account.service.CacheService;
 import com.delight.account.service.SessionService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -32,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
 class SigninServiceImplTest {
@@ -51,6 +54,12 @@ class SigninServiceImplTest {
     @Mock
     private SessionService sessionService;
 
+    @Mock
+    private CacheService cacheService;
+
+    @Mock
+    private CacheKeyManager cacheKeyManager;
+
     private SigninServiceImpl signinService;
 
     @BeforeEach
@@ -63,8 +72,19 @@ class SigninServiceImplTest {
             TimeUnit.HOURS.toMillis(24),
             membershipRepository,
             accountRepository,
-            sessionService
+            sessionService,
+            cacheService,
+            cacheKeyManager
         );
+
+        // Let CacheService delegate to repository fallbacks in tests
+        when(cacheService.get(anyString(), any(), any(), any()))
+            .thenAnswer(invocation -> {
+                @SuppressWarnings("unchecked")
+                java.util.function.Supplier<Optional<?>> supplier = (java.util.function.Supplier<Optional<?>>) invocation.getArgument(1);
+                Optional<?> result = supplier.get();
+                return (Optional) result;
+            });
     }
 
     @Test
