@@ -54,6 +54,16 @@ echo ""
 SIGNUP_HTTP_STATUS=$(echo "$SIGNUP_RESPONSE" | grep "HTTP_CODE" | cut -d: -f2)
 if [[ "$SIGNUP_HTTP_STATUS" == "200" || "$SIGNUP_HTTP_STATUS" == "201" ]]; then
   echo "✅ Signup successful"
+  
+  # Extract the actual domain from the signup response
+  ACTUAL_DOMAIN=$(echo "$SIGNUP_RESPONSE" | grep -v "HTTP_CODE" | jq -r '.domain')
+  if [[ "$ACTUAL_DOMAIN" != "null" && "$ACTUAL_DOMAIN" != "" ]]; then
+    echo "Using actual domain from response: $ACTUAL_DOMAIN"
+    DOMAIN="$ACTUAL_DOMAIN"
+  else
+    echo "Using generated domain: $DOMAIN"
+  fi
+  
   # Add domain to hosts file for subsequent calls using company domain
   if ! grep -qE "^[[:space:]]*127\\.0\\.0\\.1[[:space:]]+$DOMAIN(\\s|$)" "$HOSTS_FILE"; then
     echo "Adding $DOMAIN to $HOSTS_FILE (requires sudo if not root)"

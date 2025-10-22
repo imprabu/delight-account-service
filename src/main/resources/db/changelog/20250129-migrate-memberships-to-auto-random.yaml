@@ -2,14 +2,22 @@ databaseChangeLog:
   - changeSet:
       id: migrate-memberships-to-auto-random
       author: system
-      comment: Migrate memberships table from AUTO_INCREMENT to AUTO_RANDOM for better TiDB scalability
-      preConditions:
-        - onFail: MARK_RAN
-        - tableExists:
-            tableName: memberships
+      comment: "Convert memberships table id column from AUTO_INCREMENT to AUTO_RANDOM for improved TiDB scalability"
       changes:
         - sql:
-            sql: "ALTER TABLE memberships MODIFY COLUMN id BIGINT AUTO_RANDOM(5);"
+            sql: "SET @@tidb_allow_remove_auto_inc = 1"
+        - modifyDataType:
+            tableName: memberships
+            columnName: id
+            newDataType: BIGINT AUTO_RANDOM(3)
+        - sql:
+            sql: "SET @@tidb_allow_remove_auto_inc = 0"
       rollback:
         - sql:
-            sql: "ALTER TABLE memberships MODIFY COLUMN id BIGINT AUTO_INCREMENT;"
+            sql: "SET @@tidb_allow_remove_auto_inc = 1"
+        - modifyDataType:
+            tableName: memberships
+            columnName: id
+            newDataType: BIGINT AUTO_INCREMENT
+        - sql:
+            sql: "SET @@tidb_allow_remove_auto_inc = 0"

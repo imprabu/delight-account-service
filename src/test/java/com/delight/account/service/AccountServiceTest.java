@@ -1,7 +1,10 @@
 package com.delight.account.service;
 
-import com.delight.account.cache.CacheKeyManager;
+import com.delight.account.cache.AccountCacheKeyManager;
+import com.delight.account.cache.UserCacheKeyManager;
 import com.delight.account.dto.AccountInfoResponse;
+import com.delight.account.dto.AccountInfoCacheResponse;
+import com.delight.account.dto.UserMembershipCacheResponse;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.*;
 import com.delight.account.repository.AccountRepository;
@@ -19,6 +22,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.ArgumentMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,7 +38,10 @@ class AccountServiceTest {
     private CacheService cacheService;
 
     @Mock
-    private CacheKeyManager cacheKeyManager;
+    private AccountCacheKeyManager accountCacheKeyManager;
+
+    @Mock
+    private UserCacheKeyManager userCacheKeyManager;
 
     private AccountService accountService;
     private Account testAccount;
@@ -45,7 +52,7 @@ class AccountServiceTest {
 
     @BeforeEach
     void setUp() {
-        accountService = new AccountServiceImpl(accountRepository, membershipRepository, cacheService, cacheKeyManager);
+        accountService = new AccountServiceImpl(accountRepository, membershipRepository, cacheService, accountCacheKeyManager, userCacheKeyManager);
 
         testOrganization = new Organization();
         testOrganization.setId(1L);
@@ -79,13 +86,19 @@ class AccountServiceTest {
         testMembership.setRole(Role.MEMBER);
         testMembership.setStatus(MembershipStatus.ACTIVE);
 
+        // Setup cache key manager mocks - updated for new split cache key structure
+        lenient().when(accountCacheKeyManager.getAccountInfoKey(anyLong()))
+            .thenReturn("account:info:1");
+        lenient().when(userCacheKeyManager.getUserMembershipKey(anyLong(), anyLong()))
+            .thenReturn("user:membership:1:1");
+        
         // Delegate cache lookups to repository fallbacks for unit tests
         when(cacheService.get(anyString(), any(), any(), any()))
             .thenAnswer(invocation -> {
                 @SuppressWarnings("unchecked")
-                java.util.function.Supplier<Optional<?>> supplier = (java.util.function.Supplier<Optional<?>>) invocation.getArgument(1);
-                Optional<?> result = supplier.get();
-                return (Optional) result;
+                java.util.function.Supplier<Optional<?>> supplier = 
+                    (java.util.function.Supplier<Optional<?>>) invocation.getArgument(1);
+                return supplier.get();
             });
     }
 

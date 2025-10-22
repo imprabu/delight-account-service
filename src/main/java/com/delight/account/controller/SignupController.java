@@ -2,6 +2,7 @@ package com.delight.account.controller;
 
 import com.delight.account.annotation.RateLimit;
 import com.delight.account.dto.SignupRequest;
+import com.delight.account.dto.SignupResponse;
 import com.delight.account.service.SignupService;
 import jakarta.validation.Valid;
 import java.util.Locale;
@@ -49,8 +50,8 @@ public class SignupController {
                 responseCode = "200",
                 description = "Signup success",
                 content = @io.swagger.v3.oas.annotations.media.Content(
-                    mediaType = "text/plain",
-                    examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = "Signup successful")
+                    mediaType = "application/json",
+                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.SignupResponse.class)
                 )
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -71,11 +72,11 @@ public class SignupController {
             )
         }
     )
-    public ResponseEntity<String> signup(@Valid @RequestBody SignupRequest request,
+    public ResponseEntity<SignupResponse> signup(@Valid @RequestBody SignupRequest request,
                                          @RequestHeader(name = "Accept-Language", required = false) Locale locale) {
-        signupService.signup(request);
+        String domain = signupService.signup(request);
         String message = messageSource.getMessage("signup.success", null,
             locale == null ? Locale.ENGLISH : locale);
-        return ResponseEntity.ok(message);
+        return ResponseEntity.ok(new SignupResponse(message, domain));
     }
 }

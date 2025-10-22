@@ -1,5 +1,6 @@
 package com.delight.account.model;
 
+import com.delight.account.listener.CacheInvalidationEntityListener;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,6 +16,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Entity
 @Table(name = "account_configs")
+@EntityListeners(CacheInvalidationEntityListener.class)
 public class AccountConfig {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

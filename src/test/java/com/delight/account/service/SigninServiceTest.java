@@ -41,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class SigninServiceTest {
@@ -102,6 +103,12 @@ class SigninServiceTest {
                 Optional<?> result = supplier.get();
                 return (Optional) result;
             });
+        
+        // Mock CacheKeyManager methods to return predictable cache keys
+        lenient().when(cacheKeyManager.getUserAccountKey(anyLong(), anyString()))
+            .thenAnswer(invocation -> "user:account:" + invocation.getArgument(0) + ":" + invocation.getArgument(1));
+        lenient().when(cacheKeyManager.getUserCredentialKey(anyLong()))
+            .thenAnswer(invocation -> "user:credential:" + invocation.getArgument(0));
 
         // Setup test data
         testAccount = new Account();

@@ -91,10 +91,6 @@ class ActivationServiceImplTest {
         when(credentialRepository.findByUser(existingUser)).thenReturn(Optional.of(credential));
         when(membershipRepository.findByUserIdAndAccountId(existingUser.getId(), accountId))
             .thenReturn(Optional.of(membership));
-        when(cacheKeyManager.getUserAccountKey(accountId, "john@example.com"))
-            .thenReturn("user:account:1:email:john@example.com");
-        when(cacheKeyManager.getAccountInfoKey(accountId, existingUser.getId()))
-            .thenReturn("account:info:1:user:1");
 
         activationService.activateUser(accountId, request, "US");
 
@@ -110,9 +106,7 @@ class ActivationServiceImplTest {
         verify(membershipRepository).save(membership);
         assertThat(membership.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
 
-        // Verify cache invalidation for user and account info
-        verify(cacheKeyManager).getUserAccountKey(accountId, "john@example.com");
-        verify(cacheKeyManager).getAccountInfoKey(accountId, existingUser.getId());
-        verify(cacheService, times(2)).evict(anyString());
+        // Cache invalidation is now handled automatically by CacheInvalidationEntityListener
+        // No manual cache eviction verification needed
     }
 }

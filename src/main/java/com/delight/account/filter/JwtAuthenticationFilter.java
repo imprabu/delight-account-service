@@ -8,7 +8,6 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -17,51 +16,57 @@ import com.delight.account.model.Membership;
 import com.delight.account.model.MembershipStatus;
 import com.delight.account.repository.MembershipRepository;
 import com.delight.account.filter.MutableHttpServletRequest;
+import com.delight.account.service.SessionService;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import java.util.List;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.util.Collections;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final String jwtSecret;
     private final MembershipRepository membershipRepository;
+    private final SessionService sessionService;
     private final ObjectMapper objectMapper;
 
     public JwtAuthenticationFilter(@Value("${security.jwt.secret}") String jwtSecret,
                                    MembershipRepository membershipRepository,
+                                   SessionService sessionService,
                                    ObjectMapper objectMapper) {
         this.jwtSecret = jwtSecret;
         this.membershipRepository = membershipRepository;
+        this.sessionService = sessionService;
         this.objectMapper = objectMapper;
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        boolean activateWithId = path.matches("^/account/\\d+/activate$");
-        return path.equals("/account/signup") || path.equals("/account/activate") || activateWithId || path.equals("/account/signin") ||
-                path.equals("/swagger-ui.html") || path.startsWith("/swagger-ui/") || 
-                path.equals("/v3/api-docs") || path.startsWith("/v3/api-docs/") ||
-                path.equals("/actuator/health");
+        return path.equals("/account/signup") || path.equals("/account/activate") || path.equals("/account/signin") ||
+               path.equals("/accounts/session") || path.equals("/accounts/validate-session") ||
+               path.equals("/accounts/signout") || path.equals("/accounts/invalidate-all-sessions") ||
+               path.equals("/accounts/logout") || path.equals("/accounts/logout-all") ||
+               path.equals("/swagger-ui.html") || path.startsWith("/swagger-ui/") || 
+               path.equals("/v3/api-docs") || path.startsWith("/v3/api-docs/") ||
+               path.equals("/actuator/health");
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String token = extractJwtToken(request);
-        System.out.println("DEBUG: JwtAuthenticationFilter - Extracted token: " + (token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "null"));
-        
-        if (token == null) {
-            System.out.println("DEBUG: JwtAuthenticationFilter - No JWT token found in Authorization header or hrsession cookie");
-            writeUnauthorized(request, response, "error.unauthorized", "Missing or invalid JWT token");
+        String header = request.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) {
+            writeUnauthorized(request, response, "error.unauthorized", "Missing or invalid Authorization header");
             return;
         }
-        
+
+        String token = header.substring(7);
         try {
             Claims claims = Jwts.parser()
                 .verifyWith(Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8)))
@@ -74,23 +79,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String role = claims.get("role", String.class);
             Long orgId = claims.get("orgId", Long.class);
             String productCode = claims.get("productCode", String.class);
-
-            System.out.println("DEBUG: JwtAuthenticationFilter - Parsed claims - accountId: " + accountId + ", userId: " + userId + ", role: " + role);
+            String sessionId = claims.get("sessionId", String.class);
 
             if (accountId == null || userId == null) {
-                System.out.println("DEBUG: JwtAuthenticationFilter - Invalid token claims - missing accountId or userId");
                 writeUnauthorized(request, response, "error.unauthorized", "Invalid token claims");
                 return;
+            }
+
+            // Validate session if sessionId is present in the token
+            if (sessionId != null) {
+                if (sessionService.validateSessionByToken(token).isEmpty()) {
+                    writeUnauthorized(request, response, "error.unauthorized", "Session is invalid or expired");
+                    return;
+                }
             }
 
             Membership membership = membershipRepository
                 .findByUserIdAndAccountId(userId, accountId)
                 .orElse(null);
-            
-            System.out.println("DEBUG: JwtAuthenticationFilter - Membership lookup result: " + (membership != null ? "Found" : "Not found"));
-            
             if (membership == null || membership.getStatus() != MembershipStatus.ACTIVE) {
-                System.out.println("DEBUG: JwtAuthenticationFilter - Inactive or missing membership");
                 writeUnauthorized(request, response, "error.authorization", "Inactive or missing membership");
                 return;
             }
@@ -120,41 +127,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 mutableRequest.setAttribute("role", role);
             }
 
-            // Set Spring Security Authentication so .authenticated() passes
-            List<SimpleGrantedAuthority> authorities = role != null
-                ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                : List.of();
-            UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(String.valueOf(userId), null, authorities);
+            // Set Spring Security context
+            Authentication authentication = new UsernamePasswordAuthenticationToken(
+                String.valueOf(userId),
+                null,
+                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+            );
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
             filterChain.doFilter(mutableRequest, response);
         } catch (JwtException ex) {
             writeUnauthorized(request, response, "error.unauthorized", "Invalid token");
         }
-    }
-
-    /**
-     * Extracts JWT token from either Authorization header (Bearer token) or hrsession cookie
-     */
-    private String extractJwtToken(HttpServletRequest request) {
-        // First, try to get token from Authorization header
-        String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
-            return header.substring(7);
-        }
-        
-        // If not found in header, try to get from hrsession cookie
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if ("hrsession".equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
-            }
-        }
-        
-        return null;
     }
 
     private void writeUnauthorized(HttpServletRequest request, HttpServletResponse response, String code, String message) throws IOException {

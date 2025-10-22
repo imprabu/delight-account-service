@@ -152,8 +152,8 @@ for i in {1..6}; do
           "firstName":"Alice",
           "lastName":"Smith",
           "phoneNumber":"+1-555-123-4567",
-          "password":"TestPassword123",
-          "retypePassword":"TestPassword123"
+          "password":"SecureTest123!",
+          "retypePassword":"SecureTest123!"
         }' \
     "$BASE/account/activate"
 done

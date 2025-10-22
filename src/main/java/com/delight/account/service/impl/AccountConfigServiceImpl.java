@@ -82,14 +82,13 @@ public class AccountConfigServiceImpl implements AccountConfigService {
         
         accountConfigRepository.save(accountConfig);
         
-        // Invalidate cache
-        invalidateCache(accountId, configType);
+        // Cache invalidation is now handled automatically by CacheInvalidationEntityListener
     }
     
     @Override
     public void removeConfig(Long accountId, String configType) {
         accountConfigRepository.deactivateByAccountIdAndConfigType(accountId, configType);
-        invalidateCache(accountId, configType);
+        // Cache invalidation is now handled automatically by CacheInvalidationEntityListener
     }
     
     @Override

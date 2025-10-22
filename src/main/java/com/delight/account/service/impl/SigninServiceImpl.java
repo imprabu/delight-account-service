@@ -6,6 +6,7 @@ import com.delight.account.dto.SigninResponse;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.Account;
 import com.delight.account.model.AccountStatus;
+import com.delight.account.model.ClientType;
 import com.delight.account.model.Membership;
 import com.delight.account.model.MembershipStatus;
 import com.delight.account.model.OrganizationStatus;
@@ -22,6 +23,7 @@ import com.delight.account.service.CacheService;
 import com.delight.account.service.SessionService;
 import com.delight.account.service.SigninService;
 import com.delight.account.util.JwtUtil;
+import com.delight.account.util.LoggingUtils;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
@@ -96,7 +98,7 @@ public class SigninServiceImpl implements SigninService {
 
     @Override
     public String signin(Long accountId, String domain, SigninRequest request) {
-        logger.info("Signin attempt domain={} accountId={} emailAddress={}", domain, accountId, request.getEmailAddress());
+        LoggingUtils.info(logger, "Signin attempt emailAddress={}", request.getEmailAddress());
 
         // Cache user lookup by account and email
         String userCacheKey = cacheKeyManager.getUserAccountKey(accountId, request.getEmailAddress());
@@ -105,13 +107,13 @@ public class SigninServiceImpl implements SigninService {
         }, userCacheTtl, User.class);
         
         User user = userOpt.orElseThrow(() -> {
-            logger.warn("User not found domain={} accountId={} emailAddress={}", domain, accountId, request.getEmailAddress());
+            LoggingUtils.warn(logger, "User not found emailAddress={}", request.getEmailAddress());
             return new ApiException("error.user.notfound");
         });
 
         // Check if user is active
         if (user.getStatus() != UserStatus.ACTIVE) {
-            logger.warn("User is not active domain={} accountId={} emailAddress={} status={}", domain, accountId, request.getEmailAddress(), user.getStatus());
+            LoggingUtils.warn(logger, "User is not active emailAddress={} status={}", request.getEmailAddress(), user.getStatus());
             throw new ApiException("error.user.inactive");
         }
 
@@ -124,13 +126,13 @@ public class SigninServiceImpl implements SigninService {
         }, userCacheTtl, UserCredential.class);
         
         UserCredential credential = credentialOpt.orElseThrow(() -> {
-            logger.warn("Credential missing for userId={} domain={}", user.getId(), domain);
+            LoggingUtils.warn(logger, "Credential missing for userId={}", user.getId());
             return new ApiException("error.signin.invalid");
         });
 
         String encrypted = encrypt(request.getPassword());
         if (!encrypted.equals(credential.getPasswordHash())) {
-            logger.warn("Invalid password for userId={} domain={}", user.getId(), domain);
+            LoggingUtils.warn(logger, "Invalid password for userId={}", user.getId());
             throw new ApiException("error.signin.invalid");
         }
 
@@ -139,11 +141,11 @@ public class SigninServiceImpl implements SigninService {
             .findByUserIdAndAccountId(user.getId(), accountId)
             .orElseThrow(() -> new ApiException("error.signin.invalid"));
         if (membership.getStatus() != MembershipStatus.ACTIVE) {
-            logger.warn("Inactive membership for userId={} accountId={} status={}", user.getId(), accountId, membership.getStatus());
+            LoggingUtils.warn(logger, "Inactive membership for userId={} accountId={} status={}", user.getId(), accountId, membership.getStatus());
             throw new ApiException("error.signin.invalid");
         }
 
-        logger.info("Signin successful domain={} userId={} accountId={}", domain, user.getId(), accountId);
+        LoggingUtils.info(logger, "Signin successful userId={} accountId={}", user.getId(), accountId);
 
         // Resolve organization id and product code from account
         Long orgId = null;
@@ -176,8 +178,8 @@ public class SigninServiceImpl implements SigninService {
     }
 
     @Override
-    public SigninResponse signinWithSession(Long accountId, String domain, SigninRequest request, String userAgent, String ipAddress) {
-        logger.info("Signin with session attempt domain={} accountId={} emailAddress={}", domain, accountId, request.getEmailAddress());
+    public SigninResponse signinWithSession(Long accountId, String domain, SigninRequest request, String userAgent, String ipAddress, ClientType clientType) {
+        LoggingUtils.info(logger, "Signin with session attempt emailAddress={} clientType={}", request.getEmailAddress(), clientType);
 
         // Cache user lookup by account and email (reuse same caching logic)
         String userCacheKey = cacheKeyManager.getUserAccountKey(accountId, request.getEmailAddress());
@@ -186,13 +188,13 @@ public class SigninServiceImpl implements SigninService {
         }, userCacheTtl, User.class);
         
         User user = userOpt.orElseThrow(() -> {
-            logger.warn("User not found domain={} accountId={} emailAddress={}", domain, accountId, request.getEmailAddress());
+            LoggingUtils.warn(logger, "User not found emailAddress={}", request.getEmailAddress());
             return new ApiException("error.user.notfound");
         });
 
         // Check if user is active
         if (user.getStatus() != UserStatus.ACTIVE) {
-            logger.warn("User is not active domain={} accountId={} emailAddress={} status={}", domain, accountId, request.getEmailAddress(), user.getStatus());
+            LoggingUtils.warn(logger, "User is not active emailAddress={} status={}", request.getEmailAddress(), user.getStatus());
             throw new ApiException("error.user.inactive");
         }
 
@@ -205,13 +207,13 @@ public class SigninServiceImpl implements SigninService {
         }, userCacheTtl, UserCredential.class);
         
         UserCredential credential = credentialOpt.orElseThrow(() -> {
-            logger.warn("Credential missing for userId={} domain={}", user.getId(), domain);
+            LoggingUtils.warn(logger, "Credential missing for userId={}", user.getId());
             return new ApiException("error.signin.invalid");
         });
 
         String encrypted = encrypt(request.getPassword());
         if (!encrypted.equals(credential.getPasswordHash())) {
-            logger.warn("Invalid password for userId={} domain={}", user.getId(), domain);
+            LoggingUtils.warn(logger, "Invalid password for userId={}", user.getId());
             throw new ApiException("error.signin.invalid");
         }
 
@@ -219,11 +221,11 @@ public class SigninServiceImpl implements SigninService {
         Optional<Membership> membershipOpt = membershipRepository
             .findByUserIdAndAccountId(user.getId(), accountId);
         if (membershipOpt.isPresent() && membershipOpt.get().getStatus() != MembershipStatus.ACTIVE) {
-            logger.warn("Inactive membership for userId={} accountId={} status={}", user.getId(), accountId, membershipOpt.get().getStatus());
+            LoggingUtils.warn(logger, "Inactive membership for userId={} accountId={} status={}", user.getId(), accountId, membershipOpt.get().getStatus());
             throw new ApiException("error.signin.invalid");
         }
 
-        logger.info("Signin successful domain={} userId={} accountId={}", domain, user.getId(), accountId);
+        LoggingUtils.info(logger, "Signin successful userId={} accountId={}", user.getId(), accountId);
 
         // Get account and membership for session creation
         Account account = accountRepository.findById(accountId)
@@ -231,8 +233,8 @@ public class SigninServiceImpl implements SigninService {
         
         Membership membership = membershipOpt.orElse(null);
 
-        // Create session first with placeholder token to obtain sessionId
-        Session session = sessionService.createSession(user, account, membership != null && membership.getRole() != null ? membership.getRole() : Role.MEMBER, "", userAgent, ipAddress);
+        // Create session with client type for proper TTL calculation
+        Session session = sessionService.createSession(user, account, membership != null && membership.getRole() != null ? membership.getRole() : Role.MEMBER, "", userAgent, ipAddress, clientType);
 
         // Resolve organization and product for JWT, include sessionId claim
         Long orgId = account.getOrganization() != null ? account.getOrganization().getId() : null;

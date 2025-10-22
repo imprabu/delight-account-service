@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.delight.account.service.AccountConfigService;
 import com.delight.account.service.RateLimitingService;
+import com.delight.account.util.LoggingUtils;
 
 @Service
 public class RateLimitingServiceImpl implements RateLimitingService {
@@ -55,11 +56,17 @@ public class RateLimitingServiceImpl implements RateLimitingService {
     
     @Override
     public boolean isAllowed(String key, int maxRequests, int windowSizeInSeconds) {
+        LoggingUtils.logMethodEntry(logger, "isAllowed", 
+            "key", key, 
+            "maxRequests", maxRequests, 
+            "windowSizeInSeconds", windowSizeInSeconds);
+        
         try {
             String rateLimitKey = "rate_limit:" + key;
             long currentTime = Instant.now().getEpochSecond();
             long windowStart = currentTime - windowSizeInSeconds;
             
+            LoggingUtils.logCacheOperation(logger, "REMOVE_EXPIRED", rateLimitKey, "STARTED");
             // Remove expired entries
             redisTemplate.opsForZSet().removeRangeByScore(rateLimitKey, 0, windowStart);
             
@@ -67,7 +74,12 @@ public class RateLimitingServiceImpl implements RateLimitingService {
             Long currentCount = redisTemplate.opsForZSet().count(rateLimitKey, windowStart, currentTime);
             
             if (currentCount != null && currentCount >= maxRequests) {
-                logger.debug("Rate limit exceeded for key: {} (current: {}, max: {})", key, currentCount, maxRequests);
+                LoggingUtils.logSecurityEvent(logger, "RATE_LIMIT_EXCEEDED", "BLOCKED", 
+                    "key", key, 
+                    "currentCount", currentCount, 
+                    "maxRequests", maxRequests, 
+                    "windowSizeInSeconds", windowSizeInSeconds);
+                LoggingUtils.logMethodExit(logger, "isAllowed", false);
                 return false;
             }
             
@@ -77,12 +89,19 @@ public class RateLimitingServiceImpl implements RateLimitingService {
             // Set expiration for the key
             redisTemplate.expire(rateLimitKey, windowSizeInSeconds + 1, TimeUnit.SECONDS);
             
-            return true;
+            LoggingUtils.logCacheOperation(logger, "ADD_REQUEST", rateLimitKey, "SUCCESS", 
+                "currentCount", currentCount != null ? currentCount + 1 : 1, 
+                "maxRequests", maxRequests);
             
-        } catch (Exception e) {
-            logger.error("Error checking rate limit for key: {}", key, e);
-            // In case of Redis failure, allow the request (fail open)
+            LoggingUtils.logMethodExit(logger, "isAllowed", true);
             return true;
+        } catch (Exception e) {
+            LoggingUtils.logSecurityEvent(logger, "RATE_LIMIT_ERROR", "ERROR", 
+                "key", key, 
+                "error", e.getMessage());
+            logger.error("Error checking rate limit for key: {}", key, e);
+            LoggingUtils.logMethodExit(logger, "isAllowed", true);
+            return true; // Allow on error to avoid blocking legitimate requests
         }
     }
     

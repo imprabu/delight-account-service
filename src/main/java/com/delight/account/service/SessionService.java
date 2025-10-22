@@ -2,6 +2,7 @@ package com.delight.account.service;
 
 import com.delight.account.dto.SessionResponse;
 import com.delight.account.model.Account;
+import com.delight.account.model.ClientType;
 import com.delight.account.model.Role;
 import com.delight.account.model.Session;
 import com.delight.account.model.User;
@@ -11,10 +12,10 @@ import java.util.Optional;
 public interface SessionService {
     
     /**
-     * Creates a new session for the user
+     * Creates a new session for the user with client type detection
      */
     Session createSession(User user, Account account, Role role, String jwtToken, 
-                         String userAgent, String ipAddress);
+                         String userAgent, String ipAddress, ClientType clientType);
     
     /**
      * Validates a session by session ID

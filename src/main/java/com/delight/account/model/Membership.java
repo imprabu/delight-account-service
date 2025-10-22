@@ -1,5 +1,6 @@
 package com.delight.account.model;
 
+import com.delight.account.listener.CacheInvalidationEntityListener;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,6 +14,7 @@ import java.time.OffsetDateTime;
 @Entity
 @Table(name = "memberships",
     uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "account_id"}))
+@EntityListeners(CacheInvalidationEntityListener.class)
 public class Membership {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

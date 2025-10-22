@@ -1,6 +1,7 @@
 package com.delight.account.service.impl;
 
 import com.delight.account.service.CacheService;
+import com.delight.account.util.LoggingUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,13 +40,13 @@ public class RedisCacheServiceImpl implements CacheService {
             Object cachedValue = redisTemplate.opsForValue().get(key);
             if (cachedValue != null) {
                 cacheHits.incrementAndGet();
-                logger.debug("Cache hit for key: {}", key);
+                LoggingUtils.debug(logger, "Cache hit for key: {}", key);
                 return Optional.of(valueType.cast(cachedValue));
             }
             
             // Cache miss - execute fallback
             cacheMisses.incrementAndGet();
-            logger.debug("Cache miss for key: {}, executing fallback", key);
+            LoggingUtils.debug(logger, "Cache miss for key: {}, executing fallback", key);
             
             Optional<T> fallbackResult = fallbackSupplier.get();
             if (fallbackResult.isPresent()) {
@@ -57,7 +58,7 @@ public class RedisCacheServiceImpl implements CacheService {
             
         } catch (Exception e) {
             cacheErrors.incrementAndGet();
-            logger.error("Redis cache error for key: {}, falling back to database", key, e);
+            LoggingUtils.error(logger, "Redis cache error for key: {}, falling back to database", key, e);
             // If Redis fails, execute fallback directly
             return fallbackSupplier.get();
         }
@@ -72,10 +73,10 @@ public class RedisCacheServiceImpl implements CacheService {
     public void put(String key, Object value, Duration ttl) {
         try {
             redisTemplate.opsForValue().set(key, value, ttl);
-            logger.debug("Cached value for key: {} with TTL: {}", key, ttl);
+            LoggingUtils.debug(logger, "Cached value for key: {} with TTL: {}", key, ttl);
         } catch (Exception e) {
             cacheErrors.incrementAndGet();
-            logger.error("Failed to cache value for key: {}", key, e);
+            LoggingUtils.error(logger, "Failed to cache value for key: {}", key, e);
             // Don't throw exception - caching failure shouldn't break the application
         }
     }
@@ -89,10 +90,10 @@ public class RedisCacheServiceImpl implements CacheService {
     public void evict(String key) {
         try {
             redisTemplate.delete(key);
-            logger.debug("Evicted cache key: {}", key);
+            LoggingUtils.debug(logger, "Evicted cache key: {}", key);
         } catch (Exception e) {
             cacheErrors.incrementAndGet();
-            logger.error("Failed to evict cache key: {}", key, e);
+            LoggingUtils.error(logger, "Failed to evict cache key: {}", key, e);
         }
     }
 
@@ -102,11 +103,11 @@ public class RedisCacheServiceImpl implements CacheService {
             Set<String> keys = redisTemplate.keys(pattern);
             if (keys != null && !keys.isEmpty()) {
                 redisTemplate.delete(keys);
-                logger.debug("Evicted {} keys matching pattern: {}", keys.size(), pattern);
+                LoggingUtils.debug(logger, "Evicted {} keys matching pattern: {}", keys.size(), pattern);
             }
         } catch (Exception e) {
             cacheErrors.incrementAndGet();
-            logger.error("Failed to evict keys by pattern: {}", pattern, e);
+            LoggingUtils.error(logger, "Failed to evict keys by pattern: {}", pattern, e);
         }
     }
 
@@ -117,7 +118,7 @@ public class RedisCacheServiceImpl implements CacheService {
             return exists != null && exists;
         } catch (Exception e) {
             cacheErrors.incrementAndGet();
-            logger.error("Failed to check key existence: {}", key, e);
+            LoggingUtils.error(logger, "Failed to check key existence: {}", key, e);
             return false;
         }
     }
@@ -128,11 +129,11 @@ public class RedisCacheServiceImpl implements CacheService {
             Set<String> keys = redisTemplate.keys("*");
             if (keys != null && !keys.isEmpty()) {
                 redisTemplate.delete(keys);
-                logger.info("Cleared {} cache entries", keys.size());
+                LoggingUtils.info(logger, "Cleared {} cache entries", keys.size());
             }
         } catch (Exception e) {
             cacheErrors.incrementAndGet();
-            logger.error("Failed to clear cache", e);
+            LoggingUtils.error(logger, "Failed to clear cache", e);
         }
     }
 

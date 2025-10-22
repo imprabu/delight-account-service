@@ -2,8 +2,11 @@ package com.delight.account.integration;
 
 import com.delight.account.dto.SignupRequest;
 import com.delight.account.dto.SigninRequest;
+import com.delight.account.dto.SigninResponse;
+import com.delight.account.dto.ActivationRequest;
 import com.delight.account.model.*;
 import com.delight.account.repository.*;
+import com.delight.account.util.LoggingUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -16,9 +19,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -33,8 +39,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@TestPropertySource(properties = {
+    "spring.jpa.hibernate.ddl-auto=create-drop",
+    "spring.datasource.url=jdbc:h2:mem:testdb",
+    "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect"
+})
 @Transactional
 class AuthenticationFlowIntegrationTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthenticationFlowIntegrationTest.class);
 
     @Autowired
     private MockMvc mockMvc;
@@ -60,6 +73,12 @@ class AuthenticationFlowIntegrationTest {
     @Autowired
     private UserCredentialRepository credentialRepository;
 
+    @Autowired
+    private com.delight.account.service.CacheService cacheService;
+
+    @Autowired
+    private com.delight.account.cache.CacheKeyManager cacheKeyManager;
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
@@ -77,7 +96,7 @@ class AuthenticationFlowIntegrationTest {
 
         signinRequest = new SigninRequest();
         signinRequest.setEmailAddress("integration@test.com");
-        signinRequest.setPassword("TestPassword123");
+        signinRequest.setPassword("SecureTest123!");
     }
 
     @Test
@@ -114,18 +133,37 @@ class AuthenticationFlowIntegrationTest {
         // Step 2: Create credentials for signin (simulating activation)
         UserCredential credential = new UserCredential();
         credential.setUser(user);
-        credential.setPasswordHash(encrypt("TestPassword123")); // Properly encrypt the password
+        credential.setPasswordHash(encrypt("SecureTest123!")); // Properly encrypt the password
         credentialRepository.save(credential);
+
+        // Activate the user BEFORE signin
+        user.setStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+        userRepository.flush(); // Ensure the user status is persisted
+        
+        // Clear cached user data to ensure fresh lookup during signin
+        String userCacheKey = cacheKeyManager.getUserAccountKey(account.getId(), user.getEmailAddress());
+        cacheService.evict(userCacheKey);
+        
+        // Clear any cached user data to ensure fresh lookup
+        LoggingUtils.logBusinessOperation(logger, "USER_STATUS_CHECK", "INFO", "userId", user.getId(), "status", user.getStatus());
+        User refreshedUser = userRepository.findById(user.getId()).orElseThrow();
+        LoggingUtils.logBusinessOperation(logger, "REFRESHED_USER_STATUS", "INFO", "userId", refreshedUser.getId(), "status", refreshedUser.getStatus());
 
         // Step 3: Signin - Get JWT token
         MvcResult signinResult = mockMvc.perform(post("/account/signin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Host", "integrationtestco")
                 .content(objectMapper.writeValueAsString(signinRequest)))
-            .andExpect(status().isOk())
             .andReturn();
 
-        String jwtToken = objectMapper.readTree(signinResult.getResponse().getContentAsString()).get("token").asText();
+        LoggingUtils.logBusinessOperation(logger, "SIGNIN_RESPONSE", "INFO", "status", signinResult.getResponse().getStatus(), "body", signinResult.getResponse().getContentAsString());
+        
+        if (signinResult.getResponse().getStatus() != 200) {
+            throw new AssertionError("Expected status 200 but got " + signinResult.getResponse().getStatus());
+        }
+
+        String jwtToken = objectMapper.readTree(signinResult.getResponse().getContentAsString()).get("jwtToken").asText(); // Extract JWT token from JSON response
         assertThat(jwtToken).isNotBlank();
 
         // Verify JWT token contents
@@ -230,8 +268,17 @@ class AuthenticationFlowIntegrationTest {
         // Create credentials
         UserCredential credential = new UserCredential();
         credential.setUser(user);
-        credential.setPasswordHash(encrypt("TestPassword123"));
+        credential.setPasswordHash(encrypt("SecureTest123!"));
         credentialRepository.save(credential);
+
+        // Activate the user BEFORE signin
+        user.setStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+        userRepository.flush(); // Ensure the user status is persisted
+        
+        // Clear cached user data to ensure fresh lookup during signin
+        String userCacheKey = cacheKeyManager.getUserAccountKey(account.getId(), user.getEmailAddress());
+        cacheService.evict(userCacheKey);
 
         // Step 2: Signin to get JWT
         MvcResult signinResult = mockMvc.perform(post("/account/signin")
@@ -241,7 +288,7 @@ class AuthenticationFlowIntegrationTest {
             .andExpect(status().isOk())
             .andReturn();
 
-        String jwtToken = objectMapper.readTree(signinResult.getResponse().getContentAsString()).get("token").asText();
+        String jwtToken = objectMapper.readTree(signinResult.getResponse().getContentAsString()).get("jwtToken").asText(); // Extract JWT token from JSON response
 
         // Step 3: List members
         mockMvc.perform(get("/account/members")
@@ -303,8 +350,17 @@ class AuthenticationFlowIntegrationTest {
 
         UserCredential credential = new UserCredential();
         credential.setUser(user);
-        credential.setPasswordHash(encrypt("TestPassword123"));
+        credential.setPasswordHash(encrypt("SecureTest123!"));
         credentialRepository.save(credential);
+
+        // Activate the user BEFORE signin
+        user.setStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+        userRepository.flush(); // Ensure the user status is persisted
+        
+        // Clear cached user data to ensure fresh lookup during signin
+        String userCacheKey = cacheKeyManager.getUserAccountKey(account.getId(), user.getEmailAddress());
+        cacheService.evict(userCacheKey);
 
         // Get JWT token
         MvcResult signinResult = mockMvc.perform(post("/account/signin")
@@ -314,7 +370,7 @@ class AuthenticationFlowIntegrationTest {
             .andExpect(status().isOk())
             .andReturn();
 
-        String jwtToken = objectMapper.readTree(signinResult.getResponse().getContentAsString()).get("token").asText();
+        String jwtToken = objectMapper.readTree(signinResult.getResponse().getContentAsString()).get("jwtToken").asText(); // Extract JWT token from JSON response
 
         // Verify token is valid
         Claims claims = Jwts.parser()

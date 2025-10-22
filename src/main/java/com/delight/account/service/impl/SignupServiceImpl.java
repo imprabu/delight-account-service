@@ -63,7 +63,7 @@ public class SignupServiceImpl implements SignupService {
 
     @Override
     @Transactional
-    public void signup(SignupRequest request) {
+    public String signup(SignupRequest request) {
         try {
             String domain = request.getCompanyName().toLowerCase().replaceAll("\\s+", "");
 
@@ -120,6 +120,8 @@ public class SignupServiceImpl implements SignupService {
                 ? cacheKeyManager.getUserAccountKey(account.getId(), user.getEmailAddress())
                 : String.format("user:account:%d:email:%s", account.getId(), user.getEmailAddress());
             cacheService.put(userCacheKey, user, userCacheTtl);
+            
+            return domain;
         } catch (DataAccessException ex) {
             throw new AccountCreationException();
         }

@@ -7,6 +7,7 @@ import com.delight.account.service.ActivationService;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.model.Account;
 import com.delight.account.model.AccountStatus;
+import com.delight.account.util.LoggingUtils;
 import jakarta.validation.Valid;
 import java.util.Locale;
 import java.util.Optional;
@@ -19,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import io.swagger.v3.oas.annotations.Operation;
@@ -88,36 +88,27 @@ public class ActivationController {
                                            @RequestHeader(name = "Accept-Language", required = false) Locale locale) {
         ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
         
-        // Since activation is excluded from DomainAccountInterceptor, we need to resolve accountId manually
-        String host = attr.getRequest().getHeader("Host");
-        if (host == null || host.isBlank()) {
-            host = attr.getRequest().getServerName();
-        }
-        if (host != null) {
-            host = host.toLowerCase();
-            int colon = host.indexOf(':');
-            if (colon > 0) {
-                host = host.substring(0, colon);
-            }
-            int dot = host.indexOf('.');
+        // Since activate is excluded from DomainAccountInterceptor, we need to resolve accountId manually
+        String domain = attr.getRequest().getServerName();
+        
+        // Extract subdomain (company identifier) from server name
+        if (domain != null) {
+            domain = domain.toLowerCase();
+            int dot = domain.indexOf('.');
             if (dot > 0) {
-                host = host.substring(0, dot);
+                domain = domain.substring(0, dot);
             }
         }
         
-        logger.info("Activation request - processing domain: {} for email: {}", host, request.getEmailAddress());
-        
-        Optional<Account> accountOpt = accountRepository.findByDomainAndStatus(host, AccountStatus.ACTIVE);
+        Optional<Account> accountOpt = accountRepository.findByDomainAndStatus(domain, AccountStatus.ACTIVE);
         if (accountOpt.isEmpty()) {
-            logger.warn("No active account found for domain: {}", host);
             throw new ApiException("error.account.notfound");
         }
         
         Long accountId = accountOpt.get().getId();
-        logger.info("Resolved accountId: {} for domain: {}", accountId, host);
         
         String country = attr.getRequest().getLocale().getCountry();
-        logger.info("Activation request accountId={} emailAddress={} firstName={} lastName={} phoneNumber={} country={}",
+        LoggingUtils.info(logger, "Activation request accountId={} emailAddress={} firstName={} lastName={} phoneNumber={} country={}",
             accountId, request.getEmailAddress(), request.getFirstName(), request.getLastName(), request.getPhoneNumber(), country);
         activationService.activateUser(accountId, request, country);
         String message = messageSource.getMessage("activation.success", null,

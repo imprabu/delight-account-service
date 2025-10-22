@@ -78,3 +78,5 @@ databaseChangeLog:
       file: db/changelog/20250129-migrate-memberships-to-auto-random.yaml
   - include:
       file: db/changelog/20250129-migrate-account-configs-to-auto-random.yaml
+  - include:
+      file: db/changelog/20250130-add-client-type-to-sessions.yaml

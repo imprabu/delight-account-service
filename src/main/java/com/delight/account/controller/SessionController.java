@@ -3,6 +3,7 @@ package com.delight.account.controller;
 import com.delight.account.dto.SessionResponse;
 import com.delight.account.exception.ApiException;
 import com.delight.account.service.SessionService;
+import com.delight.account.util.LoggingUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,29 +41,29 @@ public class SessionController {
         description = "Checks if the current session is valid and returns session information"
     )
     public ResponseEntity<SessionResponse> validateSession(HttpServletRequest request) {
-        logger.info("Session validation request");
+        LoggingUtils.logBusinessOperation(logger, "SESSION_VALIDATION", "STARTED");
 
         // Get JWT token from cookie or Authorization header
         String jwtToken = getJwtTokenFromRequest(request);
         if (jwtToken == null) {
-            logger.warn("No JWT token found in request");
+            LoggingUtils.logSecurityEvent(logger, "SESSION_VALIDATION", "FAILED", "reason", "No JWT token found");
             throw new ApiException("error.session.notfound");
         }
 
         try {
             Optional<SessionResponse> sessionOpt = sessionService.validateSessionByToken(jwtToken);
             if (sessionOpt.isEmpty()) {
-                logger.warn("Session not found for JWT token");
+                LoggingUtils.logSecurityEvent(logger, "SESSION_VALIDATION", "FAILED", "reason", "Session not found for JWT token");
                 throw new ApiException("error.session.notfound");
             }
             
             SessionResponse sessionResponse = sessionOpt.get();
             sessionService.updateLastAccessed(sessionResponse.getSessionId());
             
-            logger.info("Session validation successful for sessionId={}", sessionResponse.getSessionId());
+            LoggingUtils.logBusinessOperation(logger, "SESSION_VALIDATION", "SUCCESS", "sessionId", sessionResponse.getSessionId());
             return ResponseEntity.ok(sessionResponse);
         } catch (Exception e) {
-            logger.warn("Session validation failed: {}", e.getMessage());
+            LoggingUtils.logSecurityEvent(logger, "SESSION_VALIDATION", "FAILED", "error", e.getMessage());
             throw new ApiException("error.session.invalid");
         }
     }
@@ -73,7 +74,7 @@ public class SessionController {
         description = "Invalidates the current session and clears the session cookie"
     )
     public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
-        logger.info("Logout request");
+        LoggingUtils.logBusinessOperation(logger, "LOGOUT", "STARTED");
 
         // Get JWT token from cookie or Authorization header
         String jwtToken = getJwtTokenFromRequest(request);
@@ -83,10 +84,10 @@ public class SessionController {
                 if (sessionOpt.isPresent()) {
                     SessionResponse sessionResponse = sessionOpt.get();
                     sessionService.invalidateSession(sessionResponse.getSessionId());
-                    logger.info("Session invalidated for sessionId={}", sessionResponse.getSessionId());
+                    LoggingUtils.logBusinessOperation(logger, "SESSION_INVALIDATION", "SUCCESS", "sessionId", sessionResponse.getSessionId());
                 }
             } catch (Exception e) {
-                logger.warn("Failed to invalidate session: {}", e.getMessage());
+                LoggingUtils.logSecurityEvent(logger, "SESSION_INVALIDATION", "FAILED", "error", e.getMessage());
             }
         }
 
@@ -98,7 +99,7 @@ public class SessionController {
         cookie.setMaxAge(0); // Delete the cookie
         response.addCookie(cookie);
 
-        logger.info("Logout successful");
+        LoggingUtils.logBusinessOperation(logger, "LOGOUT", "SUCCESS");
         return ResponseEntity.ok().build();
     }
 
@@ -108,7 +109,7 @@ public class SessionController {
         description = "Invalidates all sessions for the current user"
     )
     public ResponseEntity<Void> logoutAll(HttpServletRequest request, HttpServletResponse response) {
-        logger.info("Logout all sessions request");
+        LoggingUtils.logBusinessOperation(logger, "LOGOUT_ALL", "STARTED");
 
         // Get JWT token from cookie or Authorization header
         String jwtToken = getJwtTokenFromRequest(request);
@@ -118,10 +119,10 @@ public class SessionController {
                 if (sessionOpt.isPresent()) {
                     SessionResponse sessionResponse = sessionOpt.get();
                     sessionService.invalidateAllUserSessions(sessionResponse.getUserId());
-                    logger.info("All sessions invalidated for userId={}", sessionResponse.getUserId());
+                    LoggingUtils.logBusinessOperation(logger, "ALL_SESSIONS_INVALIDATION", "SUCCESS", "userId", sessionResponse.getUserId());
                 }
             } catch (Exception e) {
-                logger.warn("Failed to invalidate all sessions: {}", e.getMessage());
+                LoggingUtils.logSecurityEvent(logger, "ALL_SESSIONS_INVALIDATION", "FAILED", "error", e.getMessage());
             }
         }
 
@@ -133,7 +134,7 @@ public class SessionController {
         cookie.setMaxAge(0); // Delete the cookie
         response.addCookie(cookie);
 
-        logger.info("Logout all successful");
+        LoggingUtils.logBusinessOperation(logger, "LOGOUT_ALL", "SUCCESS");
         return ResponseEntity.ok().build();
     }
 

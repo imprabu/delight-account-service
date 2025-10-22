@@ -24,41 +24,21 @@ public interface CacheKeyManager {
     String getUserAccountKey(Long accountId, String email);
 
     /**
-     * Generate cache key for account info by account and user ID.
-     * Pattern: v{version}:account:info:{accountId}:{userId}
-     * 
+     * Generate cache key for account information (account-level data only)
      * @param accountId the account ID
-     * @param userId the user ID
-     * @return the versioned cache key
-     */
-    String getAccountInfoKey(Long accountId, Long userId);
-
-    /**
-     * Generate cache key for account info by account ID only.
-     * Pattern: v{version}:account:info:{accountId}
-     * 
-     * @param accountId the account ID
-     * @return the versioned cache key
+     * @return cache key for account info
      */
     String getAccountInfoKey(Long accountId);
 
     /**
-     * Generate cache key for session by session ID.
-     * Pattern: v{version}:session:id:{sessionId}
-     * 
-     * @param sessionId the session ID
-     * @return the versioned cache key
+     * Generate cache key for user membership in account (user-specific data)
+     * @param accountId the account ID
+     * @param userId the user ID
+     * @return cache key for user membership info
      */
-    String getSessionKey(String sessionId);
+    String getUserMembershipKey(Long accountId, Long userId);
 
-    /**
-     * Generate cache key for session token.
-     * Pattern: v{version}:session:token:{tokenHash}
-     * 
-     * @param tokenHash the hashed token
-     * @return the versioned cache key
-     */
-    String getSessionTokenKey(String tokenHash);
+
 
     /**
      * Generate cache key for user credentials.
@@ -68,14 +48,6 @@ public interface CacheKeyManager {
      * @return the versioned cache key
      */
     String getUserCredentialKey(Long userId);
-
-    /**
-     * Generate pattern for evicting all session keys for a user.
-     * Pattern: v{version}:session:*
-     * 
-     * @return the versioned pattern for session eviction
-     */
-    String getSessionPattern();
 
     /**
      * Generate pattern for evicting account info keys.

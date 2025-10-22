@@ -1,5 +1,6 @@
 package com.delight.account.service;
 
+import com.delight.account.cache.CacheKeyManager;
 import com.delight.account.dto.MemberResponse;
 import com.delight.account.dto.UpdateMemberRequest;
 import com.delight.account.exception.ApiException;
@@ -21,6 +22,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +36,9 @@ class MembershipServiceTest {
 
     @Mock
     private CacheService cacheService;
+
+    @Mock
+    private CacheKeyManager cacheKeyManager;
 
     @InjectMocks
     private MembershipServiceImpl membershipService;
@@ -170,8 +175,8 @@ class MembershipServiceTest {
         verify(membershipRepository).findByUserIdAndAccountId(2L, 1L);
         verify(membershipRepository).save(testMembership2);
 
-        // Verify cache invalidation for account info
-        verify(cacheService).evict(String.format("account:info:%d", 1L));
+        // Cache invalidation is now handled automatically by CacheInvalidationEntityListener
+        // No manual cache eviction verification needed
     }
 
     @Test

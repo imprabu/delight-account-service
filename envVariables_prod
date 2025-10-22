@@ -1,8 +1,10 @@
 DB_URL=jdbc:mysql://host.containers.internal:4000/delight-accounts?createDatabaseIfNotExist=true&characterEncoding=UTF-8
 DB_USER=root
 DB_PASSWORD=
-LOG_LEVEL=WARN
+LOG_LEVEL=ERROR
 LOG_DIR=logs
+DELIGHT_LOG_LEVEL=ERROR
+HIBERNATE_LOG_LEVEL=INFO
 PASSWORD_KEY=sampleSecretKey123
 JWT_SECRET=sampleJwtSecret123sampleJwtSecret123
 JWT_EXPIRATION=86400000

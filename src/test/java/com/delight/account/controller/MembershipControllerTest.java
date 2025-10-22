@@ -19,6 +19,7 @@ import com.delight.account.service.SigninService;
 import com.delight.account.service.SessionService;
 import com.delight.account.filter.JwtAuthenticationFilter;
 import com.delight.account.interceptor.DomainAccountInterceptor;
+import com.delight.account.util.LoggingUtils;
 import org.springframework.context.MessageSource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +45,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureWebMvc
@@ -54,6 +57,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class MembershipControllerTest {
 
+    private static final Logger logger = LoggerFactory.getLogger(MembershipControllerTest.class);
     private MockMvc mockMvc;
 
     @Autowired
@@ -122,7 +126,7 @@ class MembershipControllerTest {
             HttpServletResponse response = invocation.getArgument(1);
             FilterChain filterChain = invocation.getArgument(2);
 
-            System.out.println("JwtAuthenticationFilter.doFilter called");
+            LoggingUtils.logMethodEntry(logger, "JwtAuthenticationFilter.doFilter");
 
             // Only populate attributes when using a special test token
             String auth = request.getHeader("Authorization");
@@ -132,7 +136,7 @@ class MembershipControllerTest {
                 request.setAttribute("productCode", "TEST_PRODUCT");
                 request.setAttribute("userId", 1L);
                 request.setAttribute("role", "ADMIN");
-                System.out.println("Set attributes on request: accountId=1, productCode=TEST_PRODUCT");
+                LoggingUtils.logBusinessOperation(logger, "SET_REQUEST_ATTRIBUTES", "SUCCESS", "accountId", 1L, "productCode", "TEST_PRODUCT");
             }
 
             // Continue with the filter chain using the original request
@@ -178,22 +182,21 @@ class MembershipControllerTest {
         // Add debug output to verify the mock is being called
         when(membershipService.listMembers(1L, "TEST_PRODUCT"))
                 .thenAnswer(invocation -> {
-                    System.out.println("MembershipService.listMembers called with accountId=" + invocation.getArgument(0) + ", productCode=" + invocation.getArgument(1));
+                    LoggingUtils.logBusinessOperation(logger, "MEMBERSHIP_SERVICE_CALL", "SUCCESS", "accountId", invocation.getArgument(0), "productCode", invocation.getArgument(1));
                     return mockMembers;
                 });
 
         mockMvc.perform(get("/account/members")
                 .header("Authorization", "Bearer valid-token-with-attrs"))
                 .andDo(result -> {
-                    System.out.println("Response status: " + result.getResponse().getStatus());
-                    System.out.println("Response content: " + result.getResponse().getContentAsString());
-                    System.out.println("Response content type: " + result.getResponse().getContentType());
-                    System.out.println("Response headers: " + result.getResponse().getHeaderNames());
-                    System.out.println("Request URI: " + result.getRequest().getRequestURI());
-                    System.out.println("Request method: " + result.getRequest().getMethod());
-                    System.out.println("Request attributes: accountId=" + result.getRequest().getAttribute("accountId"));
-                    System.out.println("Request attributes: productCode=" + result.getRequest().getAttribute("productCode"));
-                    System.out.println("All request attributes: " + java.util.Collections.list(result.getRequest().getAttributeNames()));
+                    LoggingUtils.logBusinessOperation(logger, "TEST_RESPONSE_STATUS", "INFO", "status", result.getResponse().getStatus());
+                    LoggingUtils.logBusinessOperation(logger, "TEST_RESPONSE_CONTENT", "INFO", "content", result.getResponse().getContentAsString());
+                    LoggingUtils.logBusinessOperation(logger, "TEST_RESPONSE_CONTENT_TYPE", "INFO", "contentType", result.getResponse().getContentType());
+                    LoggingUtils.logBusinessOperation(logger, "TEST_RESPONSE_HEADERS", "INFO", "headers", result.getResponse().getHeaderNames());
+                    LoggingUtils.logBusinessOperation(logger, "TEST_REQUEST_URI", "INFO", "uri", result.getRequest().getRequestURI());
+                    LoggingUtils.logBusinessOperation(logger, "TEST_REQUEST_METHOD", "INFO", "method", result.getRequest().getMethod());
+                    LoggingUtils.logBusinessOperation(logger, "TEST_REQUEST_ATTRIBUTES", "INFO", "accountId", result.getRequest().getAttribute("accountId"), "productCode", result.getRequest().getAttribute("productCode"));
+                    LoggingUtils.logBusinessOperation(logger, "TEST_ALL_REQUEST_ATTRIBUTES", "INFO", "attributes", java.util.Collections.list(result.getRequest().getAttributeNames()));
                 })
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))

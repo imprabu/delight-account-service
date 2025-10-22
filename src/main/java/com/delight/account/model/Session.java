@@ -1,5 +1,6 @@
 package com.delight.account.model;
 
+import com.delight.account.listener.CacheInvalidationEntityListener;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,6 +13,7 @@ import java.time.OffsetDateTime;
 @NoArgsConstructor
 @Entity
 @Table(name = "sessions")
+@EntityListeners(CacheInvalidationEntityListener.class)
 public class Session {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,6 +54,10 @@ public class Session {
 
     @Column(name = "ip_address")
     private String ipAddress;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "client_type", nullable = false)
+    private ClientType clientType = ClientType.WEB;
 
     @PrePersist
     public void prePersist() {

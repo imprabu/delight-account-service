@@ -67,9 +67,7 @@ public class MembershipServiceImpl implements MembershipService {
         }
         membershipRepository.save(membership);
 
-        // Evict account info cache for the affected user since role/status changed
-        String accountInfoCacheKey = cacheKeyManager.getAccountInfoKey(accountId, targetUserId);
-        cacheService.evict(accountInfoCacheKey);
+        // Cache invalidation is now handled automatically by CacheInvalidationEntityListener
 
         return MemberResponse.builder()
             .userId(membership.getUser().getId())

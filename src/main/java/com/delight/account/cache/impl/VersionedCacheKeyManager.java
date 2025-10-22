@@ -1,6 +1,8 @@
 package com.delight.account.cache.impl;
 
+import com.delight.account.cache.AccountCacheKeyManager;
 import com.delight.account.cache.CacheKeyManager;
+import com.delight.account.cache.UserCacheKeyManager;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -8,9 +10,12 @@ import org.springframework.stereotype.Component;
  * Implementation of CacheKeyManager that provides versioned Redis cache keys.
  * The version can be configured via application properties to enable cache invalidation
  * across deployments without manual key cleanup.
+ * 
+ * This implementation also provides separate interfaces for account-level and user-level
+ * cache operations through AccountCacheKeyManager and UserCacheKeyManager.
  */
 @Component
-public class VersionedCacheKeyManager implements CacheKeyManager {
+public class VersionedCacheKeyManager implements CacheKeyManager, AccountCacheKeyManager, UserCacheKeyManager {
 
     private final String version;
 
@@ -29,33 +34,18 @@ public class VersionedCacheKeyManager implements CacheKeyManager {
     }
 
     @Override
-    public String getAccountInfoKey(Long accountId, Long userId) {
-        return String.format("%s:account:info:%d:%d", version, accountId, userId);
-    }
-
-    @Override
     public String getAccountInfoKey(Long accountId) {
         return String.format("%s:account:info:%d", version, accountId);
     }
 
     @Override
-    public String getSessionKey(String sessionId) {
-        return String.format("%s:session:id:%s", version, sessionId);
-    }
-
-    @Override
-    public String getSessionTokenKey(String tokenHash) {
-        return String.format("%s:session:token:%s", version, tokenHash);
+    public String getUserMembershipKey(Long accountId, Long userId) {
+        return String.format("%s:user:membership:%d:%d", version, accountId, userId);
     }
 
     @Override
     public String getUserCredentialKey(Long userId) {
         return String.format("%s:user:credential:%d", version, userId);
-    }
-
-    @Override
-    public String getSessionPattern() {
-        return String.format("%s:session:*", version);
     }
 
     @Override

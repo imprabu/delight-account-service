@@ -1,12 +1,14 @@
 package com.delight.account.filter;
 
 import com.delight.account.dto.ErrorResponse;
+import com.delight.account.dto.SessionResponse;
 import com.delight.account.model.Membership;
 import com.delight.account.model.MembershipStatus;
 import com.delight.account.model.Role;
 import com.delight.account.model.User;
 import com.delight.account.model.Account;
 import com.delight.account.repository.MembershipRepository;
+import com.delight.account.service.SessionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.jsonwebtoken.Jwts;
@@ -48,6 +50,9 @@ class JwtAuthenticationFilterTest {
     private MembershipRepository membershipRepository;
 
     @Mock
+    private SessionService sessionService;
+
+    @Mock
     private HttpServletRequest request;
 
     @Mock
@@ -69,7 +74,7 @@ class JwtAuthenticationFilterTest {
     void setUp() throws IOException {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
-        jwtAuthenticationFilter = new JwtAuthenticationFilter(JWT_SECRET, membershipRepository, objectMapper);
+        jwtAuthenticationFilter = new JwtAuthenticationFilter(JWT_SECRET, membershipRepository, sessionService, objectMapper);
         
         // Clear security context before each test
         SecurityContextHolder.clearContext();
