@@ -1,5 +1,6 @@
 package com.delight.account.aop;
 
+import com.delight.account.util.LoggingUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -15,20 +16,16 @@ public class LoggingAspect {
     @Around("execution(public * com.delight..*(..))")
     public Object logAround(ProceedingJoinPoint joinPoint) throws Throwable {
         if (logger.isDebugEnabled()) {
-            logger.debug("Enter: {} with args {}", joinPoint.getSignature(), joinPoint.getArgs());
-        } else {
-            logger.info("Enter: {}", joinPoint.getSignature());
+            LoggingUtils.debug(logger, "Enter: {} with args {}", joinPoint.getSignature(), joinPoint.getArgs());
         }
         try {
             Object result = joinPoint.proceed();
             if (logger.isDebugEnabled()) {
-                logger.debug("Exit: {} with result {}", joinPoint.getSignature(), result);
-            } else {
-                logger.info("Exit: {}", joinPoint.getSignature());
+                LoggingUtils.debug(logger, "Exit: {} with result {}", joinPoint.getSignature(), result);
             }
             return result;
         } catch (Throwable e) {
-            logger.error("Error in {}", joinPoint.getSignature(), e);
+            LoggingUtils.error(logger, "Error in {}", joinPoint.getSignature(), e);
             throw e;
         }
     }

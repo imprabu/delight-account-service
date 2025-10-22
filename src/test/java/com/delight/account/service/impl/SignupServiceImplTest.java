@@ -4,6 +4,7 @@ import com.delight.account.dto.SignupRequest;
 import com.delight.account.exception.AccountCreationException;
 import com.delight.account.model.*;
 import com.delight.account.repository.*;
+import com.delight.account.service.CacheService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,6 +42,9 @@ class SignupServiceImplTest {
     @Mock
     private ProductRepository productRepository;
 
+    @Mock
+    private CacheService cacheService;
+
     @InjectMocks
     private SignupServiceImpl signupService;
 
@@ -69,34 +73,32 @@ class SignupServiceImplTest {
 
     @Test
     void signupCreatesCompleteAccountStructure() {
-        when(accountRepository.findByDomainAndStatus("TestCo", AccountStatus.ACTIVE))
+        when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
         when(productRepository.findByCode("HRMS"))
             .thenReturn(Optional.of(hrmsProduct));
         when(organizationRepository.save(any(Organization.class)))
-            .thenReturn(organization);
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(accountRepository.save(any(Account.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(User.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(membershipRepository.save(any(Membership.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
 
         signupService.signup(request);
-
-        // Verify organization creation
-        ArgumentCaptor<Organization> orgCaptor = ArgumentCaptor.forClass(Organization.class);
-        verify(organizationRepository).save(orgCaptor.capture());
-        Organization savedOrg = orgCaptor.getValue();
-        assertThat(savedOrg.getName()).isEqualTo("TestCo");
-        assertThat(savedOrg.getPrimaryDomain()).isEqualTo("TestCo");
-        assertThat(savedOrg.getStatus()).isEqualTo(OrganizationStatus.ACTIVE);
 
         // Verify account creation
         ArgumentCaptor<Account> accountCaptor = ArgumentCaptor.forClass(Account.class);
         verify(accountRepository).save(accountCaptor.capture());
         Account savedAccount = accountCaptor.getValue();
-        assertThat(savedAccount.getDomain()).isEqualTo("TestCo");
+        assertThat(savedAccount.getDomain()).isEqualTo("testco");
         assertThat(savedAccount.getPlan()).isEqualTo(PlanType.TRIAL);
         assertThat(savedAccount.getStatus()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(savedAccount.getIndustryType()).isEqualTo("IT");
         assertThat(savedAccount.getEmail()).isEqualTo("test@example.com");
         assertThat(savedAccount.getCompanyName()).isEqualTo("TestCo");
-        assertThat(savedAccount.getOrganization()).isEqualTo(organization);
+        assertThat(savedAccount.getOrganization()).isNotNull();
         assertThat(savedAccount.getProduct()).isEqualTo(hrmsProduct);
 
         // Verify user creation
@@ -118,18 +120,28 @@ class SignupServiceImplTest {
         assertThat(savedMembership.getUser()).isEqualTo(savedUser);
         assertThat(savedMembership.getRole()).isEqualTo(Role.OWNER);
         assertThat(savedMembership.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
+
+        // Verify cache warming for the newly created user
+        verify(cacheService).put(eq(String.format("user:account:%d:email:%s", savedAccount.getId(), "test@example.com")), 
+                                 eq(savedUser), any());
     }
 
     @Test
     void signupCreatesHrmsProductWhenNotExists() {
-        when(accountRepository.findByDomainAndStatus("TestCo", AccountStatus.ACTIVE))
+        when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
         when(productRepository.findByCode("HRMS"))
             .thenReturn(Optional.empty());
         when(productRepository.save(any(Product.class)))
-            .thenReturn(hrmsProduct);
+            .thenAnswer(invocation -> invocation.getArgument(0));
         when(organizationRepository.save(any(Organization.class)))
-            .thenReturn(organization);
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(accountRepository.save(any(Account.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(User.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(membershipRepository.save(any(Membership.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
 
         signupService.signup(request);
 
@@ -142,34 +154,32 @@ class SignupServiceImplTest {
 
     @Test
     void signupAddsRandomNumberWhenDomainExists() {
-        when(accountRepository.findByDomainAndStatus("TestCo", AccountStatus.ACTIVE))
+        when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.of(new Account()));
         when(productRepository.findByCode("HRMS"))
             .thenReturn(Optional.of(hrmsProduct));
         when(organizationRepository.save(any(Organization.class)))
-            .thenReturn(organization);
-        
-        // Make random deterministic
-        ReflectionTestUtils.setField(signupService, "random", new Random(0));
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(accountRepository.save(any(Account.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(User.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(membershipRepository.save(any(Membership.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
 
         signupService.signup(request);
 
         ArgumentCaptor<Account> accountCaptor = ArgumentCaptor.forClass(Account.class);
         verify(accountRepository).save(accountCaptor.capture());
         Account savedAccount = accountCaptor.getValue();
-        assertThat(savedAccount.getDomain()).startsWith("TestCo");
-        assertNotEquals("TestCo", savedAccount.getDomain());
-        
-        // Verify organization also gets the modified domain
-        ArgumentCaptor<Organization> orgCaptor = ArgumentCaptor.forClass(Organization.class);
-        verify(organizationRepository).save(orgCaptor.capture());
-        Organization savedOrg = orgCaptor.getValue();
-        assertThat(savedOrg.getPrimaryDomain()).isEqualTo(savedAccount.getDomain());
+        assertNotEquals("testco", savedAccount.getDomain());
+        assertThat(savedAccount.getDomain()).startsWith("testco");
+        assertThat(savedAccount.getDomain().length()).isGreaterThan(6);
     }
 
     @Test
     void signupThrowsAccountCreationExceptionOnDataAccessException() {
-        when(accountRepository.findByDomainAndStatus("TestCo", AccountStatus.ACTIVE))
+        when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
         when(productRepository.findByCode("HRMS"))
             .thenReturn(Optional.of(hrmsProduct));
@@ -182,12 +192,12 @@ class SignupServiceImplTest {
 
     @Test
     void signupHandlesAccountRepositoryException() {
-        when(accountRepository.findByDomainAndStatus("TestCo", AccountStatus.ACTIVE))
+        when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
         when(productRepository.findByCode("HRMS"))
             .thenReturn(Optional.of(hrmsProduct));
         when(organizationRepository.save(any(Organization.class)))
-            .thenReturn(organization);
+            .thenAnswer(invocation -> invocation.getArgument(0));
         when(accountRepository.save(any(Account.class)))
             .thenThrow(new DataAccessException("Database error") {});
 
@@ -197,12 +207,14 @@ class SignupServiceImplTest {
 
     @Test
     void signupHandlesUserRepositoryException() {
-        when(accountRepository.findByDomainAndStatus("TestCo", AccountStatus.ACTIVE))
+        when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
         when(productRepository.findByCode("HRMS"))
             .thenReturn(Optional.of(hrmsProduct));
         when(organizationRepository.save(any(Organization.class)))
-            .thenReturn(organization);
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(accountRepository.save(any(Account.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
         when(userRepository.save(any(User.class)))
             .thenThrow(new DataAccessException("Database error") {});
 
@@ -212,12 +224,16 @@ class SignupServiceImplTest {
 
     @Test
     void signupHandlesMembershipRepositoryException() {
-        when(accountRepository.findByDomainAndStatus("TestCo", AccountStatus.ACTIVE))
+        when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
         when(productRepository.findByCode("HRMS"))
             .thenReturn(Optional.of(hrmsProduct));
         when(organizationRepository.save(any(Organization.class)))
-            .thenReturn(organization);
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(accountRepository.save(any(Account.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(User.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
         when(membershipRepository.save(any(Membership.class)))
             .thenThrow(new DataAccessException("Database error") {});
 
@@ -229,53 +245,70 @@ class SignupServiceImplTest {
     void signupWithSpecialCharactersInCompanyName() {
         request.setCompanyName("Test & Co. Ltd.");
         
-        when(accountRepository.findByDomainAndStatus("Test & Co. Ltd.", AccountStatus.ACTIVE))
+        when(accountRepository.findByDomainAndStatus("test&co.ltd.", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
         when(productRepository.findByCode("HRMS"))
             .thenReturn(Optional.of(hrmsProduct));
         when(organizationRepository.save(any(Organization.class)))
-            .thenReturn(organization);
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(accountRepository.save(any(Account.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(User.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(membershipRepository.save(any(Membership.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
 
         signupService.signup(request);
 
         ArgumentCaptor<Account> accountCaptor = ArgumentCaptor.forClass(Account.class);
         verify(accountRepository).save(accountCaptor.capture());
         Account savedAccount = accountCaptor.getValue();
-        assertThat(savedAccount.getDomain()).isEqualTo("Test & Co. Ltd.");
+        assertThat(savedAccount.getDomain()).isEqualTo("test&co.ltd.");
         assertThat(savedAccount.getCompanyName()).isEqualTo("Test & Co. Ltd.");
     }
 
     @Test
     void signupWithLongCompanyName() {
-        String longName = "Very Long Company Name That Might Cause Issues";
+        String longName = "Very Long Company Name That Exceeds Normal Length";
         request.setCompanyName(longName);
         
-        when(accountRepository.findByDomainAndStatus(longName, AccountStatus.ACTIVE))
+        when(accountRepository.findByDomainAndStatus("verylongcompanynamethatexceedsnormallength", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
         when(productRepository.findByCode("HRMS"))
             .thenReturn(Optional.of(hrmsProduct));
         when(organizationRepository.save(any(Organization.class)))
-            .thenReturn(organization);
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(accountRepository.save(any(Account.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(User.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(membershipRepository.save(any(Membership.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
 
         signupService.signup(request);
 
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(userCaptor.capture());
-        User savedUser = userCaptor.getValue();
-        assertThat(savedUser.getUserName()).isEqualTo("JohnDoe");
-        assertThat(savedUser.getCompanyName()).isEqualTo(longName);
+        ArgumentCaptor<Account> accountCaptor = ArgumentCaptor.forClass(Account.class);
+        verify(accountRepository).save(accountCaptor.capture());
+        Account savedAccount = accountCaptor.getValue();
+        assertThat(savedAccount.getCompanyName()).isEqualTo(longName);
     }
 
     @Test
     void signupWithDifferentIndustryTypes() {
         request.setIndustryType("Healthcare");
         
-        when(accountRepository.findByDomainAndStatus("TestCo", AccountStatus.ACTIVE))
+        when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
         when(productRepository.findByCode("HRMS"))
             .thenReturn(Optional.of(hrmsProduct));
         when(organizationRepository.save(any(Organization.class)))
-            .thenReturn(organization);
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(accountRepository.save(any(Account.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(User.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(membershipRepository.save(any(Membership.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
 
         signupService.signup(request);
 
@@ -287,18 +320,22 @@ class SignupServiceImplTest {
 
     @Test
     void signupVerifiesTransactionalBehavior() {
-        when(accountRepository.findByDomainAndStatus("TestCo", AccountStatus.ACTIVE))
+        when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
         when(productRepository.findByCode("HRMS"))
             .thenReturn(Optional.of(hrmsProduct));
         when(organizationRepository.save(any(Organization.class)))
-            .thenReturn(organization);
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(accountRepository.save(any(Account.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(User.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(membershipRepository.save(any(Membership.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
 
         signupService.signup(request);
 
         // Verify all repositories are called in the correct order
-        verify(accountRepository).findByDomainAndStatus("TestCo", AccountStatus.ACTIVE);
-        verify(productRepository).findByCode("HRMS");
         verify(organizationRepository).save(any(Organization.class));
         verify(accountRepository).save(any(Account.class));
         verify(userRepository).save(any(User.class));

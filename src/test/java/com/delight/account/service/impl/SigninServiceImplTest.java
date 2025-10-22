@@ -1,15 +1,19 @@
 package com.delight.account.service.impl;
 
+import com.delight.account.cache.CacheKeyManager;
 import com.delight.account.dto.SigninRequest;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.Account;
 import com.delight.account.model.User;
 import com.delight.account.model.UserCredential;
 import com.delight.account.model.UserStatus;
+import com.delight.account.model.Role;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.MembershipRepository;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
+import com.delight.account.service.CacheService;
+import com.delight.account.service.SessionService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -30,6 +34,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.ArgumentMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
 class SigninServiceImplTest {
@@ -46,6 +52,15 @@ class SigninServiceImplTest {
     @Mock
     private AccountRepository accountRepository;
 
+    @Mock
+    private SessionService sessionService;
+
+    @Mock
+    private CacheService cacheService;
+
+    @Mock
+    private CacheKeyManager cacheKeyManager;
+
     private SigninServiceImpl signinService;
 
     @BeforeEach
@@ -57,8 +72,26 @@ class SigninServiceImplTest {
             "sampleJwtSecret123sampleJwtSecret123",
             TimeUnit.HOURS.toMillis(24),
             membershipRepository,
-            accountRepository
+            accountRepository,
+            sessionService,
+            cacheService,
+            cacheKeyManager
         );
+
+        // Let CacheService delegate to repository fallbacks in tests
+        when(cacheService.get(anyString(), any(), any(), any()))
+            .thenAnswer(invocation -> {
+                @SuppressWarnings("unchecked")
+                java.util.function.Supplier<Optional<?>> supplier = (java.util.function.Supplier<Optional<?>>) invocation.getArgument(1);
+                Optional<?> result = supplier.get();
+                return (Optional) result;
+            });
+        
+        // Mock CacheKeyManager methods to return predictable cache keys
+        lenient().when(cacheKeyManager.getUserAccountKey(anyLong(), anyString()))
+            .thenAnswer(invocation -> "user:account:" + invocation.getArgument(0) + ":" + invocation.getArgument(1));
+        lenient().when(cacheKeyManager.getUserCredentialKey(anyLong()))
+            .thenAnswer(invocation -> "user:credential:" + invocation.getArgument(0));
     }
 
     @Test
@@ -69,6 +102,16 @@ class SigninServiceImplTest {
 
         Account account = new Account();
         account.setId(1L);
+        account.setStatus(com.delight.account.model.AccountStatus.ACTIVE);
+
+        com.delight.account.model.Organization organization = new com.delight.account.model.Organization();
+        organization.setId(10L);
+        organization.setStatus(com.delight.account.model.OrganizationStatus.ACTIVE);
+        account.setOrganization(organization);
+
+        com.delight.account.model.Product product = new com.delight.account.model.Product();
+        product.setCode("HRMS");
+        account.setProduct(product);
 
         User user = new User();
         user.setId(2L);
@@ -81,9 +124,17 @@ class SigninServiceImplTest {
         credential.setAccount(account);
         credential.setPasswordHash(encrypt("pass"));
 
+        com.delight.account.model.Membership membership = new com.delight.account.model.Membership();
+        membership.setUser(user);
+        membership.setAccount(account);
+        membership.setRole(Role.ADMIN);
+        membership.setStatus(com.delight.account.model.MembershipStatus.ACTIVE);
+
         when(userRepository.findByAccountIdAndEmailAddress(1L, "john@example.com"))
             .thenReturn(Optional.of(user));
         when(credentialRepository.findByUser(user)).thenReturn(Optional.of(credential));
+        when(membershipRepository.findByUserIdAndAccountId(2L, 1L)).thenReturn(Optional.of(membership));
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
 
         String token = signinService.signin(1L, "localhost", request);
 
@@ -111,6 +162,7 @@ class SigninServiceImplTest {
         User user = new User();
         user.setId(2L);
         user.setAccount(account);
+        user.setStatus(UserStatus.ACTIVE);
 
         UserCredential credential = new UserCredential();
         credential.setUser(user);

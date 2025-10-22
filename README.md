@@ -107,3 +107,56 @@ podman run --rm -p 8080:8080 \
 Adjust the values to match the endpoints exposed by your Kubernetes-hosted
 TiDB and Redis instances. Mount a volume at `LOG_DIR` if you need to persist log
 files outside of the container.
+
+## Postman collection
+
+- Collection: `postman/Delight Account Service.postman_collection.json`
+- Environment: `postman/Delight Local.postman_environment.json`
+
+Usage:
+- Import both files into Postman, select the "Delight Local" environment, and verify `{{baseUrl}}` points to your running instance (default `http://localhost:8080`).
+- Set `companyName` to your company (e.g., "Acme Corp"). The collection auto-derives `companyDomain` by lowercasing and removing spaces (e.g., `acmecorp`).
+- Signup uses localhost: send `POST {{baseUrl}}/account/signup`.
+- All other APIs require the Host header to be the company domain. The collection sends `Host: {{companyDomain}}` automatically for those requests while still targeting `{{baseUrl}}`.
+- Use the "Signin" request (with Host header) to obtain a JWT and set it in the environment variable `jwt`. Several endpoints also accept the `hrsession` cookie which is set by the signin response.
+- The OpenAPI spec is also served at `http://localhost:8080/v3/api-docs` while the app is running and can be imported directly into Postman if you prefer Postman’s auto-generated collections.
+
+## Rate limiting: how to test
+
+Global, public endpoints (signup, signin, activation) are rate limited. Defaults are configured in `src/main/resources/application.properties`:
+
+- Activation: `rate.limit.activation.max.requests=5` within `rate.limit.activation.window.seconds=300`
+- Signup: `rate.limit.signup.max.requests=10` within `rate.limit.signup.window.seconds=3600`
+- Signin: `rate.limit.signin.max.requests=20` within `rate.limit.signin.window.seconds=3600`
+
+These can be overridden via environment variables (e.g., `RATE_LIMIT_ACTIVATION_MAX_REQUESTS`, `RATE_LIMIT_ACTIVATION_WINDOW_SECONDS`).
+
+Postman Runner (easy path)
+- Use the collection group “Auth” → request “Activate” (or “Activate (by accountId)”).
+- Open Postman Collection Runner, set iterations to 6–10, and run quickly.
+- The built-in tests on activation requests assert HTTP 200 or 429 and verify `code=error.rate.limit.exceeded` for 429.
+
+Curl loop (manual path)
+
+```
+# Set once per shell session
+BASE=http://localhost:8080
+HOST=acmecorp       # company primary domain (lowercased, no spaces)
+
+for i in {1..6}; do
+  curl -s -o /dev/null -w "Iteration $i => HTTP %{http_code}\n" \
+    -H "Host: $HOST" \
+    -H "Content-Type: application/json" \
+    -d '{
+          "emailAddress":"owner@acme.com",
+          "firstName":"Alice",
+          "lastName":"Smith",
+          "phoneNumber":"+1-555-123-4567",
+          "password":"SecureTest123!",
+          "retypePassword":"SecureTest123!"
+        }' \
+    "$BASE/account/activate"
+done
+```
+
+Expected: first requests return 200; subsequent ones within the window return 429 with JSON body containing `code: "error.rate.limit.exceeded"`.

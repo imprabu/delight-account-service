@@ -1,9 +1,16 @@
 package com.delight.account.controller;
 
+import com.delight.account.annotation.RateLimit;
 import com.delight.account.dto.ActivationRequest;
+import com.delight.account.exception.ApiException;
 import com.delight.account.service.ActivationService;
+import com.delight.account.repository.AccountRepository;
+import com.delight.account.model.Account;
+import com.delight.account.model.AccountStatus;
+import com.delight.account.util.LoggingUtils;
 import jakarta.validation.Valid;
 import java.util.Locale;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
@@ -27,13 +34,16 @@ public class ActivationController {
 
     private final ActivationService activationService;
     private final MessageSource messageSource;
+    private final AccountRepository accountRepository;
 
-    public ActivationController(ActivationService activationService, MessageSource messageSource) {
+    public ActivationController(ActivationService activationService, MessageSource messageSource, AccountRepository accountRepository) {
         this.activationService = activationService;
         this.messageSource = messageSource;
+        this.accountRepository = accountRepository;
     }
 
     @PostMapping("/activate")
+    @RateLimit(keyPrefix = "activation")
     @Operation(
         summary = "Activate user",
         description = "Sets password and activates membership for the current account domain",
@@ -77,13 +87,34 @@ public class ActivationController {
     public ResponseEntity<String> activate(@Valid @RequestBody ActivationRequest request,
                                            @RequestHeader(name = "Accept-Language", required = false) Locale locale) {
         ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
-        Long accountId = (Long) attr.getRequest().getAttribute("accountId");
+        
+        // Since activate is excluded from DomainAccountInterceptor, we need to resolve accountId manually
+        String domain = attr.getRequest().getServerName();
+        
+        // Extract subdomain (company identifier) from server name
+        if (domain != null) {
+            domain = domain.toLowerCase();
+            int dot = domain.indexOf('.');
+            if (dot > 0) {
+                domain = domain.substring(0, dot);
+            }
+        }
+        
+        Optional<Account> accountOpt = accountRepository.findByDomainAndStatus(domain, AccountStatus.ACTIVE);
+        if (accountOpt.isEmpty()) {
+            throw new ApiException("error.account.notfound");
+        }
+        
+        Long accountId = accountOpt.get().getId();
+        
         String country = attr.getRequest().getLocale().getCountry();
-        logger.info("Activation request accountId={} emailAddress={} firstName={} lastName={} phoneNumber={} country={}",
+        LoggingUtils.info(logger, "Activation request accountId={} emailAddress={} firstName={} lastName={} phoneNumber={} country={}",
             accountId, request.getEmailAddress(), request.getFirstName(), request.getLastName(), request.getPhoneNumber(), country);
         activationService.activateUser(accountId, request, country);
         String message = messageSource.getMessage("activation.success", null,
             locale == null ? Locale.ENGLISH : locale);
         return ResponseEntity.ok(message);
     }
+
+
 }

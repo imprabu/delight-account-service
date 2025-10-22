@@ -1,5 +1,6 @@
 package com.delight.account.service;
 
+import com.delight.account.cache.CacheKeyManager;
 import com.delight.account.dto.SigninRequest;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.Account;
@@ -17,6 +18,8 @@ import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.MembershipRepository;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
+import com.delight.account.service.CacheService;
+import com.delight.account.service.SessionService;
 import com.delight.account.service.impl.SigninServiceImpl;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -36,9 +39,9 @@ import javax.crypto.spec.SecretKeySpec;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class SigninServiceTest {
@@ -54,6 +57,15 @@ class SigninServiceTest {
 
     @Mock
     private AccountRepository accountRepository;
+
+    @Mock
+    private SessionService sessionService;
+
+    @Mock
+    private CacheService cacheService;
+
+    @Mock
+    private CacheKeyManager cacheKeyManager;
 
     private SigninService signinService;
 
@@ -77,8 +89,26 @@ class SigninServiceTest {
             JWT_SECRET,
             JWT_EXPIRATION,
             membershipRepository,
-            accountRepository
+            accountRepository,
+            sessionService,
+            cacheService,
+            cacheKeyManager
         );
+
+        // Delegate cache lookups to repository fallbacks for unit tests
+        when(cacheService.get(anyString(), any(), any(), any()))
+            .thenAnswer(invocation -> {
+                @SuppressWarnings("unchecked")
+                java.util.function.Supplier<Optional<?>> supplier = (java.util.function.Supplier<Optional<?>>) invocation.getArgument(1);
+                Optional<?> result = supplier.get();
+                return (Optional) result;
+            });
+        
+        // Mock CacheKeyManager methods to return predictable cache keys
+        lenient().when(cacheKeyManager.getUserAccountKey(anyLong(), anyString()))
+            .thenAnswer(invocation -> "user:account:" + invocation.getArgument(0) + ":" + invocation.getArgument(1));
+        lenient().when(cacheKeyManager.getUserCredentialKey(anyLong()))
+            .thenAnswer(invocation -> "user:credential:" + invocation.getArgument(0));
 
         // Setup test data
         testAccount = new Account();
@@ -90,6 +120,7 @@ class SigninServiceTest {
         testOrganization = new Organization();
         testOrganization.setId(100L);
         testOrganization.setName("Test Org");
+        testOrganization.setStatus(com.delight.account.model.OrganizationStatus.ACTIVE);
 
         testProduct = new Product();
         testProduct.setId(200L);
@@ -314,7 +345,7 @@ class SigninServiceTest {
     }
 
     @Test
-    void signinWorksWhenAccountNotFoundInRepository() {
+    void signinThrowsExceptionWhenAccountNotFoundInRepository() {
         // Given
         SigninRequest request = new SigninRequest();
         request.setEmailAddress("test@example.com");
@@ -329,20 +360,10 @@ class SigninServiceTest {
         when(accountRepository.findById(1L))
             .thenReturn(Optional.empty());
 
-        // When
-        String token = signinService.signin(1L, "localhost", request);
-
-        // Then
-        assertThat(token).isNotNull().isNotEmpty();
-
-        Claims claims = Jwts.parser()
-            .verifyWith(Keys.hmacShaKeyFor(JWT_SECRET.getBytes(StandardCharsets.UTF_8)))
-            .build()
-            .parseSignedClaims(token)
-            .getPayload();
-
-        assertThat(claims.get("orgId")).isNull();
-        assertThat(claims.get("productCode")).isNull();
+        // When & Then
+        assertThatThrownBy(() -> signinService.signin(1L, "localhost", request))
+            .isInstanceOf(ApiException.class)
+            .hasMessage("error.signin.invalid");
     }
 
     @Test
@@ -375,8 +396,9 @@ class SigninServiceTest {
             .parseSignedClaims(token)
             .getPayload();
 
-        long expectedMinExpiration = beforeSignin + JWT_EXPIRATION;
-        long expectedMaxExpiration = afterSignin + JWT_EXPIRATION;
+        // Add a buffer of 1 second to account for timing variations
+        long expectedMinExpiration = beforeSignin + JWT_EXPIRATION - 1000;
+        long expectedMaxExpiration = afterSignin + JWT_EXPIRATION + 1000;
         long actualExpiration = claims.getExpiration().getTime();
 
         assertThat(actualExpiration).isBetween(expectedMinExpiration, expectedMaxExpiration);

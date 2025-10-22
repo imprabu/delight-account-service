@@ -23,6 +23,12 @@ import org.springframework.context.annotation.Configuration;
     bearerFormat = "JWT",
     scheme = "bearer"
 )
+@SecurityScheme(
+    name = "cookieAuth",
+    type = SecuritySchemeType.APIKEY,
+    in = io.swagger.v3.oas.annotations.enums.SecuritySchemeIn.COOKIE,
+    paramName = "hrsession"
+)
 public class OpenApiConfig {
 }
 

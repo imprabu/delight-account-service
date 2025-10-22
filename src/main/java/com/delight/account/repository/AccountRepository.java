@@ -9,4 +9,6 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     Optional<Account> findByDomain(String domain);
 
     Optional<Account> findByDomainAndStatus(String domain, AccountStatus status);
+
+    Optional<Account> findTopByEmailOrderByIdDesc(String email);
 }

@@ -1,5 +1,6 @@
 package com.delight.account.service.impl;
 
+import com.delight.account.cache.CacheKeyManager;
 import com.delight.account.dto.MemberResponse;
 import com.delight.account.dto.UpdateMemberRequest;
 import com.delight.account.exception.ApiException;
@@ -9,6 +10,7 @@ import com.delight.account.model.Role;
 import com.delight.account.repository.MembershipRepository;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.service.MembershipService;
+import com.delight.account.service.CacheService;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -19,10 +21,14 @@ public class MembershipServiceImpl implements MembershipService {
 
     private final MembershipRepository membershipRepository;
     private final AccountRepository accountRepository;
+    private final CacheService cacheService;
+    private final CacheKeyManager cacheKeyManager;
 
-    public MembershipServiceImpl(MembershipRepository membershipRepository, AccountRepository accountRepository) {
+    public MembershipServiceImpl(MembershipRepository membershipRepository, AccountRepository accountRepository, CacheService cacheService, CacheKeyManager cacheKeyManager) {
         this.membershipRepository = membershipRepository;
         this.accountRepository = accountRepository;
+        this.cacheService = cacheService;
+        this.cacheKeyManager = cacheKeyManager;
     }
 
     @Override
@@ -60,6 +66,8 @@ public class MembershipServiceImpl implements MembershipService {
             membership.setStatus(request.getStatus());
         }
         membershipRepository.save(membership);
+
+        // Cache invalidation is now handled automatically by CacheInvalidationEntityListener
 
         return MemberResponse.builder()
             .userId(membership.getUser().getId())

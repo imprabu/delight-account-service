@@ -1,5 +1,6 @@
 package com.delight.account.model;
 
+import com.delight.account.listener.CacheInvalidationEntityListener;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,6 +16,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @Entity
 @Table(name = "users")
+@EntityListeners(CacheInvalidationEntityListener.class)
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

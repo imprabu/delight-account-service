@@ -5,6 +5,7 @@ import com.delight.account.dto.UpdateMemberRequest;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.Role;
 import com.delight.account.service.MembershipService;
+import com.delight.account.util.LoggingUtils;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,19 +20,22 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 @RestController
-@RequestMapping("/account/members")
+@RequestMapping({"/account/members", "/api/account/members"})
 @Tag(name = "Memberships")
 public class MembershipController {
 
+    private static final Logger logger = LoggerFactory.getLogger(MembershipController.class);
     private final MembershipService membershipService;
 
     public MembershipController(MembershipService membershipService) {
         this.membershipService = membershipService;
+        LoggingUtils.logMethodEntry(logger, "MembershipController");
     }
 
-    @GetMapping
+    @GetMapping(produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @Operation(
         summary = "List members",
         description = "Lists user memberships for the current account",
@@ -73,25 +77,39 @@ public class MembershipController {
         }
     )
     @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "cookieAuth")
+    @SecurityRequirement(name = "cookieAuth")
     public ResponseEntity<List<MemberResponse>> listMembers(
         @RequestHeader(name = "Authorization") String authorization
     ) {
+        LoggingUtils.logMethodEntry(logger, "listMembers", "authorization", authorization);
         ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+        LoggingUtils.logBusinessOperation(logger, "GET_REQUEST_ATTRIBUTES", "SUCCESS");
         Object accountIdAttr = attr.getRequest().getAttribute("accountId");
         Object productCodeAttr = attr.getRequest().getAttribute("productCode");
+        LoggingUtils.logBusinessOperation(logger, "EXTRACT_REQUEST_ATTRIBUTES", "SUCCESS", 
+            "accountIdAttr", accountIdAttr, "productCodeAttr", productCodeAttr);
         if (accountIdAttr == null) {
+            LoggingUtils.logSecurityEvent(logger, "MISSING_ACCOUNT_ID", "FAILED", "reason", "accountId attribute not found");
             throw new ApiException("error.account.notfound");
         }
         if (productCodeAttr == null) {
+            LoggingUtils.logSecurityEvent(logger, "MISSING_PRODUCT_CODE", "FAILED", "reason", "productCode attribute not found");
             throw new ApiException("error.authorization");
         }
         Long accountId = (Long) accountIdAttr;
         String productCode = productCodeAttr.toString();
+        LoggingUtils.logBusinessOperation(logger, "LIST_MEMBERS_REQUEST", "PROCESSING", 
+            "accountId", accountId, "productCode", productCode);
         List<MemberResponse> members = membershipService.listMembers(accountId, productCode);
-        return ResponseEntity.ok(members);
+        LoggingUtils.logMethodExit(logger, "listMembers", members);
+        return ResponseEntity
+            .ok()
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+            .body(members);
     }
 
-    @PatchMapping("/{userId}")
+    @PatchMapping(value = "/{userId}", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE, produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @Operation(
         summary = "Update member",
         description = "Updates a user's role and/or status in the current account. Requires ADMIN or OWNER.",
@@ -158,6 +176,7 @@ public class MembershipController {
         }
     )
     @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "cookieAuth")
     public ResponseEntity<MemberResponse> updateMember(
         @PathVariable("userId") Long userId,
         @RequestBody UpdateMemberRequest request,
@@ -179,7 +198,16 @@ public class MembershipController {
         Long accountId = (Long) accountIdAttr;
         Role actorRole = Role.valueOf(roleAttr.toString());
         String productCode = productCodeAttr.toString();
+        LoggingUtils.logMethodEntry(logger, "updateMember", 
+            "accountId", accountId, "userId", userId, "actorRole", actorRole, "productCode", productCode);
+        LoggingUtils.logBusinessOperation(logger, "UPDATE_MEMBER_REQUEST", "PROCESSING", 
+            "requestRole", (request.getRole() == null ? null : request.getRole().name()), 
+            "requestStatus", (request.getStatus() == null ? null : request.getStatus().name()));
         MemberResponse response = membershipService.updateMember(accountId, userId, request, actorRole, productCode);
-        return ResponseEntity.ok(response);
+        LoggingUtils.logMethodExit(logger, "updateMember", response);
+        return ResponseEntity
+            .ok()
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+            .body(response);
     }
 }
