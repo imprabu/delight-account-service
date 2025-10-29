@@ -21,7 +21,7 @@ public class AccountConfigController {
         return ResponseEntity.ok().build();
     }
 
-    @PutMapping("/config")
+    @PutMapping(value = "/config", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Void> updateConfig(@RequestAttribute("accountId") Long accountId, @RequestBody String body) {
         String key = String.format("account:config:%d", accountId);
         cacheService.evict(key);

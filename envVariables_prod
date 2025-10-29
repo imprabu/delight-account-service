@@ -8,3 +8,5 @@ HIBERNATE_LOG_LEVEL=INFO
 PASSWORD_KEY=sampleSecretKey123
 JWT_SECRET=sampleJwtSecret123sampleJwtSecret123
 JWT_EXPIRATION=86400000
+CHANNEL_AUTH_KEYS_V1=channel-secret-key-v1-that-is-long-enough-for-hmac-sha256-production
+CHANNEL_AUTH_KEYS_V2=channel-secret-key-v2-that-is-long-enough-for-hmac-sha256-production

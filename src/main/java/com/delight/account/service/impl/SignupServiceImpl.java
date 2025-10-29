@@ -23,14 +23,12 @@ import com.delight.account.service.CacheService;
 import com.delight.account.service.SignupService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.dao.DataAccessException;
 
 import java.time.Duration;
 import java.util.Random;
-import java.util.Optional;
 
 @Service
 public class SignupServiceImpl implements SignupService {
@@ -116,6 +114,7 @@ public class SignupServiceImpl implements SignupService {
             membershipRepository.save(membership);
 
             // Warm up cache with the newly created user for faster signin
+            // This must happen after all entity saves to avoid immediate invalidation by CacheInvalidationEntityListener
             String userCacheKey = (cacheKeyManager != null)
                 ? cacheKeyManager.getUserAccountKey(account.getId(), user.getEmailAddress())
                 : String.format("user:account:%d:email:%s", account.getId(), user.getEmailAddress());

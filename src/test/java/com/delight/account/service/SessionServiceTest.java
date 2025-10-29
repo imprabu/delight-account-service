@@ -232,16 +232,12 @@ class SessionServiceTest {
     void updateSessionTokenUpdatesJwtToken() {
         // Given
         String newToken = "new-jwt-token";
-        when(sessionRepository.findBySessionIdAndIsActiveTrue(testSession.getSessionId()))
-                .thenReturn(Optional.of(testSession));
 
         // When
         sessionService.updateSessionToken(testSession.getSessionId(), newToken);
 
         // Then
-        verify(sessionRepository).save(argThat(session -> 
-            newToken.equals(session.getJwtToken())
-        ));
+        verify(sessionRepository).updateJwtTokenBySessionId(testSession.getSessionId(), newToken);
     }
 
     @Test

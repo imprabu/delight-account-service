@@ -5,11 +5,9 @@ import com.delight.account.dto.SigninRequest;
 import com.delight.account.dto.SigninResponse;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.Account;
-import com.delight.account.model.AccountStatus;
 import com.delight.account.model.ClientType;
 import com.delight.account.model.Membership;
 import com.delight.account.model.MembershipStatus;
-import com.delight.account.model.OrganizationStatus;
 import com.delight.account.model.Role;
 import com.delight.account.model.Session;
 import com.delight.account.model.User;
@@ -22,10 +20,7 @@ import com.delight.account.repository.UserRepository;
 import com.delight.account.service.CacheService;
 import com.delight.account.service.SessionService;
 import com.delight.account.service.SigninService;
-import com.delight.account.util.JwtUtil;
 import com.delight.account.util.LoggingUtils;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,9 +31,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
-import java.util.Date;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class SigninServiceImpl implements SigninService {

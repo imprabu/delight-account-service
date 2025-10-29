@@ -24,11 +24,17 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
+import org.springframework.core.annotation.Order;
 
 @Component
+@Order(3)
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final String jwtSecret;
     private final MembershipRepository membershipRepository;
@@ -43,25 +49,47 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.membershipRepository = membershipRepository;
         this.sessionService = sessionService;
         this.objectMapper = objectMapper;
+        logger.info("=== JwtAuthenticationFilter initialized ===");
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.equals("/account/signup") || path.equals("/account/activate") || path.equals("/account/signin") ||
+        boolean shouldSkip = path.equals("/account/signup") || path.equals("/account/activate") || path.equals("/account/signin") ||
                path.equals("/accounts/session") || path.equals("/accounts/validate-session") ||
                path.equals("/accounts/signout") || path.equals("/accounts/invalidate-all-sessions") ||
                path.equals("/accounts/logout") || path.equals("/accounts/logout-all") ||
                path.equals("/swagger-ui.html") || path.startsWith("/swagger-ui/") || 
                path.equals("/v3/api-docs") || path.startsWith("/v3/api-docs/") ||
-               path.equals("/actuator/health");
+               path.equals("/actuator/health") ||
+               path.startsWith("/channel/"); // Exclude /channel endpoints - handled by ChannelAuthFilter
+        
+        logger.info("=== JwtAuthenticationFilter.shouldNotFilter: path={}, shouldSkip={} ===", path, shouldSkip);
+        return shouldSkip;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        
+        logger.info("=== JwtAuthenticationFilter.doFilterInternal START: path={}, method={} ===", 
+                   request.getRequestURI(), request.getMethod());
+        
+        // Handle regular JWT authentication for non-channel endpoints
+        // Channel endpoints are excluded in shouldNotFilter() and handled by ChannelAuthFilter
+        handleRegularAuthentication(request, response, filterChain);
+    }
+    
+    private void handleRegularAuthentication(HttpServletRequest request, HttpServletResponse response,
+                                           FilterChain filterChain) throws ServletException, IOException {
+        logger.info("=== JwtAuthenticationFilter.handleRegularAuthentication START ===");
+        
+        // Check for subsystem token first
         String header = request.getHeader("Authorization");
+        logger.info("=== JwtAuthenticationFilter: Authorization header present={} ===", header != null);
+        
         if (header == null || !header.startsWith("Bearer ")) {
+            logger.warn("=== JwtAuthenticationFilter: Missing or invalid Authorization header ===");
             writeUnauthorized(request, response, "error.unauthorized", "Missing or invalid Authorization header");
             return;
         }

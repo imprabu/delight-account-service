@@ -24,7 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 @RestController
 @RequestMapping({"/account/members", "/api/account/members"})
-@Tag(name = "Memberships")
+@Tag(name = "User Management", description = "User membership management including role assignments and status updates")
 public class MembershipController {
 
     private static final Logger logger = LoggerFactory.getLogger(MembershipController.class);
@@ -37,22 +37,27 @@ public class MembershipController {
 
     @GetMapping(produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @Operation(
-        summary = "List members",
-        description = "Lists user memberships for the current account",
+        summary = "List organization members",
+        description = "Retrieves a list of all user memberships for the current account including their roles and status. Requires valid authentication.",
         responses = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
-                description = "Members",
+                description = "Organization members retrieved successfully",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
+                    schema = @io.swagger.v3.oas.annotations.media.Schema(
+                        type = "array",
+                        implementation = MemberResponse.class
+                    ),
                     examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                        name = "MembersList",
                         value = "[{\n  \"userId\": 1,\n  \"emailAddress\": \"owner@acme.com\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"role\": \"OWNER\",\n  \"status\": \"ACTIVE\"\n}]"
                     )
                 )
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "401",
-                description = "Unauthorized",
+                description = "Unauthorized - Invalid or expired authentication",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
                     schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.ErrorResponse.class)
@@ -60,7 +65,7 @@ public class MembershipController {
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "403",
-                description = "Forbidden",
+                description = "Forbidden - Insufficient permissions",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
                     schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.ErrorResponse.class)
@@ -111,13 +116,15 @@ public class MembershipController {
 
     @PatchMapping(value = "/{userId}", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE, produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @Operation(
-        summary = "Update member",
-        description = "Updates a user's role and/or status in the current account. Requires ADMIN or OWNER.",
+        summary = "Update organization member",
+        description = "Updates a user's role and/or status in the current account. Requires ADMIN or OWNER permissions.",
         requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
             content = @io.swagger.v3.oas.annotations.media.Content(
                 mediaType = "application/json",
+                schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = UpdateMemberRequest.class),
                 examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                    name = "UpdateMemberRequest",
                     value = "{\n  \"role\": \"ADMIN\",\n  \"status\": \"ACTIVE\"\n}"
                 )
             )
@@ -125,17 +132,19 @@ public class MembershipController {
         responses = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
-                description = "Updated member",
+                description = "Member updated successfully",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
+                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = MemberResponse.class),
                     examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                        name = "UpdatedMemberResponse",
                         value = "{\n  \"userId\": 2,\n  \"emailAddress\": \"user@acme.com\",\n  \"firstName\": \"Bob\",\n  \"lastName\": \"Lee\",\n  \"role\": \"ADMIN\",\n  \"status\": \"ACTIVE\"\n}"
                     )
                 )
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "400",
-                description = "Bad request",
+                description = "Bad request - Invalid role or status values",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
                     schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.ErrorResponse.class)
@@ -143,7 +152,7 @@ public class MembershipController {
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "401",
-                description = "Unauthorized",
+                description = "Unauthorized - Invalid or expired authentication",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
                     schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.ErrorResponse.class)
@@ -151,7 +160,7 @@ public class MembershipController {
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "403",
-                description = "Forbidden",
+                description = "Forbidden - Insufficient permissions to update member",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
                     schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.ErrorResponse.class)
@@ -159,7 +168,7 @@ public class MembershipController {
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "404",
-                description = "Not found",
+                description = "Member not found",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
                     schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.ErrorResponse.class)

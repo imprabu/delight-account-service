@@ -12,16 +12,16 @@ import lombok.Data;
 @AllArgsConstructor
 @Schema(description = "User membership in an account")
 public class MemberResponse {
-    @Schema(description = "User id")
+    @Schema(description = "Unique identifier for the member", example = "12345")
     private Long userId;
-    @Schema(description = "User email")
+    @Schema(description = "Member's email address", example = "john.doe@acme.com")
     private String emailAddress;
-    @Schema(description = "User first name")
+    @Schema(description = "Member's first name", example = "John")
     private String firstName;
-    @Schema(description = "User last name")
+    @Schema(description = "Member's last name", example = "Doe")
     private String lastName;
-    @Schema(description = "Membership role")
+    @Schema(description = "Member's role within the organization", example = "ADMIN", allowableValues = {"OWNER", "ADMIN", "USER"})
     private Role role;
-    @Schema(description = "Membership status")
+    @Schema(description = "Current membership status", example = "ACTIVE", allowableValues = {"ACTIVE", "INACTIVE", "PENDING"})
     private MembershipStatus status;
 }

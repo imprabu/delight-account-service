@@ -39,6 +39,16 @@
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>
         </Logger>
+        <!-- Enhanced error logging for exception handlers -->
+        <Logger name="com.delight.account.exception.handler" level="ERROR" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="RollingFile"/>
+        </Logger>
+        <!-- Request logging -->
+        <Logger name="com.delight.account.filter" level="DEBUG" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="RollingFile"/>
+        </Logger>
         <Logger name="org.hibernate.orm.query.hql" level="${HIBERNATE_LOG_LEVEL}" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>

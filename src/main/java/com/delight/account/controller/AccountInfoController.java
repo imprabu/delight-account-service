@@ -16,7 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping({"/account", "/api/account"})
-@Tag(name = "Account")
+@Tag(name = "Account Management", description = "Account information and organization details management")
 public class AccountInfoController {
 
     private final AccountService accountService;
@@ -25,24 +25,26 @@ public class AccountInfoController {
         this.accountService = accountService;
     }
 
-    @GetMapping("/info")
+    @GetMapping(value = "/info", produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @Operation(
-        summary = "Get account info",
-        description = "Returns account, organization and product details with current user role",
+        summary = "Get account information",
+        description = "Returns comprehensive account, organization and product details with current user role and permissions. Requires valid authentication.",
         responses = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
-                description = "Account info",
+                description = "Account information retrieved successfully",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
+                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = AccountInfoResponse.class),
                     examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                        name = "AccountInfoResponse",
                         value = "{\n  \"id\": 1,\n  \"domain\": \"acmecorp\",\n  \"plan\": \"TRIAL\",\n  \"status\": \"ACTIVE\",\n  \"industryType\": \"Software\",\n  \"email\": \"owner@acme.com\",\n  \"companyName\": \"Acme Corp\",\n  \"currentUserId\": 1,\n  \"currentUserRole\": \"OWNER\",\n  \"organizationId\": 1,\n  \"organizationName\": \"Acme Corp\",\n  \"organizationPrimaryDomain\": \"acmecorp\",\n  \"productCode\": \"HRMS\",\n  \"productName\": \"HRMS\"\n}"
                     )
                 )
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "401",
-                description = "Unauthorized",
+                description = "Unauthorized - Invalid or expired authentication",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
                     schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.ErrorResponse.class)
@@ -50,7 +52,7 @@ public class AccountInfoController {
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "404",
-                description = "Not found",
+                description = "Account or user not found",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
                     schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.ErrorResponse.class)

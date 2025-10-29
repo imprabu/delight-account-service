@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20250714-add-domain-status-unique
+      author: codex
+      changes:
+        - addUniqueConstraint:
+            tableName: accounts
+            columnNames: domain, status
+            constraintName: uq_accounts_domain_status_new

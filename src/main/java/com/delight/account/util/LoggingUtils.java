@@ -278,4 +278,84 @@ public class LoggingUtils {
         MDC.remove("operation");
         MDC.remove("entity");
     }
+
+    /**
+     * Log a 400 Bad Request error with full context
+     */
+    public static void logBadRequest(Logger logger, String message, Object... contextParams) {
+        logBusinessOperation(logger, "BAD_REQUEST_ERROR", "ERROR", 
+            "errorType", "BAD_REQUEST",
+            "message", message,
+            contextParams);
+    }
+
+    /**
+     * Log a 500 Internal Server Error with full context and stack trace
+     */
+    public static void logInternalServerError(Logger logger, String message, Throwable throwable, Object... contextParams) {
+        // Log the exception with stack trace
+        error(logger, message, throwable);
+        
+        // Log additional business context
+        logBusinessOperation(logger, "INTERNAL_SERVER_ERROR", "ERROR", 
+            "errorType", "INTERNAL_SERVER_ERROR",
+            "exceptionType", throwable.getClass().getSimpleName(),
+            "exceptionMessage", throwable.getMessage(),
+            contextParams);
+    }
+
+    /**
+     * Log a validation error with detailed validation context
+     */
+    public static void logValidationError(Logger logger, String message, String validationField, String validationMessage, Object... contextParams) {
+        logBusinessOperation(logger, "VALIDATION_ERROR", "ERROR", 
+            "errorType", "VALIDATION_ERROR",
+            "validationField", validationField,
+            "validationMessage", validationMessage,
+            "message", message,
+            contextParams);
+    }
+
+    /**
+     * Log an authentication/authorization error
+     */
+    public static void logAuthError(Logger logger, String message, String authType, String reason, Object... contextParams) {
+        logBusinessOperation(logger, "AUTH_ERROR", "ERROR", 
+            "errorType", "AUTH_ERROR",
+            "authType", authType,
+            "authReason", reason,
+            "message", message,
+            contextParams);
+    }
+
+    /**
+     * Log a rate limiting error
+     */
+    public static void logRateLimitError(Logger logger, String message, String rateLimitType, int limit, int current, Object... contextParams) {
+        logBusinessOperation(logger, "RATE_LIMIT_ERROR", "ERROR", 
+            "errorType", "RATE_LIMIT_ERROR",
+            "rateLimitType", rateLimitType,
+            "rateLimit", limit,
+            "currentRequests", current,
+            "message", message,
+            contextParams);
+    }
+
+    /**
+     * Set error context in MDC for correlation
+     */
+    public static void setErrorContext(String errorCode, String errorType, int httpStatus) {
+        MDC.put("errorCode", errorCode);
+        MDC.put("errorType", errorType);
+        MDC.put("httpStatus", String.valueOf(httpStatus));
+    }
+
+    /**
+     * Clear error context from MDC
+     */
+    public static void clearErrorContext() {
+        MDC.remove("errorCode");
+        MDC.remove("errorType");
+        MDC.remove("httpStatus");
+    }
 }

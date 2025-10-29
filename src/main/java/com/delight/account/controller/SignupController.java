@@ -19,7 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/account")
-@Tag(name = "Auth", description = "Signup, activation, and signin")
+@Tag(name = "Authentication", description = "User authentication endpoints including signup, signin, and account activation")
 public class SignupController {
 
     private final SignupService signupService;
@@ -30,11 +30,11 @@ public class SignupController {
         this.messageSource = messageSource;
     }
 
-    @PostMapping("/signup")
+    @PostMapping(value = "/signup", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE, produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @RateLimit(keyPrefix = "signup")
     @Operation(
         summary = "Signup new organization and HRMS account",
-        description = "Creates Organization, HRMS Account, initial User and OWNER membership",
+        description = "Creates Organization, HRMS Account, initial User and OWNER membership. Returns the domain that can be used for signin.",
         requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
             content = @io.swagger.v3.oas.annotations.media.Content(
@@ -51,7 +51,11 @@ public class SignupController {
                 description = "Signup success",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
-                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.SignupResponse.class)
+                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.SignupResponse.class),
+                    examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                        name = "SignupResponse",
+                        value = "{\n  \"message\": \"Signup successful\",\n  \"domain\": \"acmecorp\"\n}"
+                    )
                 )
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(

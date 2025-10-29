@@ -1,0 +1,34 @@
+{
+  "groups": [
+    {
+      "name": "app.api",
+      "type": "com.delight.account.config.ApiRoutingConfig",
+      "sourceType": "com.delight.account.config.ApiRoutingConfig"
+    },
+    {
+      "name": "channel.auth",
+      "type": "com.delight.account.config.ChannelAuthConfig",
+      "sourceType": "com.delight.account.config.ChannelAuthConfig"
+    }
+  ],
+  "properties": [
+    {
+      "name": "app.api.api-prefix",
+      "type": "java.lang.String",
+      "description": "API path prefix for rate-limited endpoints",
+      "sourceType": "com.delight.account.config.ApiRoutingConfig"
+    },
+    {
+      "name": "app.api.global-endpoints",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "Global endpoints that should not have dual routing or account-level rate limiting",
+      "sourceType": "com.delight.account.config.ApiRoutingConfig"
+    },
+    {
+      "name": "channel.auth.keys",
+      "type": "java.util.Map<java.lang.String,java.lang.String>",
+      "sourceType": "com.delight.account.config.ChannelAuthConfig"
+    }
+  ],
+  "hints": []
+}

@@ -39,7 +39,7 @@
               "mode": "raw",
               "raw": "{\n  \"companyName\": \"Acme Corp\",\n  \"emailAddress\": \"owner@{{companyDomain}}.com\",\n  \"industryType\": \"Software\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\"\n}"
             },
-            "description": "Creates Organization, HRMS Account, initial User and OWNER membership"
+            "description": "Creates Organization, HRMS Account, initial User and OWNER membership. Returns the domain that can be used for signin."
           },
           "event": [
             {
@@ -48,7 +48,14 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Signup success', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
-                  "// Capture assigned domain from response header if provided",
+                  "// Capture domain from response body for signin",
+                  "try {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.domain) {",
+                  "    pm.environment.set('companyDomain', body.domain);",
+                  "  }",
+                  "} catch(e) { /* ignore JSON parse errors */ }",
+                  "// Fallback: capture assigned domain from response header if provided",
                   "const hdr = pm.response.headers.get('X-Account-Domain');",
                   "if (hdr) { pm.environment.set('companyDomain', hdr); }"
                 ]
@@ -91,7 +98,6 @@
               }
             }
           ]
-          }
         },
         {
           "name": "Signin",

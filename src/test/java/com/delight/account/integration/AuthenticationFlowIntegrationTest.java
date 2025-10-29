@@ -12,6 +12,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,7 +45,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "spring.datasource.url=jdbc:h2:mem:testdb",
     "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect"
 })
-@Transactional
 class AuthenticationFlowIntegrationTest {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthenticationFlowIntegrationTest.class);
@@ -71,7 +71,10 @@ class AuthenticationFlowIntegrationTest {
     private ProductRepository productRepository;
 
     @Autowired
-    private UserCredentialRepository credentialRepository;
+    private UserCredentialRepository userCredentialRepository;
+
+    @Autowired
+    private SessionRepository sessionRepository;
 
     @Autowired
     private com.delight.account.service.CacheService cacheService;
@@ -99,14 +102,30 @@ class AuthenticationFlowIntegrationTest {
         signinRequest.setPassword("SecureTest123!");
     }
 
+    @AfterEach
+    void tearDown() {
+        // Clear test data in correct order to avoid foreign key constraint violations
+        sessionRepository.deleteAll();
+        userCredentialRepository.deleteAll();
+        membershipRepository.deleteAll();
+        userRepository.deleteAll();
+        accountRepository.deleteAll();
+        organizationRepository.deleteAll();
+        productRepository.deleteAll();
+        
+        // Clear cache to prevent stale data
+        cacheService.clear();
+    }
+
     @Test
     void completeAuthenticationFlow() throws Exception {
-        // Step 1: Signup - Create new account
+        // Step 1: Signup
         mockMvc.perform(post("/account/signup")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(signupRequest)))
             .andExpect(status().isOk())
-            .andExpect(content().string("Signup successful"));
+            .andExpect(jsonPath("$.message").value("Signup successful"))
+            .andExpect(jsonPath("$.domain").exists());
 
         // Verify account was created
         Optional<Account> accountOpt = accountRepository.findByDomainAndStatus("integrationtestco", AccountStatus.ACTIVE);
@@ -134,7 +153,7 @@ class AuthenticationFlowIntegrationTest {
         UserCredential credential = new UserCredential();
         credential.setUser(user);
         credential.setPasswordHash(encrypt("SecureTest123!")); // Properly encrypt the password
-        credentialRepository.save(credential);
+        userCredentialRepository.save(credential);
 
         // Activate the user BEFORE signin
         user.setStatus(UserStatus.ACTIVE);
@@ -164,6 +183,7 @@ class AuthenticationFlowIntegrationTest {
         }
 
         String jwtToken = objectMapper.readTree(signinResult.getResponse().getContentAsString()).get("jwtToken").asText(); // Extract JWT token from JSON response
+
         assertThat(jwtToken).isNotBlank();
 
         // Verify JWT token contents
@@ -240,16 +260,30 @@ class AuthenticationFlowIntegrationTest {
 
     @Test
     void accessProtectedEndpointWithoutTokenReturnsUnauthorized() throws Exception {
-        mockMvc.perform(get("/account/info"))
+        // Create account first to ensure domain exists
+        mockMvc.perform(post("/account/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(signupRequest)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/account/info")
+                .header("Host", "integrationtestco"))
             .andExpect(status().isUnauthorized());
     }
 
     @Test
     void accessProtectedEndpointWithInvalidTokenReturnsUnauthorized() throws Exception {
+        // Create account first to ensure domain exists
+        mockMvc.perform(post("/account/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(signupRequest)))
+            .andExpect(status().isOk());
+
         String invalidToken = "invalid.jwt.token";
 
         mockMvc.perform(get("/account/info")
-                .header("Authorization", "Bearer " + invalidToken))
+                .header("Authorization", "Bearer " + invalidToken)
+                .header("Host", "integrationtestco"))
             .andExpect(status().isUnauthorized());
     }
 
@@ -269,7 +303,7 @@ class AuthenticationFlowIntegrationTest {
         UserCredential credential = new UserCredential();
         credential.setUser(user);
         credential.setPasswordHash(encrypt("SecureTest123!"));
-        credentialRepository.save(credential);
+        userCredentialRepository.save(credential);
 
         // Activate the user BEFORE signin
         user.setStatus(UserStatus.ACTIVE);
@@ -292,7 +326,8 @@ class AuthenticationFlowIntegrationTest {
 
         // Step 3: List members
         mockMvc.perform(get("/account/members")
-                .header("Authorization", "Bearer " + jwtToken))
+                .header("Authorization", "Bearer " + jwtToken)
+                .header("Host", "integrationtestco"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$[0].emailAddress").value("integration@test.com"))
@@ -319,6 +354,7 @@ class AuthenticationFlowIntegrationTest {
         String updateRequest = "{\"role\":\"ADMIN\"}";
         mockMvc.perform(patch("/account/members/" + secondUser.getId())
                 .header("Authorization", "Bearer " + jwtToken)
+                .header("Host", "integrationtestco")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(updateRequest))
             .andExpect(status().isOk());
@@ -351,7 +387,7 @@ class AuthenticationFlowIntegrationTest {
         UserCredential credential = new UserCredential();
         credential.setUser(user);
         credential.setPasswordHash(encrypt("SecureTest123!"));
-        credentialRepository.save(credential);
+        userCredentialRepository.save(credential);
 
         // Activate the user BEFORE signin
         user.setStatus(UserStatus.ACTIVE);

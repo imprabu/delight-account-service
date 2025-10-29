@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: migrate-accounts-to-auto-random
+      author: system
+      comment: "Convert accounts table id column from AUTO_INCREMENT to AUTO_RANDOM for improved TiDB scalability"
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: accounts
+      changes:
+        - sql:
+            sql: "SET @@tidb_allow_remove_auto_inc = 1"
+        - sql:
+            sql: "ALTER TABLE accounts MODIFY COLUMN id BIGINT AUTO_RANDOM(3);"
+        - sql:
+            sql: "SET @@tidb_allow_remove_auto_inc = 0"
+      rollback:
+        - sql:
+            sql: "SET @@tidb_allow_remove_auto_inc = 1"
+        - sql:
+            sql: "ALTER TABLE accounts MODIFY COLUMN id BIGINT AUTO_INCREMENT;"
+        - sql:
+            sql: "SET @@tidb_allow_remove_auto_inc = 0"

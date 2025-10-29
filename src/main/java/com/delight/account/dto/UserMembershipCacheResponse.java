@@ -10,8 +10,8 @@ import lombok.Data;
 @AllArgsConstructor
 @Schema(description = "User-specific membership data for an account")
 public class UserMembershipCacheResponse {
-    @Schema(description = "User id")
+    @Schema(description = "Unique identifier for the user", example = "67890")
     private Long userId;
-    @Schema(description = "Role of user in this account")
+    @Schema(description = "User's role within the account", example = "ADMIN", allowableValues = {"OWNER", "ADMIN", "USER"})
     private String role;
 }

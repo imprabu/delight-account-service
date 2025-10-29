@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 public class LoggingAspect {
     private static final Logger logger = LoggerFactory.getLogger(LoggingAspect.class);
 
-    @Around("execution(public * com.delight..*(..))")
+    @Around("execution(public * com.delight.account.controller..*(..)) || execution(public * com.delight.account.service..*(..))")
     public Object logAround(ProceedingJoinPoint joinPoint) throws Throwable {
         if (logger.isDebugEnabled()) {
             LoggingUtils.debug(logger, "Enter: {} with args {}", joinPoint.getSignature(), joinPoint.getArgs());

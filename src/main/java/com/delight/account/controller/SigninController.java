@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 @RestController
 @RequestMapping("/account")
-@Tag(name = "Auth")
+@Tag(name = "Authentication", description = "User authentication endpoints including signup, signin, and account activation")
 public class SigninController {
 
     private static final Logger logger = LoggerFactory.getLogger(SigninController.class);
@@ -40,7 +40,7 @@ public class SigninController {
         this.accountRepository = accountRepository;
     }
 
-    @PostMapping("/signin")
+    @PostMapping(value = "/signin", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE, produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @RateLimit(keyPrefix = "signin")
     @Operation(
         summary = "User signin",

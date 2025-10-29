@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20250717-change-plan-column
+      author: codex
+      changes:
+        - renameColumn:
+            tableName: accounts
+            oldColumnName: plan_id
+            newColumnName: plan
+            columnDataType: varchar(255)

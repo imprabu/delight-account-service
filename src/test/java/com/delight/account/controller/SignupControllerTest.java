@@ -71,7 +71,7 @@ class SignupControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(validRequest)))
             .andExpect(status().isOk())
-            .andExpect(content().string("Signup successful"));
+            .andExpect(content().json("{\"message\":\"Signup successful\",\"domain\":null}"));
 
         verify(signupService).signup(any(SignupRequest.class));
         verify(messageSource).getMessage("signup.success", null, Locale.ENGLISH);
@@ -88,7 +88,7 @@ class SignupControllerTest {
                 .header("Accept-Language", "fr")
                 .content(objectMapper.writeValueAsString(validRequest)))
             .andExpect(status().isOk())
-            .andExpect(content().string("Inscription réussie"));
+            .andExpect(content().json("{\"message\":\"Inscription réussie\",\"domain\":null}"));
 
         verify(messageSource).getMessage("signup.success", null, frenchLocale);
     }

@@ -54,8 +54,6 @@
     "key": "statusCode"
   },
   "application": "delight-account-service",
-  "service": "delight-account-service",
-  "environment": "${env:ENVIRONMENT:-development}",
   "exception": {
     "$resolver": "exception",
     "field": "className"

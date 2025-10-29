@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-client-type-to-sessions
+      author: system
+      changes:
+        - addColumn:
+            tableName: sessions
+            columns:
+              - column:
+                  name: client_type
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                  defaultValue: 'WEB'
+        - sql:
+            sql: "UPDATE sessions SET client_type = 'WEB' WHERE client_type IS NULL"
+      rollback:
+        - dropColumn:
+            tableName: sessions
+            columnName: client_type

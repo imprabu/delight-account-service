@@ -1,6 +1,5 @@
 package com.delight.account.service.impl;
 
-import com.delight.account.cache.CacheKeyManager;
 import com.delight.account.dto.ActivationRequest;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.Account;
@@ -15,7 +14,6 @@ import com.delight.account.repository.MembershipRepository;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
 import com.delight.account.service.ActivationService;
-import com.delight.account.service.CacheService;
 import com.delight.account.util.LoggingUtils;
 import com.delight.account.util.PasswordValidator;
 import org.slf4j.Logger;
@@ -28,8 +26,6 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Map;
-import java.util.Optional;
 
 @Service
 public class ActivationServiceImpl implements ActivationService {
@@ -40,8 +36,6 @@ public class ActivationServiceImpl implements ActivationService {
     private final UserCredentialRepository credentialRepository;
     private final AccountRepository accountRepository;
     private final MembershipRepository membershipRepository;
-    private final CacheService cacheService;
-    private final CacheKeyManager cacheKeyManager;
     private final PasswordValidator passwordValidator;
     private final String passwordSecret;
 
@@ -49,16 +43,12 @@ public class ActivationServiceImpl implements ActivationService {
                                 UserCredentialRepository credentialRepository,
                                 AccountRepository accountRepository,
                                 MembershipRepository membershipRepository,
-                                CacheService cacheService,
-                                CacheKeyManager cacheKeyManager,
                                 PasswordValidator passwordValidator,
                                 @Value("${security.password.secret}") String passwordSecret) {
         this.userRepository = userRepository;
         this.credentialRepository = credentialRepository;
         this.accountRepository = accountRepository;
         this.membershipRepository = membershipRepository;
-        this.cacheService = cacheService;
-        this.cacheKeyManager = cacheKeyManager;
         this.passwordValidator = passwordValidator;
         this.passwordSecret = passwordSecret;
     }

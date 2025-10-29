@@ -27,7 +27,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/account")
-@Tag(name = "Auth")
+@Tag(name = "Authentication", description = "User authentication endpoints including signup, signin, and account activation")
 public class ActivationController {
 
     private static final Logger logger = LoggerFactory.getLogger(ActivationController.class);
@@ -42,15 +42,16 @@ public class ActivationController {
         this.accountRepository = accountRepository;
     }
 
-    @PostMapping("/activate")
+    @PostMapping(value = "/activate", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE, produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @RateLimit(keyPrefix = "activation")
     @Operation(
-        summary = "Activate user",
-        description = "Sets password and activates membership for the current account domain",
+        summary = "Activate user account",
+        description = "Sets password and activates user membership for the current account domain. Completes the user registration process.",
         requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
             content = @io.swagger.v3.oas.annotations.media.Content(
                 mediaType = "application/json",
+                schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = ActivationRequest.class),
                 examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
                     name = "ActivationRequest",
                     value = "{\n  \"emailAddress\": \"owner@acme.com\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"phoneNumber\": \"+1-555-123-4567\",\n  \"password\": \"P@ssw0rd123\",\n  \"retypePassword\": \"P@ssw0rd123\"\n}"
@@ -60,15 +61,26 @@ public class ActivationController {
         responses = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
-                description = "Activation success",
+                description = "Account activation successful",
                 content = @io.swagger.v3.oas.annotations.media.Content(
-                    mediaType = "text/plain",
-                    examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = "Activation successful")
+                    mediaType = "application/json",
+                    examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                        name = "ActivationResponse",
+                        value = "{\"message\": \"Activation successful\"}"
+                    )
                 )
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "400",
-                description = "Bad request",
+                description = "Bad request - Invalid activation data or password mismatch",
+                content = @io.swagger.v3.oas.annotations.media.Content(
+                    mediaType = "application/json",
+                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.ErrorResponse.class)
+                )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                responseCode = "404",
+                description = "Account not found or already activated",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                     mediaType = "application/json",
                     schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.delight.account.dto.ErrorResponse.class)
@@ -113,7 +125,7 @@ public class ActivationController {
         activationService.activateUser(accountId, request, country);
         String message = messageSource.getMessage("activation.success", null,
             locale == null ? Locale.ENGLISH : locale);
-        return ResponseEntity.ok(message);
+        return ResponseEntity.ok("{\"message\":\"" + message + "\"}");
     }
 
 
