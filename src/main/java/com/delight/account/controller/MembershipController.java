@@ -23,7 +23,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 @RestController
-@RequestMapping({"/account/members", "/api/account/members"})
+@RequestMapping({"/account/members", "/api/account/members", "/channel/account/members"})
 @Tag(name = "User Management", description = "User membership management including role assignments and status updates")
 public class MembershipController {
 
@@ -36,6 +36,7 @@ public class MembershipController {
     }
 
     @GetMapping(produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    @Tag(name = "Channel APIs", description = "Endpoints accessible via ChannelJWT under '/channel/**'")
     @Operation(
         summary = "List organization members",
         description = "Retrieves a list of all user memberships for the current account including their roles and status. Requires valid authentication.",
@@ -92,21 +93,24 @@ public class MembershipController {
         LoggingUtils.logBusinessOperation(logger, "GET_REQUEST_ATTRIBUTES", "SUCCESS");
         Object accountIdAttr = attr.getRequest().getAttribute("accountId");
         Object productCodeAttr = attr.getRequest().getAttribute("productCode");
+        Object channelAuthAttr = attr.getRequest().getAttribute("channelAuth");
         LoggingUtils.logBusinessOperation(logger, "EXTRACT_REQUEST_ATTRIBUTES", "SUCCESS", 
-            "accountIdAttr", accountIdAttr, "productCodeAttr", productCodeAttr);
+            "accountIdAttr", accountIdAttr, "productCodeAttr", productCodeAttr, "channelAuth", channelAuthAttr);
         if (accountIdAttr == null) {
             LoggingUtils.logSecurityEvent(logger, "MISSING_ACCOUNT_ID", "FAILED", "reason", "accountId attribute not found");
             throw new ApiException("error.account.notfound");
         }
-        if (productCodeAttr == null) {
-            LoggingUtils.logSecurityEvent(logger, "MISSING_PRODUCT_CODE", "FAILED", "reason", "productCode attribute not found");
-            throw new ApiException("error.authorization");
+        // For channel-authenticated requests, productCode is not required
+        if (!(attr.getRequest().getRequestURI().startsWith("/channel/") || Boolean.TRUE.equals(channelAuthAttr))) {
+            if (productCodeAttr == null) {
+                LoggingUtils.logSecurityEvent(logger, "MISSING_PRODUCT_CODE", "FAILED", "reason", "productCode attribute not found");
+                throw new ApiException("error.authorization");
+            }
         }
         Long accountId = (Long) accountIdAttr;
-        String productCode = productCodeAttr.toString();
         LoggingUtils.logBusinessOperation(logger, "LIST_MEMBERS_REQUEST", "PROCESSING", 
-            "accountId", accountId, "productCode", productCode);
-        List<MemberResponse> members = membershipService.listMembers(accountId, productCode);
+            "accountId", accountId);
+        List<MemberResponse> members = membershipService.listMembers(accountId);
         LoggingUtils.logMethodExit(logger, "listMembers", members);
         return ResponseEntity
             .ok()

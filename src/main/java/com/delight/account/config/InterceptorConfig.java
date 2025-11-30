@@ -37,10 +37,10 @@ public class InterceptorConfig implements WebMvcConfigurer {
             .excludePathPatterns("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
                               "/actuator/health");
         
-        // Add domain account interceptor for all paths (runs last)
+        // Add domain account interceptor for all paths except channel endpoints (runs last)
         registry.addInterceptor(domainAccountInterceptor)
             .addPathPatterns("/**")
-            .excludePathPatterns("/account/signup",
+            .excludePathPatterns("/account/signup", "/channel/**",
                               "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
                               "/actuator/health");
     }

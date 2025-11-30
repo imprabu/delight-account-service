@@ -62,7 +62,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                path.equals("/swagger-ui.html") || path.startsWith("/swagger-ui/") || 
                path.equals("/v3/api-docs") || path.startsWith("/v3/api-docs/") ||
                path.equals("/actuator/health") ||
-               path.startsWith("/channel/"); // Exclude /channel endpoints - handled by ChannelAuthFilter
+               path.startsWith("/channel/") || // Exclude /channel endpoints - handled by ChannelAuthFilter
+               path.startsWith("/test/"); // Exclude /test endpoints for development
         
         logger.info("=== JwtAuthenticationFilter.shouldNotFilter: path={}, shouldSkip={} ===", path, shouldSkip);
         return shouldSkip;

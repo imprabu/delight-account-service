@@ -100,7 +100,7 @@ class MembershipServiceTest {
         when(membershipRepository.findByAccountId(1L))
                 .thenReturn(memberships);
 
-        List<MemberResponse> result = membershipService.listMembers(1L, "TEST_PRODUCT");
+        List<MemberResponse> result = membershipService.listMembers(1L);
 
         assertThat(result).hasSize(2);
         
@@ -129,7 +129,7 @@ class MembershipServiceTest {
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> membershipService.listMembers(1L, "TEST_PRODUCT"))
+        assertThatThrownBy(() -> membershipService.listMembers(1L))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("error.account.notfound");
 
@@ -144,7 +144,7 @@ class MembershipServiceTest {
         when(membershipRepository.findByAccountId(1L))
                 .thenReturn(Arrays.asList());
 
-        List<MemberResponse> result = membershipService.listMembers(1L, "TEST_PRODUCT");
+        List<MemberResponse> result = membershipService.listMembers(1L);        
 
         assertThat(result).isEmpty();
         verify(accountRepository).findById(1L);

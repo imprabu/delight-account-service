@@ -37,7 +37,8 @@ public class TenantFilter implements Filter {
     private static final Set<String> EXCLUDED_PATH_PREFIXES = Set.of(
         "/swagger-ui/",
         "/v3/api-docs",
-        "/actuator/"
+        "/actuator/",
+        "/channel/"
     );
 
     public TenantFilter(AccountRepository accountRepository) {

@@ -180,7 +180,7 @@ class MembershipControllerTest {
     @Test
     void listMembersReturnsMembers() throws Exception {
         // Add debug output to verify the mock is being called
-        when(membershipService.listMembers(1L, "TEST_PRODUCT"))
+        when(membershipService.listMembers(1L))
                 .thenAnswer(invocation -> {
                     LoggingUtils.logBusinessOperation(logger, "MEMBERSHIP_SERVICE_CALL", "SUCCESS", "accountId", invocation.getArgument(0), "productCode", invocation.getArgument(1));
                     return mockMembers;
@@ -207,7 +207,7 @@ class MembershipControllerTest {
                 .andExpect(jsonPath("$[1].emailAddress").value("admin@example.com"));
                 
         // Verify that the service was called
-        verify(membershipService).listMembers(1L, "TEST_PRODUCT");
+        verify(membershipService).listMembers(1L);
     }
 
     @Test
@@ -219,7 +219,7 @@ class MembershipControllerTest {
         mockMvc.perform(request)
                 .andExpect(status().isBadRequest());
 
-        verify(membershipService, never()).listMembers(anyLong(), anyString());
+        verify(membershipService, never()).listMembers(anyLong());
     }
 
     @Test
@@ -231,12 +231,12 @@ class MembershipControllerTest {
         mockMvc.perform(request)
                 .andExpect(status().isBadRequest());
 
-        verify(membershipService, never()).listMembers(anyLong(), anyString());
+        verify(membershipService, never()).listMembers(anyLong());
     }
 
     @Test
     void listMembersHandlesServiceException() throws Exception {
-        when(membershipService.listMembers(1L, "TEST_PRODUCT"))
+        when(membershipService.listMembers(1L))
                 .thenThrow(new ApiException("error.account.notfound"));
 
         MockHttpServletRequestBuilder request = get("/account/members")
@@ -247,7 +247,7 @@ class MembershipControllerTest {
         mockMvc.perform(request)
                 .andExpect(status().isBadRequest());
 
-        verify(membershipService).listMembers(1L, "TEST_PRODUCT");
+        verify(membershipService).listMembers(1L);
     }
 
     @Test

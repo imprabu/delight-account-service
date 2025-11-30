@@ -29,7 +29,7 @@ public class RedisConfig {
     @Value("${spring.data.redis.password:}")
     private String redisPassword;
 
-    @Value("${spring.data.redis.database:0}")
+    @Value("${spring.data.redis.database:2}")
     private int redisDatabase;
 
     @Bean

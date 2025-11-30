@@ -26,8 +26,8 @@ public class MembershipServiceImpl implements MembershipService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MemberResponse> listMembers(Long accountId, String productCode) {
-        ensureAccountProduct(accountId, productCode);
+    public List<MemberResponse> listMembers(Long accountId) {
+        ensureAccountProduct(accountId);
         return membershipRepository.findByAccountId(accountId).stream()
             .map(m -> MemberResponse.builder()
                 .userId(m.getUser().getId())
@@ -46,7 +46,7 @@ public class MembershipServiceImpl implements MembershipService {
         if (actorRole == null || (actorRole != Role.ADMIN && actorRole != Role.OWNER)) {
             throw new ApiException("error.authorization");
         }
-        ensureAccountProduct(accountId, productCode);
+        ensureAccountProduct(accountId);
 
         Membership membership = membershipRepository
             .findByUserIdAndAccountId(targetUserId, accountId)
@@ -72,14 +72,11 @@ public class MembershipServiceImpl implements MembershipService {
             .build();
     }
 
-    private void ensureAccountProduct(Long accountId, String productCode) {
-        if (productCode == null) {
-            throw new ApiException("error.authorization");
-        }
+    private void ensureAccountProduct(Long accountId) {
         var account = accountRepository.findById(accountId)
             .orElseThrow(() -> new ApiException("error.account.notfound"));
         var acctProduct = account.getProduct();
-        if (acctProduct == null || acctProduct.getCode() == null || !acctProduct.getCode().equals(productCode)) {
+        if (acctProduct == null || acctProduct.getCode() == null) {
             throw new ApiException("error.authorization");
         }
     }

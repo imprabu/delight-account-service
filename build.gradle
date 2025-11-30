@@ -47,6 +47,12 @@ dependencies {
         runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
         // Jackson Hibernate module (Jakarta) to serialize JPA proxies safely
         implementation 'com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta'
+        // JobRunr for async processing with pub/sub and monitoring
+        implementation 'org.jobrunr:jobrunr-spring-boot-3-starter:7.2.2'
+        // Lettuce Redis client for JobRunr
+        implementation 'io.lettuce:lettuce-core:6.8.1.RELEASE'
+        // Commons Pool2 for Lettuce connection pooling
+        implementation 'org.apache.commons:commons-pool2:2.11.1'
         compileOnly 'org.projectlombok:lombok'
         developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
@@ -59,6 +65,7 @@ dependencies {
 	testImplementation 'org.springframework.kafka:spring-kafka-test'
         testImplementation 'org.springframework.security:spring-security-test'
         testImplementation 'com.h2database:h2'
+        testImplementation 'org.awaitility:awaitility:4.2.0'
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 tasks.named('bootBuildImage') {
@@ -130,8 +137,86 @@ tasks.named('processTestResources') {
     }
 }
 
+// Task to kill any process running on port 8080
+task killPort8080 {
+    doLast {
+        def port = 8080
+        def os = System.getProperty("os.name").toLowerCase()
+        
+        if (os.contains("mac") || os.contains("darwin")) {
+            // macOS/Linux
+            def processIds = new ByteArrayOutputStream()
+            exec {
+                commandLine 'lsof', '-ti', ":$port"
+                standardOutput = processIds
+                ignoreExitValue = true
+            }
+            def pids = processIds.toString().trim()
+            if (pids) {
+                logger.lifecycle("Killing process(es) on port $port: $pids")
+                exec {
+                    commandLine 'kill', '-9', pids.split('\n')[0]
+                    ignoreExitValue = true
+                }
+                // Wait a moment for the port to be released
+                sleep(1000)
+            } else {
+                logger.lifecycle("No process found on port $port")
+            }
+        } else if (os.contains("win")) {
+            // Windows
+            def processIds = new ByteArrayOutputStream()
+            exec {
+                commandLine 'cmd', '/c', "netstat -ano | findstr :$port"
+                standardOutput = processIds
+                ignoreExitValue = true
+            }
+            def output = processIds.toString().trim()
+            if (output) {
+                def lines = output.split('\n')
+                lines.each { line ->
+                    def parts = line.trim().split('\\s+')
+                    if (parts.length > 0) {
+                        def pid = parts.last()
+                        logger.lifecycle("Killing process on port $port: $pid")
+                        exec {
+                            commandLine 'taskkill', '/F', '/PID', pid
+                            ignoreExitValue = true
+                        }
+                    }
+                }
+                sleep(1000)
+            } else {
+                logger.lifecycle("No process found on port $port")
+            }
+        } else {
+            // Linux
+            def processIds = new ByteArrayOutputStream()
+            exec {
+                commandLine 'lsof', '-ti', ":$port"
+                standardOutput = processIds
+                ignoreExitValue = true
+            }
+            def pids = processIds.toString().trim()
+            if (pids) {
+                logger.lifecycle("Killing process(es) on port $port: $pids")
+                exec {
+                    commandLine 'kill', '-9', pids.split('\n')[0]
+                    ignoreExitValue = true
+                }
+                sleep(1000)
+            } else {
+                logger.lifecycle("No process found on port $port")
+            }
+        }
+    }
+}
+
 // Configure bootRun task specifically
 tasks.named('bootRun') {
+    // Kill any process on port 8080 before starting
+    dependsOn killPort8080
+    
     // Ensure bootRun gets the environment variables
     environment envProps
     

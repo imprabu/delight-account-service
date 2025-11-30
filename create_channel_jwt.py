@@ -22,10 +22,10 @@ def create_channel_jwt(account_id="1", key_version="v1", secret_key=None):
         str: The JWT token
     """
     
-    # Default secret keys (matching application.properties defaults)
+    # Keys from envVariables_staging (base64 encoded)
     default_keys = {
-        "v1": "channel-secret-key-v1-that-is-long-enough-for-hmac-sha256-staging",
-        "v2": "channel-secret-key-v2-that-is-long-enough-for-hmac-sha256-staging"
+        "v1": "zcPXq33YkT6zxK950bMR+I5bmEEJ/YZ/IFeR/ogeVVM=",
+        "v2": "sQ35GIHp/YqoIxNtuutTHzWN0xgWLkAWZG0z2UArMe0="
     }
     
     if secret_key is None:

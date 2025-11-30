@@ -6,6 +6,6 @@ import com.delight.account.model.Role;
 import java.util.List;
 
 public interface MembershipService {
-    List<MemberResponse> listMembers(Long accountId, String productCode);
+    List<MemberResponse> listMembers(Long accountId);
     MemberResponse updateMember(Long accountId, Long targetUserId, UpdateMemberRequest request, Role actorRole, String productCode);
 }

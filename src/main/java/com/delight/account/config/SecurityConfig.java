@@ -24,6 +24,7 @@ public class SecurityConfig {
                 .requestMatchers("/accounts/session", "/accounts/validate-session", "/accounts/signout", "/accounts/invalidate-all-sessions", "/accounts/logout", "/accounts/logout-all").permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/test/**").permitAll() // Test endpoints for development
                 .requestMatchers("/channel/**").hasRole("CHANNEL") // Channel endpoints require ROLE_CHANNEL
                 .anyRequest().authenticated())
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

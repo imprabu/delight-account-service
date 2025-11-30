@@ -24,7 +24,10 @@ import org.springframework.context.annotation.Configuration;
                      "• Session validation and management\n" +
                      "• Membership management with role-based access control (OWNER, ADMIN, MEMBER)\n" +
                      "• Multi-endpoint support (regular, API, and channel endpoints)\n\n" +
-                     "The API supports both cookie-based and JWT Bearer token authentication for flexible integration.",
+                     "Authentication:\n" +
+                     "• Cookie-based (session) and JWT Bearer token authentication are supported.\n" +
+                     "• Channel endpoints under '/channel/**' require a ChannelJWT provided via Authorization header (Bearer).\n" +
+                     "• Use the Swagger 'Authorize' button with a ChannelJWT to try channel endpoints.",
         termsOfService = "https://delight.example/terms",
         contact = @Contact(
             name = "Delight API Support Team",

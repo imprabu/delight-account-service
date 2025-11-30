@@ -5,7 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/account")
+@RequestMapping({"/account", "/channel/account"})
 public class AccountConfigController {
 
     private final CacheService cacheService;

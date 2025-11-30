@@ -1,0 +1,23 @@
+messaging:
+  service:
+    base-url: ${MESSAGING_SERVICE_URL:http://localhost:8085}
+    endpoint: /api/messages/ingest
+    jwt-token: ${MESSAGING_JWT_TOKEN:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+    timeout-ms: ${MESSAGING_TIMEOUT_MS:5000}
+    retry:
+      max-attempts: ${MESSAGING_RETRY_MAX_ATTEMPTS:3}
+      delay-ms: ${MESSAGING_RETRY_DELAY_MS:1000}
+  
+  topics:
+    account-activities:
+      topic-name: account_actvities_v1
+      service-name: delight_accounts
+      payload-types:
+        - name: account_created
+          enabled: ${MESSAGING_ACCOUNT_CREATED_ENABLED:true}
+        - name: account_modified
+          enabled: ${MESSAGING_ACCOUNT_MODIFIED_ENABLED:true}
+        - name: account_deleted
+          enabled: ${MESSAGING_ACCOUNT_DELETED_ENABLED:true}
+
+

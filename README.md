@@ -121,6 +121,63 @@ Usage:
 - Use the "Signin" request (with Host header) to obtain a JWT and set it in the environment variable `jwt`. Several endpoints also accept the `hrsession` cookie which is set by the signin response.
 - The OpenAPI spec is also served at `http://localhost:8080/v3/api-docs` while the app is running and can be imported directly into Postman if you prefer Postman’s auto-generated collections.
 
+## Channel APIs
+
+Channel endpoints under `/channel/**` are authenticated using a ChannelJWT and secured with `ROLE_CHANNEL`. These endpoints operate at the account level without a user session.
+
+### Generate a ChannelJWT
+
+Use the helper script and copy the token output:
+
+```bash
+python3 create_channel_jwt.py
+# Copy the value printed after "Token:" and use it as the Bearer token
+```
+
+### Quick curl tests
+
+Set the token and base URL once, then call channel endpoints:
+
+```bash
+TOKEN="<paste-token-from-script>"
+BASE="http://127.0.0.1:8080"
+
+# Account info (Channel-safe: no user context)
+curl -s -o - -w '\nHTTP %{http_code}\n' \
+  -H "Authorization: Bearer $TOKEN" \
+  "$BASE/channel/account/info"
+
+# Membership list (Channel-safe)
+curl -s -o - -w '\nHTTP %{http_code}\n' \
+  -H "Authorization: Bearer $TOKEN" \
+  "$BASE/channel/account/members"
+
+# Session validation (Channel)
+curl -s -o - -w '\nHTTP %{http_code}\n' \
+  -H "Authorization: Bearer $TOKEN" \
+  "$BASE/channel/validateSession"
+```
+
+Expected: HTTP 200 with account-level data when the token is valid.
+
+### Postman collection for Channel APIs
+
+- Collection: `postman/Delight Channel.postman_collection.json`
+- Environment: `postman/Delight Channel Local.postman_environment.json`
+
+Usage:
+- Import the collection and environment.
+- Select the "Delight Channel Local" environment.
+- Set `channel_token` to the value printed by `create_channel_jwt.py`.
+- Ensure `baseUrl` points to your running instance (default `http://127.0.0.1:8080`).
+- Run requests under the Channel folders; each uses collection-level Bearer auth with `{{channel_token}}` and includes simple tests for HTTP 200.
+
+### Troubleshooting
+
+- 401 Unauthorized: Token missing/expired/invalid. Regenerate with `create_channel_jwt.py` and retry.
+- 403 Forbidden: Hitting `/channel/**` without `ROLE_CHANNEL`. Ensure you send `Authorization: Bearer <ChannelJWT>`.
+- Port in use: If the app fails to start because `8080` is busy, run `lsof -nP -iTCP:8080 -sTCP:LISTEN` and kill the reported PID, then `./gradlew bootRun`.
+
 ## Rate limiting: how to test
 
 Global, public endpoints (signup, signin, activation) are rate limited. Defaults are configured in `src/main/resources/application.properties`:
