@@ -1,6 +1,8 @@
 package com.delight.account.model;
 
 import com.delight.account.listener.CacheInvalidationEntityListener;
+import com.delight.account.listener.CasbinPolicyReloadListener;
+import com.delight.account.util.OffsetDateTimeStringConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,7 +16,7 @@ import java.time.OffsetDateTime;
 @Entity
 @Table(name = "memberships",
     uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "account_id"}))
-@EntityListeners(CacheInvalidationEntityListener.class)
+@EntityListeners({CacheInvalidationEntityListener.class, CasbinPolicyReloadListener.class, com.delight.account.listener.MembershipEventEntityListener.class})
 public class Membership {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,9 +30,9 @@ public class Membership {
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", nullable = false)
+    private RoleEntity role;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -43,11 +45,20 @@ public class Membership {
     @JoinColumn(name = "invited_by")
     private User invitedBy;
 
+    @Convert(converter = OffsetDateTimeStringConverter.class)
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
+
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {
             createdAt = OffsetDateTime.now();
         }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = OffsetDateTime.now();
     }
 }
 

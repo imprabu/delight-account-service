@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-remove-email-from-accounts
+      author: codex
+      comment: Remove email column from accounts table as email is stored in users table
+      preConditions:
+        - onFail: MARK_RAN
+        - columnExists:
+            tableName: accounts
+            columnName: email
+      changes:
+        - dropColumn:
+            tableName: accounts
+            columnName: email
+
+
+

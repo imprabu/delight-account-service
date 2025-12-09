@@ -1,10 +1,13 @@
 package com.delight.account.model;
 
 import com.delight.account.listener.CacheInvalidationEntityListener;
+import com.delight.account.util.OffsetDateTimeStringConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.OffsetDateTime;
 
 @Getter
 @Setter
@@ -30,4 +33,13 @@ public class UserCredential {
 
     @Column(name = "api_key")
     private String apiKey;
+
+    @Convert(converter = OffsetDateTimeStringConverter.class)
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = OffsetDateTime.now();
+    }
 }

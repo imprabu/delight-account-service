@@ -1,0 +1,63 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-insert-default-privileges
+      author: codex
+      comment: Insert default privileges across all categories
+      changes:
+        # User Management Privileges
+        - sql:
+            sql: |
+              INSERT INTO privileges (code, name, description, category, is_system_privilege) VALUES
+              ('user.create', 'Create User', 'Create new users', 'user_management', false),
+              ('user.read', 'Read User', 'View users', 'user_management', false),
+              ('user.update', 'Update User', 'Update user information', 'user_management', false),
+              ('user.delete', 'Delete User', 'Delete users', 'user_management', false),
+              ('user.invite', 'Invite User', 'Invite users', 'user_management', false),
+              ('user.activate', 'Activate User', 'Activate user accounts', 'user_management', false),
+              ('user.suspend', 'Suspend User', 'Suspend user accounts', 'user_management', false);
+        # Account Management Privileges
+        - sql:
+            sql: |
+              INSERT INTO privileges (code, name, description, category, is_system_privilege) VALUES
+              ('account.read', 'Read Account', 'View account information', 'account_management', false),
+              ('account.update', 'Update Account', 'Update account settings', 'account_management', false),
+              ('account.delete', 'Delete Account', 'Delete the account', 'account_management', true),
+              ('account.billing', 'Manage Billing', 'Manage billing and subscriptions', 'account_management', false),
+              ('account.settings', 'Manage Settings', 'Manage account settings', 'account_management', false);
+        # Role Management Privileges
+        - sql:
+            sql: |
+              INSERT INTO privileges (code, name, description, category, is_system_privilege) VALUES
+              ('role.create', 'Create Role', 'Create custom roles', 'role_management', false),
+              ('role.read', 'Read Role', 'View roles and permissions', 'role_management', false),
+              ('role.update', 'Update Role', 'Update role permissions', 'role_management', false),
+              ('role.delete', 'Delete Role', 'Delete custom roles', 'role_management', false),
+              ('role.assign', 'Assign Role', 'Assign roles to users', 'role_management', false);
+        # Organization Management Privileges
+        - sql:
+            sql: |
+              INSERT INTO privileges (code, name, description, category, is_system_privilege) VALUES
+              ('org.read', 'Read Organization', 'View organization information', 'organization_management', false),
+              ('org.update', 'Update Organization', 'Update organization settings', 'organization_management', false),
+              ('org.delete', 'Delete Organization', 'Delete the organization', 'organization_management', true),
+              ('org.account.create', 'Create Account', 'Create new accounts', 'organization_management', false),
+              ('org.account.manage', 'Manage Accounts', 'Manage all accounts', 'organization_management', false);
+        # Data Access Privileges
+        - sql:
+            sql: |
+              INSERT INTO privileges (code, name, description, category, is_system_privilege) VALUES
+              ('data.read', 'Read Data', 'Read data', 'data_access', false),
+              ('data.write', 'Write Data', 'Create and update data', 'data_access', false),
+              ('data.delete', 'Delete Data', 'Delete data', 'data_access', false),
+              ('data.export', 'Export Data', 'Export data', 'data_access', false);
+        # System Privileges
+        - sql:
+            sql: |
+              INSERT INTO privileges (code, name, description, category, is_system_privilege) VALUES
+              ('system.admin', 'System Admin', 'Full system administration', 'system', true),
+              ('system.audit', 'View Audit Logs', 'View audit logs', 'system', true),
+              ('system.config', 'System Configuration', 'System configuration', 'system', true);
+
+  # Note: Default roles (OWNER, ADMIN, AGENT) are now created per account during signup
+  # via RoleService.initializeDefaultRolesForAccount(). No global roles are seeded.
+

@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 /**
  * Abstract base controller for API endpoints that support dual routing.
  * This controller provides a common pattern for implementing endpoints that can be accessed
- * both via regular paths (e.g., /account/info) and API paths (e.g., /api/account/info).
+ * both via regular paths (e.g., /accounts/info) and API paths (e.g., /api/accounts/info).
  * 
  * When accessed via /api paths:
  * - Rate limiting is applied
@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
  * 
  * Example:
  * @RestController
- * @RequestMapping({"/account/info", "/api/account/info"})
+ * @RequestMapping({"/accounts/info", "/api/accounts/info"})
  * public class AccountInfoController extends BaseApiController {
  *     
  *     @GetMapping

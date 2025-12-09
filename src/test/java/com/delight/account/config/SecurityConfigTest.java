@@ -1,6 +1,8 @@
 package com.delight.account.config;
 
 import com.delight.account.filter.JwtAuthenticationFilter;
+import com.delight.account.filter.ChannelAuthFilter;
+import com.delight.account.filter.TenantFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +29,12 @@ class SecurityConfigTest {
 
     @Mock
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Mock
+    private ChannelAuthFilter channelAuthFilter;
+
+    @Mock
+    private TenantFilter tenantFilter;
 
     @Mock
     private HttpSecurity httpSecurity;
@@ -80,7 +88,7 @@ class SecurityConfigTest {
 
     @Test
     void csrfIsDisabled() throws Exception {
-        SecurityFilterChain filterChain = securityConfig.securityFilterChain(httpSecurity, jwtAuthenticationFilter);
+        SecurityFilterChain filterChain = securityConfig.securityFilterChain(httpSecurity, jwtAuthenticationFilter, channelAuthFilter, tenantFilter);
         
         // Verify CSRF is disabled by checking the filter chain configuration
         assertThat(filterChain).isNotNull();
@@ -91,7 +99,7 @@ class SecurityConfigTest {
 
     @Test
     void sessionManagementIsStateless() throws Exception {
-        SecurityFilterChain filterChain = securityConfig.securityFilterChain(httpSecurity, jwtAuthenticationFilter);
+        SecurityFilterChain filterChain = securityConfig.securityFilterChain(httpSecurity, jwtAuthenticationFilter, channelAuthFilter, tenantFilter);
         
         // Verify session management is set to stateless
         assertThat(filterChain).isNotNull();
@@ -102,7 +110,7 @@ class SecurityConfigTest {
 
     @Test
     void jwtFilterIsAddedBeforeUsernamePasswordAuthenticationFilter() throws Exception {
-        SecurityFilterChain filterChain = securityConfig.securityFilterChain(httpSecurity, jwtAuthenticationFilter);
+        SecurityFilterChain filterChain = securityConfig.securityFilterChain(httpSecurity, jwtAuthenticationFilter, channelAuthFilter, tenantFilter);
         
         // Verify the JWT filter is properly added to the filter chain
         assertThat(filterChain).isNotNull();

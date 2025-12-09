@@ -16,31 +16,31 @@ public class ActivationRequest {
     @NotBlank
     @Email
     @Size(max = 255)
-    @Schema(example = "owner@acme.com")
+    @Schema(description = "Email address of the user to activate", example = "owner@acme.com")
     private String emailAddress;
 
     @NotBlank
     @Size(max = 255)
-    @Schema(example = "Alice")
+    @Schema(description = "First name of the user", example = "Alice")
     private String firstName;
 
     @NotBlank
     @Size(max = 255)
-    @Schema(example = "Smith")
+    @Schema(description = "Last name of the user", example = "Smith")
     private String lastName;
 
     @NotBlank
     @Size(max = 32)
-    @Schema(example = "+1-555-123-4567")
+    @Schema(description = "Phone number for contact purposes", example = "+1-555-123-4567")
     private String phoneNumber;
 
     @NotBlank
     @Size(max = 255)
-    @Schema(example = "P@ssw0rd123")
+    @Schema(description = "Password for the user account", example = "P@ssw0rd123")
     private String password;
 
     @NotBlank
     @Size(max = 255)
-    @Schema(example = "P@ssw0rd123")
+    @Schema(description = "Password confirmation (must match password)", example = "P@ssw0rd123")
     private String retypePassword;
 }

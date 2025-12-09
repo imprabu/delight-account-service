@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-add-sessions-last-active-index
+      author: codex
+      comment: Add composite index for efficient last active time queries in Team Members tab
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            indexExists:
+              indexName: idx_sessions_user_account_last_active
+              tableName: sessions
+      changes:
+        - createIndex:
+            indexName: idx_sessions_user_account_last_active
+            tableName: sessions
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: account_id
+              - column:
+                  name: last_accessed_at
+                  descending: true
+
+

@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-add-region-to-accounts
+      author: codex
+      comment: Add region column to accounts table
+      changes:
+        - addColumn:
+            tableName: accounts
+            columns:
+              - column:
+                  name: region
+                  type: varchar(64)
+                  constraints:
+                    nullable: true
+                  remarks: Region identifier for the account (e.g., us-east-1, eu-west-1)
+        - sql:
+            sql: UPDATE accounts SET region = 'us-east-1' WHERE region IS NULL
+        - addNotNullConstraint:
+            tableName: accounts
+            columnName: region
+            columnDataType: varchar(64)
+

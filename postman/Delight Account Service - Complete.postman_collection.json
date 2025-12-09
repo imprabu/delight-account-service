@@ -1,0 +1,1021 @@
+{
+	"info": {
+		"_postman_id": "delight-account-service-complete",
+		"name": "Delight Account Service - Complete",
+		"description": "Complete API collection for Delight Account Service (SaaS).\n\n**Authentication Flow:**\n1. Signup at localhost:8080 (no domain required)\n2. Extract domain from signup response\n3. Use domain for all subsequent API calls\n4. Activate user account\n5. Sign in to get JWT token and session cookie\n6. Use JWT token (Bearer) or session cookie for authenticated requests\n\n**Channel Authentication:**\n- Channel endpoints (under /channel/**) require Channel JWT tokens\n- Channel tokens are different from user JWT tokens\n- Generate channel tokens using: `python3 create_channel_jwt.py [account_id] [user_id] [key_version]`\n- Channel endpoints include: /channel/allAccounts, /channel/validateSession, /channel/accounts/info, /channel/accounts/session/validate\n- **Flexible Context Resolution:**\n  • Account context: from JWT `account_id` OR domain lookup from Host header\n  • User context: from JWT `user_id` OR extracted from request body JWT token (POST only)\n\n**Role System:**\n- The system now uses role IDs instead of role enums\n- Default roles: 1=Org Admin, 2=Account Admin, 3=Agent\n- Custom roles can be created based on default roles\n- Use roleId in API requests (e.g., Update Member endpoint)\n\n**Environment Variables:**\n- `base_url`: http://localhost:8080 (for signup and channel APIs)\n- `domain`: Extracted from signup response (used for all other APIs)\n- `jwt_token`: JWT token from signin response\n- `session_id`: Session ID from signin response\n- `channel_token`: Channel JWT token for channel endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "1. Signup",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.domain) {",
+									"        pm.environment.set('domain', jsonData.domain);",
+									"        pm.environment.set('company_domain', jsonData.domain);",
+									"        console.log('Domain set to: ' + jsonData.domain);",
+									"    }",
+									"    pm.test('Signup successful', function () {",
+									"        pm.response.to.have.status(200);",
+									"        pm.expect(jsonData).to.have.property('domain');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"companyName\": \"Test Company {{$timestamp}}\",\n    \"emailAddress\": \"admin@testcompany.com\",\n    \"industryType\": \"Technology\",\n    \"firstName\": \"Admin\",\n    \"lastName\": \"User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/signup",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"signup"
+							]
+						},
+						"description": "Creates a new organization, HRMS account, initial user, and OWNER membership.\n\n**Note:** This endpoint uses `localhost:8080` (no domain required).\n\nThe response contains the `domain` which will be used for all subsequent API calls."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Activate User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Activation successful', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"emailAddress\": \"admin@testcompany.com\",\n    \"firstName\": \"Admin\",\n    \"lastName\": \"User\",\n    \"phoneNumber\": \"+1-555-123-4567\",\n    \"password\": \"Tr!dent9Alpha\",\n    \"retypePassword\": \"Tr!dent9Alpha\"\n}"
+						},
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/activate",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"activate"
+							]
+						},
+						"description": "Activates the user account by setting password and completing registration.\n\n**Note:** This endpoint uses the domain from signup response. The Host header must match the domain."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Sign In",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.jwtToken) {",
+									"        pm.environment.set('jwt_token', jsonData.jwtToken);",
+									"        console.log('JWT token saved');",
+									"    }",
+									"    if (jsonData.sessionId) {",
+									"        pm.environment.set('session_id', jsonData.sessionId);",
+									"        console.log('Session ID saved: ' + jsonData.sessionId);",
+									"    }",
+									"    ",
+									"    // Extract JWT from cookie if available",
+									"    var cookies = pm.cookies.all();",
+									"    cookies.forEach(function(cookie) {",
+									"        if (cookie.name === 'hrsession') {",
+									"            pm.environment.set('jwt_token', cookie.value);",
+									"            console.log('JWT token extracted from cookie');",
+									"        }",
+									"    });",
+									"}",
+									"",
+									"pm.test('Signin successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('jwtToken');",
+									"    pm.expect(jsonData).to.have.property('sessionId');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"emailAddress\": \"admin@testcompany.com\",\n    \"password\": \"Tr!dent9Alpha\"\n}"
+						},
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/signin",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"signin"
+							]
+						},
+						"description": "Signs in the user and returns JWT token and session ID.\n\n**Response:**\n- `jwtToken`: JWT token for Bearer authentication\n- `sessionId`: Session identifier\n- Sets `hrsession` cookie for cookie-based authentication\n\n**Note:** The JWT token is automatically saved to environment variable `jwt_token` and can be used for subsequent authenticated requests."
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for signup, activation, and signin"
+		},
+		{
+			"name": "Session Management",
+			"item": [
+				{
+					"name": "Validate Session (GET)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Session validation successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('sessionId');",
+									"    pm.expect(jsonData).to.have.property('isActive');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/session",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"session"
+							]
+						},
+						"description": "Validates the current session using JWT token from Authorization header or cookie.\n\n**Authentication:**\n- Bearer token (Authorization header)\n- OR Session cookie (hrsession)\n\n**Note:** This endpoint automatically updates the last accessed time."
+					},
+					"response": []
+				},
+				{
+					"name": "Validate Session (POST)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Session validation successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"jwtToken\": \"{{jwt_token}}\"\n}"
+						},
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/session",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"session"
+							]
+						},
+						"description": "Validates session using JWT token from request body."
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Logout successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/logout",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"logout"
+							]
+						},
+						"description": "Invalidates the current session and clears the session cookie."
+					},
+					"response": []
+				},
+				{
+					"name": "Logout All Sessions",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Logout all successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/logout-all",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"logout-all"
+							]
+						},
+						"description": "Invalidates all sessions for the current user across all devices."
+					},
+					"response": []
+				}
+			],
+			"description": "Session management endpoints for validation, logout, and session control"
+		},
+		{
+			"name": "Account Management",
+			"item": [
+				{
+					"name": "Get Account Info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Account info retrieved', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('domain');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/info",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"info"
+							]
+						},
+						"description": "Returns comprehensive account, organization and product details with current user role and permissions."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Account Config",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Account config retrieved', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/config",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"config"
+							]
+						},
+						"description": "Gets account configuration."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Account Config",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Account config updated', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"key\": \"value\"\n}"
+						},
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/config",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"config"
+							]
+						},
+						"description": "Updates account configuration."
+					},
+					"response": []
+				}
+			],
+			"description": "Account management endpoints"
+		},
+		{
+			"name": "User Management",
+			"item": [
+				{
+					"name": "List Members",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Members list retrieved', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(pm.response.json()).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/members",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"members"
+							]
+						},
+						"description": "Retrieves a list of all user memberships for the current account including their roles and status."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Member",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Member updated', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"roleId\": 2,\n    \"status\": \"ACTIVE\"\n}"
+						},
+						"url": {
+							"raw": "http://{{domain}}:8080/account/members/:userId",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"members",
+								":userId"
+							],
+							"variable": [
+								{
+									"key": "userId",
+									"value": "1",
+									"description": "User ID to update"
+								}
+							]
+						},
+						"description": "Updates a user's role and/or status in the current account. Requires ORG_ADMIN or ACCOUNT_ADMIN permissions.\n\n**Note:** \n- `roleId` is the ID of the role from the roles table (e.g., 1=Org Admin, 2=Account Admin, 3=Agent)\n- The role system now uses role IDs instead of role enums\n- Custom roles can be created based on default roles (Org Admin, Account Admin, Agent)"
+					},
+					"response": []
+				}
+			],
+			"description": "User membership management endpoints"
+		},
+		{
+			"name": "API Endpoints",
+			"item": [
+				{
+					"name": "Get Account Info (API)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{domain}}:8080/api/accounts/info",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"accounts",
+								"info"
+							]
+						},
+						"description": "API endpoint version with rate limiting. Only Bearer token authentication is accepted (no cookies)."
+					},
+					"response": []
+				},
+				{
+					"name": "List Members (API)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{domain}}:8080/api/accounts/members",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"accounts",
+								"members"
+							]
+						},
+						"description": "API endpoint version with rate limiting."
+					},
+					"response": []
+				}
+			],
+			"description": "API endpoints with /api prefix. These endpoints have rate limiting and only accept Bearer token authentication."
+		},
+		{
+			"name": "Channel APIs",
+			"item": [
+				{
+					"name": "Get All Accounts (Channel)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('All accounts retrieved via channel', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(pm.response.json()).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{channel_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/channel/allAccounts",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"channel",
+								"allAccounts"
+							]
+						},
+						"description": "Returns a list of all accounts with their organization and product details. **Channel authentication required** - this endpoint only works with Channel JWT tokens, not regular user JWT tokens.\n\n**Authentication:**\n- Requires Channel JWT token (Bearer token) in Authorization header\n- Channel tokens are different from user JWT tokens\n- Generate channel tokens using: `python3 create_channel_jwt.py [account_id] [user_id] [key_version]`\n\n**Account Context Resolution:**\n- If `account_id` is in channel JWT → uses it directly\n- If `account_id` is NOT in channel JWT → extracts domain from Host header and looks up account\n- For domain lookup, include Host header: `Host: <domain>` (e.g., `Host: testcompany`)\n\n**Note:** This endpoint does not include user-specific information. The `/accounts/allAccounts` endpoint has been removed - use this channel endpoint instead."
+					},
+					"response": []
+				},
+				{
+					"name": "Validate Channel Session",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Channel session validated', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('accountId');",
+									"    pm.expect(jsonData).to.have.property('isActive');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{channel_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/channel/validateSession",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"channel",
+								"validateSession"
+							]
+						},
+						"description": "Validates the current channel session using Channel JWT token. Supports both GET and POST methods.\n\n**Authentication:**\n- Requires Channel JWT token (Bearer token) in Authorization header\n\n**Account Context Resolution:**\n- If `account_id` is in channel JWT → uses it directly\n- If `account_id` is NOT in channel JWT → extracts domain from Host header and looks up account\n\n**User Context Resolution:**\n- If `user_id` is in channel JWT → uses it directly\n- If `user_id` is NOT in channel JWT → extracts from request body JWT token (for POST requests)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Account Info (Channel)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Account info retrieved via channel', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('domain');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{channel_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/channel/accounts/info",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"channel",
+								"accounts",
+								"info"
+							]
+						},
+						"description": "Returns account-level information (no user-specific data) using channel authentication.\n\n**Authentication:**\n- Requires Channel JWT token (Bearer token) in Authorization header\n\n**Account Context Resolution:**\n- If `account_id` is in channel JWT → uses it directly\n- If `account_id` is NOT in channel JWT → extracts domain from Host header and looks up account\n- For domain lookup, include Host header: `Host: <domain>` (e.g., `Host: testcompany`)"
+					},
+					"response": []
+				},
+				{
+					"name": "Validate Session with Token (Channel)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Session validation successful via channel', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('sessionId');",
+									"    pm.expect(jsonData).to.have.property('isActive');",
+									"    pm.expect(jsonData).to.have.property('privileges');",
+									"    pm.expect(jsonData.privileges).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{channel_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"jwtToken\": \"{{jwt_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/channel/accounts/session/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"channel",
+								"accounts",
+								"session",
+								"validate"
+							]
+						},
+						"description": "Validates a user session using JWT token provided in request body. **Channel authentication required** - this endpoint only works when accessed via `/channel/accounts/session/validate` URL path with Channel JWT token in Authorization header.\n\n**Authentication:**\n- Requires Channel JWT token (Bearer token) in Authorization header\n- User session JWT token in request body (`jwtToken` field)\n\n**Account Context Resolution:**\n- If `account_id` is in channel JWT → uses it directly\n- If `account_id` is NOT in channel JWT → extracts domain from Host header and looks up account\n- For domain lookup, include Host header: `Host: <domain>` (e.g., `Host: testcompany`)\n\n**User Context Resolution:**\n- If `user_id` is in channel JWT → uses it directly\n- If `user_id` is NOT in channel JWT → extracts `userId` from the user JWT token in request body\n\n**Note:** The URL must contain `/channel/` in the path. Accessing via `/accounts/session/validate` will be rejected."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Accounts (Channel - Domain Lookup Example)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('All accounts retrieved via channel with domain lookup', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(pm.response.json()).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{channel_token_no_account}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text",
+								"description": "Required when channel JWT doesn't include account_id"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/channel/allAccounts",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"channel",
+								"allAccounts"
+							]
+						},
+						"description": "Example: Get all accounts using channel authentication with domain lookup.\n\n**Use this when:** Channel JWT token does NOT include `account_id`\n\n**Authentication:**\n- Requires Channel JWT token (Bearer token) WITHOUT account_id\n- Must include `Host` header with domain (e.g., `Host: testcompany`)\n- System will lookup account by domain and use that account context\n\n**Generate token:**\n```bash\npython3 create_channel_jwt.py None None v1\n```"
+					},
+					"response": []
+				}
+			],
+			"description": "Channel-authenticated endpoints for external systems. These endpoints require Channel JWT tokens (not regular user JWT tokens).\n\n**Channel Authentication Behavior:**\n\n**Channel JWT Token Structure:**\n- `key_version` (required): Key version for token validation (e.g., \"v1\", \"v2\")\n- `account_id` (optional): Account ID - if not provided, system looks up account by domain\n- `user_id` (optional): User ID - if not provided, system extracts from request body JWT (POST only)\n\n**Account Context Resolution:**\n1. If `account_id` is in channel JWT → use it directly\n2. If `account_id` is NOT in channel JWT → extract domain from Host header → lookup account in database\n\n**User Context Resolution:**\n1. If `user_id` is in channel JWT → use it directly\n2. If `user_id` is NOT in channel JWT → extract `jwtToken` from request body → parse user JWT → extract `userId`\n\n**Generate Channel Tokens:**\n```bash\n# With account_id and user_id:\npython3 create_channel_jwt.py 123 456 v1\n\n# With account_id only (user_id from body):\npython3 create_channel_jwt.py 123 None v1\n\n# Without account_id (domain lookup):\npython3 create_channel_jwt.py None None v1\n```\n\n**Usage Examples:**\n- Token with account_id: Works immediately, no Host header needed\n- Token without account_id: Must include `Host: <domain>` header for domain lookup\n- Token without user_id: For POST requests, user_id extracted from body JWT token"
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		}
+	]
+}
+

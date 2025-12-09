@@ -1,6 +1,7 @@
 package com.delight.account.model;
 
 import com.delight.account.listener.CacheInvalidationEntityListener;
+import com.delight.account.util.OffsetDateTimeStringConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -27,9 +28,9 @@ public class Session {
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", nullable = false)
+    private RoleEntity role;
 
     @Column(name = "jwt_token", columnDefinition = "TEXT", nullable = false)
     private String jwtToken;
@@ -59,6 +60,10 @@ public class Session {
     @Column(name = "client_type", nullable = false)
     private ClientType clientType = ClientType.WEB;
 
+    @Convert(converter = OffsetDateTimeStringConverter.class)
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
+
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {
@@ -72,5 +77,6 @@ public class Session {
     @PreUpdate
     public void preUpdate() {
         lastAccessedAt = OffsetDateTime.now();
+        updatedAt = OffsetDateTime.now();
     }
 }

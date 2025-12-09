@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-drop-unused-role-tables
+      author: codex
+      comment: Drop unused role management tables (user_roles, role_permissions, role_definitions, role_custom_permissions) as we're using Casbin for role management with the memberships table
+      changes:
+        # Drop tables using SQL with IF EXISTS to handle cases where tables don't exist
+        - sql:
+            sql: DROP TABLE IF EXISTS user_roles
+        - sql:
+            sql: DROP TABLE IF EXISTS role_permissions
+        - sql:
+            sql: DROP TABLE IF EXISTS role_definitions
+        - sql:
+            sql: DROP TABLE IF EXISTS role_custom_permissions
+

@@ -50,6 +50,6 @@ class ActivationControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest())
-            .andExpect(content().string("Validation failed"));
+            .andExpect(content().json("{\"status\":400,\"error\":\"Bad Request\",\"message\":\"Validation failed\",\"code\":\"error.validation\",\"path\":\"/account/activate\"}"));
     }
 }

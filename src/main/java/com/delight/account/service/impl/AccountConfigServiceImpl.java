@@ -1,7 +1,6 @@
 package com.delight.account.service.impl;
 
 import com.delight.account.cache.CacheKeyManager;
-import com.delight.account.model.Account;
 import com.delight.account.model.AccountConfig;
 import com.delight.account.repository.AccountConfigRepository;
 import com.delight.account.repository.AccountRepository;

@@ -1,0 +1,66 @@
+{
+  "timestamp": {
+    "$resolver": "timestamp",
+    "pattern": {
+      "format": "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+      "timeZone": "UTC"
+    }
+  },
+  "level": {
+    "$resolver": "level",
+    "field": "name"
+  },
+  "logger": {
+    "$resolver": "logger",
+    "field": "name"
+  },
+  "message": {
+    "$resolver": "message"
+  },
+  "thread": {
+    "$resolver": "thread",
+    "field": "name"
+  },
+  "requestId": {
+    "$resolver": "mdc",
+    "key": "requestId"
+  },
+  "userId": {
+    "$resolver": "mdc",
+    "key": "userId"
+  },
+  "domain": {
+    "$resolver": "mdc",
+    "key": "domain"
+  },
+  "accountId": {
+    "$resolver": "mdc",
+    "key": "accountId"
+  },
+  "duration": {
+    "$resolver": "mdc",
+    "key": "duration"
+  },
+  "method": {
+    "$resolver": "mdc",
+    "key": "method"
+  },
+  "uri": {
+    "$resolver": "mdc",
+    "key": "uri"
+  },
+  "statusCode": {
+    "$resolver": "mdc",
+    "key": "statusCode"
+  },
+  "application": "delight-account-service",
+  "exception": {
+    "$resolver": "exception",
+    "field": "className"
+  },
+  "stackTrace": {
+    "$resolver": "exception",
+    "field": "stackTrace",
+    "stringified": true
+  }
+}

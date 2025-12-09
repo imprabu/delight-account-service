@@ -4,12 +4,15 @@ import com.delight.account.annotation.RateLimit;
 import com.delight.account.dto.SigninRequest;
 import com.delight.account.dto.SigninResponse;
 import com.delight.account.model.ClientType;
+import com.delight.account.model.Session;
 import com.delight.account.service.SigninService;
 import com.delight.account.repository.AccountRepository;
+import com.delight.account.repository.SessionRepository;
 import com.delight.account.model.Account;
 import com.delight.account.model.AccountStatus;
 import com.delight.account.exception.ApiException;
 import com.delight.account.util.LoggingUtils;
+import com.delight.account.util.DomainHelper;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,24 +26,35 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 @RestController
-@RequestMapping("/account")
-@Tag(name = "Auth")
+@RequestMapping("/accounts")
+@Tag(name = "Authentication", description = "User authentication endpoints including signup, signin, and account activation")
 public class SigninController {
 
     private static final Logger logger = LoggerFactory.getLogger(SigninController.class);
+    private static final String SESSION_COOKIE_NAME = "hrsession";
+    
     private final SigninService signinService;
     private final AccountRepository accountRepository;
+    private final SessionRepository sessionRepository;
+    private final DomainHelper domainHelper;
 
-    public SigninController(SigninService signinService, AccountRepository accountRepository) {
+    public SigninController(SigninService signinService, 
+                           AccountRepository accountRepository,
+                           SessionRepository sessionRepository,
+                           DomainHelper domainHelper) {
         this.signinService = signinService;
         this.accountRepository = accountRepository;
+        this.sessionRepository = sessionRepository;
+        this.domainHelper = domainHelper;
     }
 
-    @PostMapping("/signin")
+    @PostMapping(value = "/signin", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE, produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @RateLimit(keyPrefix = "signin")
     @Operation(
         summary = "User signin",
@@ -97,16 +111,7 @@ public class SigninController {
                                          HttpServletRequest httpRequest, 
                                          HttpServletResponse httpResponse) {
         ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
-        String domain = attr.getRequest().getServerName();
-        
-        // Extract subdomain (company identifier) from server name
-        if (domain != null) {
-            domain = domain.toLowerCase();
-            int dot = domain.indexOf('.');
-            if (dot > 0) {
-                domain = domain.substring(0, dot);
-            }
-        }
+        String domain = domainHelper.extractSubdomainFromServerName(attr.getRequest());
         
         LoggingUtils.logMethodEntry(logger, "signin", "domain", domain, "emailAddress", request.getEmailAddress());
         
@@ -131,17 +136,49 @@ public class SigninController {
         // Use the new session-based signin method with client type
         SigninResponse signinResponse = signinService.signinWithSession(accountId, domain, request, userAgent, ipAddress, clientType);
         
-        // Set the JWT token as an HTTP-only cookie
-        Cookie sessionCookie = new Cookie("hrsession", signinResponse.getJwtToken());
-        sessionCookie.setHttpOnly(true);
-        sessionCookie.setSecure(false); // Set to true in production with HTTPS
-        sessionCookie.setPath("/");
-        sessionCookie.setMaxAge(24 * 60 * 60); // 24 hours
-        httpResponse.addCookie(sessionCookie);
+        // Get the session to calculate cookie expiration (createdAt + TTL)
+        Optional<Session> sessionOpt = sessionRepository.findBySessionIdAndIsActiveTrue(signinResponse.getSessionId());
+        if (sessionOpt.isPresent()) {
+            Session session = sessionOpt.get();
+            setSessionCookie(session, signinResponse.getJwtToken(), httpResponse);
+        } else {
+            // Fallback to default 24 hours if session not found
+            Cookie sessionCookie = new Cookie(SESSION_COOKIE_NAME, signinResponse.getJwtToken());
+            sessionCookie.setHttpOnly(true);
+            sessionCookie.setSecure(false); // Set to true in production with HTTPS
+            sessionCookie.setPath("/");
+            sessionCookie.setMaxAge(24 * 60 * 60); // 24 hours
+            httpResponse.addCookie(sessionCookie);
+        }
         
         LoggingUtils.logMethodExit(logger, "signin", signinResponse);
         // Return the SigninResponse object as JSON
         return ResponseEntity.ok(signinResponse);
+    }
+    
+    /**
+     * Set session cookie with expiration based on session createdAt + TTL.
+     */
+    private void setSessionCookie(Session session, String jwtToken, HttpServletResponse response) {
+        OffsetDateTime createdAt = session.getCreatedAt();
+        int ttlHours = session.getClientType().getDefaultTtlHours();
+        OffsetDateTime expiresAt = createdAt.plusHours(ttlHours);
+        
+        // Calculate maxAge in seconds
+        Duration duration = Duration.between(OffsetDateTime.now(), expiresAt);
+        int maxAge = (int) duration.getSeconds();
+        
+        // Don't set negative maxAge
+        if (maxAge <= 0) {
+            maxAge = 0; // Cookie will expire immediately
+        }
+        
+        Cookie sessionCookie = new Cookie(SESSION_COOKIE_NAME, jwtToken);
+        sessionCookie.setHttpOnly(true);
+        sessionCookie.setSecure(false); // Set to true in production with HTTPS
+        sessionCookie.setPath("/");
+        sessionCookie.setMaxAge(maxAge);
+        response.addCookie(sessionCookie);
     }
     
     /**

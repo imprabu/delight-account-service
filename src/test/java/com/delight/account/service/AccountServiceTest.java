@@ -83,7 +83,7 @@ class AccountServiceTest {
         testMembership.setId(1L);
         testMembership.setUser(testUser);
         testMembership.setAccount(testAccount);
-        testMembership.setRole(Role.MEMBER);
+        testMembership.setRole(Role.AGENT);
         testMembership.setStatus(MembershipStatus.ACTIVE);
 
         // Setup cache key manager mocks - updated for new split cache key structure
@@ -122,7 +122,7 @@ class AccountServiceTest {
         assertThat(result.getEmail()).isEqualTo("test@example.com");
         assertThat(result.getCompanyName()).isEqualTo("Test Company");
         assertThat(result.getCurrentUserId()).isEqualTo(1L);
-        assertThat(result.getCurrentUserRole()).isEqualTo("MEMBER");
+        assertThat(result.getCurrentUserRole()).isEqualTo("AGENT");
         assertThat(result.getOrganizationId()).isEqualTo(1L);
         assertThat(result.getOrganizationName()).isEqualTo("Test Organization");
         assertThat(result.getOrganizationPrimaryDomain()).isEqualTo("test.com");
@@ -184,7 +184,7 @@ class AccountServiceTest {
         Long accountId = 1L;
         Long userId = 1L;
 
-        Role[] roles = {Role.MEMBER, Role.ADMIN, Role.OWNER};
+        Role[] roles = {Role.AGENT, Role.ADMIN, Role.OWNER};
 
         for (Role role : roles) {
             testMembership.setRole(role);

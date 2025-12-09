@@ -91,7 +91,7 @@ class JwtAuthenticationFilterTest {
         testMembership.setId(1L);
         testMembership.setUser(testUser);
         testMembership.setAccount(testAccount);
-        testMembership.setRole(Role.MEMBER);
+        testMembership.setRole(Role.AGENT);
         testMembership.setStatus(MembershipStatus.ACTIVE);
     }
 
@@ -131,7 +131,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void doFilterInternalWithValidTokenSucceeds() throws ServletException, IOException {
-        String token = createValidToken(1L, 1L, "MEMBER", 1L, "TEST_PRODUCT");
+        String token = createValidToken(1L, 1L, "AGENT", 1L, "TEST_PRODUCT");
         
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
         when(membershipRepository.findByUserIdAndAccountId(1L, 1L))
@@ -145,13 +145,13 @@ class JwtAuthenticationFilterTest {
         MutableHttpServletRequest capturedRequest = requestCaptor.getValue();
         assertThat(capturedRequest.getHeader("accountId")).isEqualTo("1");
         assertThat(capturedRequest.getHeader("userId")).isEqualTo("1");
-        assertThat(capturedRequest.getHeader("role")).isEqualTo("MEMBER");
+        assertThat(capturedRequest.getHeader("role")).isEqualTo("AGENT");
         assertThat(capturedRequest.getHeader("orgId")).isEqualTo("1");
         assertThat(capturedRequest.getHeader("productCode")).isEqualTo("TEST_PRODUCT");
 
         assertThat(capturedRequest.getAttribute("accountId")).isEqualTo(1L);
         assertThat(capturedRequest.getAttribute("userId")).isEqualTo(1L);
-        assertThat(capturedRequest.getAttribute("role")).isEqualTo("MEMBER");
+        assertThat(capturedRequest.getAttribute("role")).isEqualTo("AGENT");
         assertThat(capturedRequest.getAttribute("orgId")).isEqualTo(1L);
         assertThat(capturedRequest.getAttribute("productCode")).isEqualTo("TEST_PRODUCT");
 
@@ -160,7 +160,7 @@ class JwtAuthenticationFilterTest {
         assertThat(auth).isNotNull();
         assertThat(auth.getName()).isEqualTo("1");
         assertThat(auth.getAuthorities()).hasSize(1);
-        assertThat(auth.getAuthorities().iterator().next()).isEqualTo(new SimpleGrantedAuthority("ROLE_MEMBER"));
+        assertThat(auth.getAuthorities().iterator().next()).isEqualTo(new SimpleGrantedAuthority("ROLE_AGENT"));
     }
 
     @Test
@@ -206,7 +206,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void doFilterInternalWithExpiredTokenReturnsUnauthorized() throws ServletException, IOException {
-        String expiredToken = createExpiredToken(1L, 1L, "MEMBER");
+        String expiredToken = createExpiredToken(1L, 1L, "AGENT");
         when(request.getHeader("Authorization")).thenReturn("Bearer " + expiredToken);
         when(response.getWriter()).thenReturn(writer);
         when(request.getRequestURI()).thenReturn("/test/path");
@@ -222,7 +222,7 @@ class JwtAuthenticationFilterTest {
     void doFilterInternalWithMissingAccountIdReturnsUnauthorized() throws ServletException, IOException {
         String tokenWithoutAccountId = Jwts.builder()
             .claim("userId", 1L)
-            .claim("role", "MEMBER")
+            .claim("role", "AGENT")
             .setIssuedAt(new Date())
             .setExpiration(new Date(System.currentTimeMillis() + 3600000))
             .signWith(Keys.hmacShaKeyFor(JWT_SECRET.getBytes(StandardCharsets.UTF_8)))
@@ -241,7 +241,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void doFilterInternalWithMissingUserIdReturnsUnauthorized() throws ServletException, IOException {
-        String tokenWithoutUserId = createTokenWithMissingClaims(1L, null, "MEMBER");
+        String tokenWithoutUserId = createTokenWithMissingClaims(1L, null, "AGENT");
         when(request.getHeader("Authorization")).thenReturn("Bearer " + tokenWithoutUserId);
         when(response.getWriter()).thenReturn(writer);
         when(request.getRequestURI()).thenReturn("/test/path");
@@ -255,7 +255,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void doFilterInternalWithMissingMembershipReturnsUnauthorized() throws ServletException, IOException {
-        String validToken = createValidToken(1L, 1L, "MEMBER", 1L, "TEST");
+        String validToken = createValidToken(1L, 1L, "AGENT", 1L, "TEST");
         when(request.getHeader("Authorization")).thenReturn("Bearer " + validToken);
         when(membershipRepository.findByUserIdAndAccountId(1L, 1L)).thenReturn(Optional.empty());
         when(response.getWriter()).thenReturn(writer);
@@ -271,7 +271,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void doFilterInternalWithInactiveMembershipReturnsUnauthorized() throws ServletException, IOException {
-        String validToken = createValidToken(1L, 1L, "MEMBER", 1L, "TEST");
+        String validToken = createValidToken(1L, 1L, "AGENT", 1L, "TEST");
         testMembership.setStatus(MembershipStatus.SUSPENDED);
         
         when(request.getHeader("Authorization")).thenReturn("Bearer " + validToken);
@@ -288,14 +288,14 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void doFilterInternalPrefersDatabaseRoleOverTokenRole() throws ServletException, IOException {
-        String token = createValidToken(1L, 1L, "MEMBER", 1L, "TEST_PRODUCT");
+        String token = createValidToken(1L, 1L, "AGENT", 1L, "TEST_PRODUCT");
         
         // Create a fresh membership with ADMIN role for this test
         Membership adminMembership = new Membership();
         adminMembership.setId(1L);
         adminMembership.setUser(testUser);
         adminMembership.setAccount(testAccount);
-        adminMembership.setRole(Role.ADMIN); // Database has ADMIN, token has MEMBER
+        adminMembership.setRole(Role.ADMIN); // Database has ADMIN, token has AGENT
         adminMembership.setStatus(MembershipStatus.ACTIVE);
         
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
@@ -332,14 +332,14 @@ class JwtAuthenticationFilterTest {
         MutableHttpServletRequest capturedRequest = requestCaptor.getValue();
         assertThat(capturedRequest.getHeader("accountId")).isEqualTo("1");
         assertThat(capturedRequest.getHeader("userId")).isEqualTo("1");
-        assertThat(capturedRequest.getHeader("role")).isEqualTo("MEMBER"); // From database
+        assertThat(capturedRequest.getHeader("role")).isEqualTo("AGENT"); // From database
         assertThat(capturedRequest.getHeader("orgId")).isNull();
         assertThat(capturedRequest.getHeader("productCode")).isNull();
     }
 
     @Test
     void doFilterInternalWithMutableRequestReusesInstance() throws ServletException, IOException {
-        String token = createValidToken(1L, 1L, "MEMBER", 1L, "TEST_PRODUCT");
+        String token = createValidToken(1L, 1L, "AGENT", 1L, "TEST_PRODUCT");
         MutableHttpServletRequest mutableRequest = new MutableHttpServletRequest(request);
         
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
@@ -357,7 +357,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void doFilterInternalSetsCorrectSecurityContextForDifferentRoles() throws ServletException, IOException {
-        Role[] roles = {Role.MEMBER, Role.ADMIN, Role.OWNER};
+        Role[] roles = {Role.AGENT, Role.ADMIN, Role.OWNER};
         
         for (Role role : roles) {
             SecurityContextHolder.clearContext();

@@ -170,3 +170,60 @@ This will show the saved cookies including the `hrsession` cookie with HttpOnly 
 - ✅ JWT token validation
 - ✅ User agent and IP tracking
 - ✅ Session expiration handling
+
+---
+
+# Channel APIs Manual Testing with curl
+
+Channel endpoints use a ChannelJWT (Bearer token) and operate at account scope without a user session. These tests verify ChannelJWT-based access.
+
+## Prerequisites
+- Application running on `http://127.0.0.1:8080`
+- `python3` available to generate the token
+- curl installed
+
+## 1. Generate ChannelJWT
+
+```bash
+python3 create_channel_jwt.py
+# Copy the value printed after "Token:" (Bearer token)
+```
+
+## 2. Account Info (Channel)
+
+```bash
+TOKEN="<paste-token-from-script>"
+BASE="http://127.0.0.1:8080"
+
+curl -s -o - -w '\nHTTP %{http_code}\n' \
+  -H "Authorization: Bearer $TOKEN" \
+  "$BASE/channel/account/info"
+```
+
+**Expected:** HTTP 200 with account-level data; `currentUserId` and `currentUserRole` are `null`.
+
+## 3. Membership List (Channel)
+
+```bash
+curl -s -o - -w '\nHTTP %{http_code}\n' \
+  -H "Authorization: Bearer $TOKEN" \
+  "$BASE/channel/account/members"
+```
+
+**Expected:** HTTP 200 with the list of account members.
+
+## 4. Validate Session (Channel)
+
+```bash
+curl -s -o - -w '\nHTTP %{http_code}\n' \
+  -H "Authorization: Bearer $TOKEN" \
+  "$BASE/channel/validateSession"
+```
+
+**Expected:** HTTP 200 with session validation result based on ChannelJWT attributes.
+
+## Troubleshooting
+
+1. **401 Unauthorized:** Token missing/expired/invalid → regenerate with `create_channel_jwt.py`.
+2. **403 Forbidden:** Calling `/channel/**` without `ROLE_CHANNEL` → ensure `Authorization: Bearer <ChannelJWT>` header is set.
+3. **Port 8080 in use:** Stop the process using `lsof -nP -iTCP:8080 -sTCP:LISTEN` and `kill -9 <PID>`, then restart the app.

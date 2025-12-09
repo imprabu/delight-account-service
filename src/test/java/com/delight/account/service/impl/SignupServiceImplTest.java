@@ -2,6 +2,7 @@ package com.delight.account.service.impl;
 
 import com.delight.account.dto.SignupRequest;
 import com.delight.account.exception.AccountCreationException;
+import com.delight.account.exception.ApiException;
 import com.delight.account.model.*;
 import com.delight.account.repository.*;
 import com.delight.account.service.CacheService;
@@ -49,7 +50,7 @@ class SignupServiceImplTest {
     private SignupServiceImpl signupService;
 
     private SignupRequest request;
-    private Product hrmsProduct;
+    private Product chatProduct;
     private Organization organization;
 
     @BeforeEach
@@ -60,10 +61,12 @@ class SignupServiceImplTest {
         request.setIndustryType("IT");
         request.setFirstName("John");
         request.setLastName("Doe");
+        request.setProductCode("CHAT");
+        request.setRegion("us-east-1");
 
-        hrmsProduct = new Product();
-        hrmsProduct.setCode("HRMS");
-        hrmsProduct.setName("HRMS");
+        chatProduct = new Product();
+        chatProduct.setCode("CHAT");
+        chatProduct.setName("CHAT");
 
         organization = new Organization();
         organization.setName("TestCo");
@@ -75,8 +78,8 @@ class SignupServiceImplTest {
     void signupCreatesCompleteAccountStructure() {
         when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
-        when(productRepository.findByCode("HRMS"))
-            .thenReturn(Optional.of(hrmsProduct));
+        when(productRepository.findByCode("CHAT"))
+            .thenReturn(Optional.of(chatProduct));
         when(organizationRepository.save(any(Organization.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(accountRepository.save(any(Account.class)))
@@ -99,7 +102,7 @@ class SignupServiceImplTest {
         assertThat(savedAccount.getEmail()).isEqualTo("test@example.com");
         assertThat(savedAccount.getCompanyName()).isEqualTo("TestCo");
         assertThat(savedAccount.getOrganization()).isNotNull();
-        assertThat(savedAccount.getProduct()).isEqualTo(hrmsProduct);
+        assertThat(savedAccount.getProduct()).isEqualTo(chatProduct);
 
         // Verify user creation
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
@@ -127,37 +130,39 @@ class SignupServiceImplTest {
     }
 
     @Test
-    void signupCreatesHrmsProductWhenNotExists() {
+    void signupThrowsExceptionWhenProductNotFound() {
         when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
-        when(productRepository.findByCode("HRMS"))
+        when(productRepository.findByCode("CHAT"))
             .thenReturn(Optional.empty());
-        when(productRepository.save(any(Product.class)))
-            .thenAnswer(invocation -> invocation.getArgument(0));
-        when(organizationRepository.save(any(Organization.class)))
-            .thenAnswer(invocation -> invocation.getArgument(0));
-        when(accountRepository.save(any(Account.class)))
-            .thenAnswer(invocation -> invocation.getArgument(0));
-        when(userRepository.save(any(User.class)))
-            .thenAnswer(invocation -> invocation.getArgument(0));
-        when(membershipRepository.save(any(Membership.class)))
-            .thenAnswer(invocation -> invocation.getArgument(0));
 
-        signupService.signup(request);
+        assertThatThrownBy(() -> signupService.signup(request))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("error.product.notfound");
+    }
+    
+    @Test
+    void signupThrowsExceptionWhenProductIsInactive() {
+        when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
+            .thenReturn(Optional.empty());
+        Product inactiveProduct = new Product();
+        inactiveProduct.setCode("CHAT");
+        inactiveProduct.setName("CHAT");
+        inactiveProduct.setActive(false);
+        when(productRepository.findByCode("CHAT"))
+            .thenReturn(Optional.of(inactiveProduct));
 
-        ArgumentCaptor<Product> productCaptor = ArgumentCaptor.forClass(Product.class);
-        verify(productRepository).save(productCaptor.capture());
-        Product savedProduct = productCaptor.getValue();
-        assertThat(savedProduct.getCode()).isEqualTo("HRMS");
-        assertThat(savedProduct.getName()).isEqualTo("HRMS");
+        assertThatThrownBy(() -> signupService.signup(request))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("error.product.inactive");
     }
 
     @Test
     void signupAddsRandomNumberWhenDomainExists() {
         when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.of(new Account()));
-        when(productRepository.findByCode("HRMS"))
-            .thenReturn(Optional.of(hrmsProduct));
+        when(productRepository.findByCode("CHAT"))
+            .thenReturn(Optional.of(chatProduct));
         when(organizationRepository.save(any(Organization.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(accountRepository.save(any(Account.class)))
@@ -181,8 +186,8 @@ class SignupServiceImplTest {
     void signupThrowsAccountCreationExceptionOnDataAccessException() {
         when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
-        when(productRepository.findByCode("HRMS"))
-            .thenReturn(Optional.of(hrmsProduct));
+        when(productRepository.findByCode("CHAT"))
+            .thenReturn(Optional.of(chatProduct));
         when(organizationRepository.save(any(Organization.class)))
             .thenThrow(new DataAccessException("Database error") {});
 
@@ -194,8 +199,8 @@ class SignupServiceImplTest {
     void signupHandlesAccountRepositoryException() {
         when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
-        when(productRepository.findByCode("HRMS"))
-            .thenReturn(Optional.of(hrmsProduct));
+        when(productRepository.findByCode("CHAT"))
+            .thenReturn(Optional.of(chatProduct));
         when(organizationRepository.save(any(Organization.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(accountRepository.save(any(Account.class)))
@@ -209,8 +214,8 @@ class SignupServiceImplTest {
     void signupHandlesUserRepositoryException() {
         when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
-        when(productRepository.findByCode("HRMS"))
-            .thenReturn(Optional.of(hrmsProduct));
+        when(productRepository.findByCode("CHAT"))
+            .thenReturn(Optional.of(chatProduct));
         when(organizationRepository.save(any(Organization.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(accountRepository.save(any(Account.class)))
@@ -226,8 +231,8 @@ class SignupServiceImplTest {
     void signupHandlesMembershipRepositoryException() {
         when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
-        when(productRepository.findByCode("HRMS"))
-            .thenReturn(Optional.of(hrmsProduct));
+        when(productRepository.findByCode("CHAT"))
+            .thenReturn(Optional.of(chatProduct));
         when(organizationRepository.save(any(Organization.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(accountRepository.save(any(Account.class)))
@@ -247,8 +252,8 @@ class SignupServiceImplTest {
         
         when(accountRepository.findByDomainAndStatus("test&co.ltd.", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
-        when(productRepository.findByCode("HRMS"))
-            .thenReturn(Optional.of(hrmsProduct));
+        when(productRepository.findByCode("CHAT"))
+            .thenReturn(Optional.of(chatProduct));
         when(organizationRepository.save(any(Organization.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(accountRepository.save(any(Account.class)))
@@ -274,8 +279,8 @@ class SignupServiceImplTest {
         
         when(accountRepository.findByDomainAndStatus("verylongcompanynamethatexceedsnormallength", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
-        when(productRepository.findByCode("HRMS"))
-            .thenReturn(Optional.of(hrmsProduct));
+        when(productRepository.findByCode("CHAT"))
+            .thenReturn(Optional.of(chatProduct));
         when(organizationRepository.save(any(Organization.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(accountRepository.save(any(Account.class)))
@@ -299,8 +304,8 @@ class SignupServiceImplTest {
         
         when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
-        when(productRepository.findByCode("HRMS"))
-            .thenReturn(Optional.of(hrmsProduct));
+        when(productRepository.findByCode("CHAT"))
+            .thenReturn(Optional.of(chatProduct));
         when(organizationRepository.save(any(Organization.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(accountRepository.save(any(Account.class)))
@@ -322,8 +327,8 @@ class SignupServiceImplTest {
     void signupVerifiesTransactionalBehavior() {
         when(accountRepository.findByDomainAndStatus("testco", AccountStatus.ACTIVE))
             .thenReturn(Optional.empty());
-        when(productRepository.findByCode("HRMS"))
-            .thenReturn(Optional.of(hrmsProduct));
+        when(productRepository.findByCode("CHAT"))
+            .thenReturn(Optional.of(chatProduct));
         when(organizationRepository.save(any(Organization.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         when(accountRepository.save(any(Account.class)))

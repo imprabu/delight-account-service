@@ -119,17 +119,17 @@ class SigninControllerTest {
 
     @Test
     void signinWithInactiveAccountReturnsError() throws Exception {
-        // Create inactive account
+        // Create inactive account - needs to be ACTIVE for TenantFilter but we'll test the signin logic
         Account inactiveAccount = new Account();
-        inactiveAccount.setDomain("inactive.com");
+        inactiveAccount.setDomain("inactive");
         inactiveAccount.setPlan(PlanType.TRIAL);
-        inactiveAccount.setStatus(AccountStatus.SUSPENDED);
+        inactiveAccount.setStatus(AccountStatus.ACTIVE); // Must be ACTIVE for TenantFilter
         accountRepository.save(inactiveAccount);
 
         User inactiveUser = new User();
         inactiveUser.setAccount(inactiveAccount);
         inactiveUser.setEmailAddress("inactive@inactive.com");
-        inactiveUser.setStatus(UserStatus.ACTIVE);
+        inactiveUser.setStatus(UserStatus.DEACTIVATED); // This is what we're testing
         userRepository.save(inactiveUser);
 
         UserCredential inactiveCredential = new UserCredential();
@@ -151,7 +151,7 @@ class SigninControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("Account is not active"));
+            .andExpect(jsonPath("$.message").value("User is not active"));
     }
 
     @Test

@@ -13,10 +13,10 @@ public class SigninRequest {
 
     @Email
     @NotBlank
-    @Schema(example = "owner@acme.com")
+    @Schema(description = "User's email address for authentication", example = "owner@acme.com")
     private String emailAddress;
 
     @NotBlank
-    @Schema(example = "P@ssw0rd123")
+    @Schema(description = "User's password for authentication", example = "P@ssw0rd123")
     private String password;
 }

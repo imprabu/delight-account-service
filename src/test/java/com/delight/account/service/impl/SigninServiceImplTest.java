@@ -2,22 +2,30 @@ package com.delight.account.service.impl;
 
 import com.delight.account.cache.CacheKeyManager;
 import com.delight.account.dto.SigninRequest;
+import com.delight.account.dto.SigninResponse;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.Account;
+import com.delight.account.model.ClientType;
+import com.delight.account.model.RoleEntity;
+import com.delight.account.model.RoleType;
+import com.delight.account.model.Session;
 import com.delight.account.model.User;
 import com.delight.account.model.UserCredential;
 import com.delight.account.model.UserStatus;
 import com.delight.account.model.Role;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.MembershipRepository;
+import com.delight.account.repository.RoleRepository;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
 import com.delight.account.service.CacheService;
+import com.delight.account.service.RoleService;
 import com.delight.account.service.SessionService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.Date;
 import java.util.Optional;
@@ -35,6 +43,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.ArgumentMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,6 +71,12 @@ class SigninServiceImplTest {
     @Mock
     private CacheKeyManager cacheKeyManager;
 
+    @Mock
+    private RoleRepository roleRepository;
+
+    @Mock
+    private RoleService roleService;
+
     private SigninServiceImpl signinService;
 
     @BeforeEach
@@ -73,6 +89,8 @@ class SigninServiceImplTest {
             TimeUnit.HOURS.toMillis(24),
             membershipRepository,
             accountRepository,
+            roleRepository,
+            roleService,
             sessionService,
             cacheService,
             cacheKeyManager
@@ -110,7 +128,7 @@ class SigninServiceImplTest {
         account.setOrganization(organization);
 
         com.delight.account.model.Product product = new com.delight.account.model.Product();
-        product.setCode("HRMS");
+        product.setCode("CHAT");
         account.setProduct(product);
 
         User user = new User();
@@ -127,16 +145,45 @@ class SigninServiceImplTest {
         com.delight.account.model.Membership membership = new com.delight.account.model.Membership();
         membership.setUser(user);
         membership.setAccount(account);
-        membership.setRole(Role.ADMIN);
         membership.setStatus(com.delight.account.model.MembershipStatus.ACTIVE);
+        
+        // Create RoleEntity for membership
+        RoleEntity adminRole = new RoleEntity();
+        adminRole.setId(1L);
+        adminRole.setCode("ADMIN");
+        adminRole.setAccount(account);
+        adminRole.setRoleType(RoleType.SYSTEM);
+        membership.setRole(adminRole);
 
         when(userRepository.findByAccountIdAndEmailAddress(1L, "john@example.com"))
             .thenReturn(Optional.of(user));
         when(credentialRepository.findByUser(user)).thenReturn(Optional.of(credential));
-        when(membershipRepository.findByUserIdAndAccountId(2L, 1L)).thenReturn(Optional.of(membership));
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(2L, 1L)).thenReturn(Optional.of(membership));
+        when(accountRepository.findByIdWithRelations(1L)).thenReturn(Optional.of(account));
+        
+        // Mock role repository and service
+        RoleEntity memberRole = new RoleEntity();
+        memberRole.setId(2L);
+        memberRole.setCode("AGENT");
+        memberRole.setAccount(account);
+        when(roleRepository.findByAccountIdAndCodeAndRoleType(1L, "AGENT", RoleType.SYSTEM))
+            .thenReturn(Optional.of(memberRole));
+        when(roleRepository.findById(1L))
+            .thenReturn(Optional.of(adminRole));
+        
+        // Mock session creation
+        Session session = new Session();
+        session.setSessionId("test-session-id");
+        session.setJwtToken("");
+        session.setCreatedAt(OffsetDateTime.now());
+        session.setClientType(ClientType.WEB);
+        when(sessionService.createSession(any(), any(), any(), anyString(), anyString(), anyString(), any()))
+            .thenReturn(session);
+        org.mockito.Mockito.doNothing().when(sessionService).invalidateSessionsByUserAccountAndClientType(anyLong(), anyLong(), any());
+        org.mockito.Mockito.doNothing().when(sessionService).updateSessionToken(anyString(), anyString());
 
-        String token = signinService.signin(1L, "localhost", request);
+        SigninResponse response = signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB);
+        String token = response.getJwtToken();
 
         Claims claims = Jwts.parser()
             .verifyWith(Keys.hmacShaKeyFor("sampleJwtSecret123sampleJwtSecret123".getBytes(StandardCharsets.UTF_8)))
@@ -173,7 +220,7 @@ class SigninServiceImplTest {
             .thenReturn(Optional.of(user));
         when(credentialRepository.findByUser(user)).thenReturn(Optional.of(credential));
 
-        assertThrows(ApiException.class, () -> signinService.signin(1L, "localhost", request));
+        assertThrows(ApiException.class, () -> signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB));
     }
 
     @Test
@@ -185,7 +232,7 @@ class SigninServiceImplTest {
         when(userRepository.findByAccountIdAndEmailAddress(1L, "missing@example.com"))
             .thenReturn(Optional.empty());
 
-        assertThrows(ApiException.class, () -> signinService.signin(1L, "localhost", request));
+        assertThrows(ApiException.class, () -> signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB));
     }
 
     private String encrypt(String value) {

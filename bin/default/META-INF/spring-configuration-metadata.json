@@ -1,0 +1,456 @@
+{
+  "groups": [
+    {
+      "name": "app.api",
+      "type": "com.delight.account.config.ApiRoutingConfig",
+      "sourceType": "com.delight.account.config.ApiRoutingConfig"
+    },
+    {
+      "name": "app.jobrunr",
+      "type": "com.delight.account.config.JobRunrProperties",
+      "sourceType": "com.delight.account.config.JobRunrProperties"
+    },
+    {
+      "name": "app.jobrunr.account-event-publish",
+      "type": "com.delight.account.config.JobRunrProperties$QueueConfig",
+      "sourceType": "com.delight.account.config.JobRunrProperties",
+      "sourceMethod": "public com.delight.account.config.JobRunrProperties.QueueConfig getAccountEventPublish() "
+    },
+    {
+      "name": "app.jobrunr.account-sync",
+      "type": "com.delight.account.config.JobRunrProperties$QueueConfig",
+      "sourceType": "com.delight.account.config.JobRunrProperties",
+      "sourceMethod": "public com.delight.account.config.JobRunrProperties.QueueConfig getAccountSync() "
+    },
+    {
+      "name": "app.jobrunr.bulk-account-sync",
+      "type": "com.delight.account.config.JobRunrProperties$QueueConfig",
+      "sourceType": "com.delight.account.config.JobRunrProperties",
+      "sourceMethod": "public com.delight.account.config.JobRunrProperties.QueueConfig getBulkAccountSync() "
+    },
+    {
+      "name": "app.jobrunr.cache-warmup",
+      "type": "com.delight.account.config.JobRunrProperties$QueueConfig",
+      "sourceType": "com.delight.account.config.JobRunrProperties",
+      "sourceMethod": "public com.delight.account.config.JobRunrProperties.QueueConfig getCacheWarmup() "
+    },
+    {
+      "name": "app.jobrunr.dashboard",
+      "type": "com.delight.account.config.JobRunrProperties$DashboardConfig",
+      "sourceType": "com.delight.account.config.JobRunrProperties",
+      "sourceMethod": "public com.delight.account.config.JobRunrProperties.DashboardConfig getDashboard() "
+    },
+    {
+      "name": "app.jobrunr.data-cleanup",
+      "type": "com.delight.account.config.JobRunrProperties$QueueConfig",
+      "sourceType": "com.delight.account.config.JobRunrProperties",
+      "sourceMethod": "public com.delight.account.config.JobRunrProperties.QueueConfig getDataCleanup() "
+    },
+    {
+      "name": "app.jobrunr.email-notification",
+      "type": "com.delight.account.config.JobRunrProperties$QueueConfig",
+      "sourceType": "com.delight.account.config.JobRunrProperties",
+      "sourceMethod": "public com.delight.account.config.JobRunrProperties.QueueConfig getEmailNotification() "
+    },
+    {
+      "name": "app.jobrunr.redis",
+      "type": "com.delight.account.config.JobRunrProperties$RedisConfig",
+      "sourceType": "com.delight.account.config.JobRunrProperties",
+      "sourceMethod": "public com.delight.account.config.JobRunrProperties.RedisConfig getRedis() "
+    },
+    {
+      "name": "channel.auth",
+      "type": "com.delight.account.config.ChannelAuthConfig",
+      "sourceType": "com.delight.account.config.ChannelAuthConfig"
+    },
+    {
+      "name": "messaging",
+      "type": "com.delight.account.config.MessagingProperties",
+      "sourceType": "com.delight.account.config.MessagingProperties"
+    },
+    {
+      "name": "messaging.service",
+      "type": "com.delight.account.config.MessagingProperties$ServiceConfig",
+      "sourceType": "com.delight.account.config.MessagingProperties",
+      "sourceMethod": "public com.delight.account.config.MessagingProperties.ServiceConfig getService() "
+    },
+    {
+      "name": "messaging.service.retry",
+      "type": "com.delight.account.config.MessagingProperties$ServiceConfig$RetryConfig",
+      "sourceType": "com.delight.account.config.MessagingProperties$ServiceConfig",
+      "sourceMethod": "public com.delight.account.config.MessagingProperties.ServiceConfig.RetryConfig getRetry() "
+    },
+    {
+      "name": "messaging.topics",
+      "type": "com.delight.account.config.MessagingProperties$TopicsConfig",
+      "sourceType": "com.delight.account.config.MessagingProperties",
+      "sourceMethod": "public com.delight.account.config.MessagingProperties.TopicsConfig getTopics() "
+    },
+    {
+      "name": "messaging.topics.account-activities",
+      "type": "com.delight.account.config.MessagingProperties$TopicsConfig$AccountActivitiesConfig",
+      "sourceType": "com.delight.account.config.MessagingProperties$TopicsConfig",
+      "sourceMethod": "public com.delight.account.config.MessagingProperties.TopicsConfig.AccountActivitiesConfig getAccountActivities() "
+    }
+  ],
+  "properties": [
+    {
+      "name": "app.api.api-prefix",
+      "type": "java.lang.String",
+      "description": "API path prefix for rate-limited endpoints",
+      "sourceType": "com.delight.account.config.ApiRoutingConfig"
+    },
+    {
+      "name": "app.api.global-endpoints",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "Global endpoints that should not have dual routing or account-level rate limiting",
+      "sourceType": "com.delight.account.config.ApiRoutingConfig"
+    },
+    {
+      "name": "app.jobrunr.account-event-publish.delete-succeeded-jobs-after-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-event-publish.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-event-publish.max-retries",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-event-publish.metadata",
+      "type": "java.util.Map<java.lang.String,java.lang.Object>",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-event-publish.permanently-delete-jobs-after-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-event-publish.poll-interval-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-event-publish.retry-delay-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-event-publish.worker-count",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-sync.delete-succeeded-jobs-after-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-sync.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-sync.max-retries",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-sync.metadata",
+      "type": "java.util.Map<java.lang.String,java.lang.Object>",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-sync.permanently-delete-jobs-after-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-sync.poll-interval-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-sync.retry-delay-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.account-sync.worker-count",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.bulk-account-sync.delete-succeeded-jobs-after-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.bulk-account-sync.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.bulk-account-sync.max-retries",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.bulk-account-sync.metadata",
+      "type": "java.util.Map<java.lang.String,java.lang.Object>",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.bulk-account-sync.permanently-delete-jobs-after-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.bulk-account-sync.poll-interval-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.bulk-account-sync.retry-delay-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.bulk-account-sync.worker-count",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.cache-warmup.delete-succeeded-jobs-after-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.cache-warmup.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.cache-warmup.max-retries",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.cache-warmup.metadata",
+      "type": "java.util.Map<java.lang.String,java.lang.Object>",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.cache-warmup.permanently-delete-jobs-after-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.cache-warmup.poll-interval-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.cache-warmup.retry-delay-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.cache-warmup.worker-count",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.dashboard.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.delight.account.config.JobRunrProperties$DashboardConfig"
+    },
+    {
+      "name": "app.jobrunr.dashboard.password",
+      "type": "java.lang.String",
+      "sourceType": "com.delight.account.config.JobRunrProperties$DashboardConfig"
+    },
+    {
+      "name": "app.jobrunr.dashboard.port",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$DashboardConfig"
+    },
+    {
+      "name": "app.jobrunr.dashboard.username",
+      "type": "java.lang.String",
+      "sourceType": "com.delight.account.config.JobRunrProperties$DashboardConfig"
+    },
+    {
+      "name": "app.jobrunr.data-cleanup.delete-succeeded-jobs-after-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.data-cleanup.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.data-cleanup.max-retries",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.data-cleanup.metadata",
+      "type": "java.util.Map<java.lang.String,java.lang.Object>",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.data-cleanup.permanently-delete-jobs-after-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.data-cleanup.poll-interval-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.data-cleanup.retry-delay-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.data-cleanup.worker-count",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.email-notification.delete-succeeded-jobs-after-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.email-notification.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.email-notification.max-retries",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.email-notification.metadata",
+      "type": "java.util.Map<java.lang.String,java.lang.Object>",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.email-notification.permanently-delete-jobs-after-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.email-notification.poll-interval-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.email-notification.retry-delay-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.email-notification.worker-count",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$QueueConfig"
+    },
+    {
+      "name": "app.jobrunr.redis.command-timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$RedisConfig"
+    },
+    {
+      "name": "app.jobrunr.redis.connection-timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$RedisConfig"
+    },
+    {
+      "name": "app.jobrunr.redis.database",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$RedisConfig"
+    },
+    {
+      "name": "app.jobrunr.redis.host",
+      "type": "java.lang.String",
+      "sourceType": "com.delight.account.config.JobRunrProperties$RedisConfig"
+    },
+    {
+      "name": "app.jobrunr.redis.max-connections",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$RedisConfig"
+    },
+    {
+      "name": "app.jobrunr.redis.password",
+      "type": "java.lang.String",
+      "sourceType": "com.delight.account.config.JobRunrProperties$RedisConfig"
+    },
+    {
+      "name": "app.jobrunr.redis.port",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.JobRunrProperties$RedisConfig"
+    },
+    {
+      "name": "channel.auth.keys",
+      "type": "java.util.Map<java.lang.String,java.lang.String>",
+      "sourceType": "com.delight.account.config.ChannelAuthConfig"
+    },
+    {
+      "name": "messaging.service.base-url",
+      "type": "java.lang.String",
+      "sourceType": "com.delight.account.config.MessagingProperties$ServiceConfig"
+    },
+    {
+      "name": "messaging.service.endpoint",
+      "type": "java.lang.String",
+      "sourceType": "com.delight.account.config.MessagingProperties$ServiceConfig"
+    },
+    {
+      "name": "messaging.service.jwt-token",
+      "type": "java.lang.String",
+      "sourceType": "com.delight.account.config.MessagingProperties$ServiceConfig"
+    },
+    {
+      "name": "messaging.service.retry.delay-ms",
+      "type": "java.lang.Long",
+      "sourceType": "com.delight.account.config.MessagingProperties$ServiceConfig$RetryConfig"
+    },
+    {
+      "name": "messaging.service.retry.max-attempts",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.MessagingProperties$ServiceConfig$RetryConfig"
+    },
+    {
+      "name": "messaging.service.timeout-ms",
+      "type": "java.lang.Integer",
+      "sourceType": "com.delight.account.config.MessagingProperties$ServiceConfig"
+    },
+    {
+      "name": "messaging.topics.account-activities.payload-types",
+      "type": "java.util.List<com.delight.account.config.MessagingProperties$TopicsConfig$PayloadTypeConfig>",
+      "sourceType": "com.delight.account.config.MessagingProperties$TopicsConfig$AccountActivitiesConfig"
+    },
+    {
+      "name": "messaging.topics.account-activities.service-name",
+      "type": "java.lang.String",
+      "sourceType": "com.delight.account.config.MessagingProperties$TopicsConfig$AccountActivitiesConfig"
+    },
+    {
+      "name": "messaging.topics.account-activities.topic-name",
+      "type": "java.lang.String",
+      "sourceType": "com.delight.account.config.MessagingProperties$TopicsConfig$AccountActivitiesConfig"
+    }
+  ],
+  "hints": []
+}

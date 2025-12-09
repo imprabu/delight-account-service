@@ -17,6 +17,14 @@ public interface ActivationTokenService {
     ActivationToken generateToken(String emailAddress, Long accountId);
     
     /**
+     * Validate token without consuming it (for reading token info)
+     * 
+     * @param token The token to validate
+     * @return The activation token if valid, null otherwise
+     */
+    ActivationToken validateToken(String token);
+    
+    /**
      * Validate and consume an activation token
      * 
      * @param token The token to validate

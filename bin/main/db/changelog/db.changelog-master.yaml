@@ -1,0 +1,84 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: you
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            tableExists:
+              tableName: accounts
+      changes:
+        - createTable:
+            tableName: accounts
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: domain
+                  type: varchar(255)
+              - column:
+                  name: plan_id
+                  type: bigint
+              - column:
+                  name: status
+                  type: varchar(255)
+              - column:
+                  name: type
+                  type: varchar(255)
+  - include:
+      file: db/changelog/20250615-add-email-to-accounts.yaml
+  - include:
+      file: db/changelog/20250620-create-users-table.yaml
+  - include:
+      file: db/changelog/20250621-partition-users-table.yaml
+  - include:
+      file: db/changelog/20250622-add-user-details.yaml
+  - include:
+      file: db/changelog/20250623-add-companyName-to-accounts.yaml
+  - include:
+      file: db/changelog/20250624-create-modules-and-data.yaml
+  - include:
+      file: db/changelog/20250625-create-user-credentials.yaml
+  - include:
+      file: db/changelog/20250713-add-unique-domain-status.yaml
+  - include:
+      file: db/changelog/20250714-add-domain-status-unique.yaml
+  - include:
+      file: db/changelog/20250716-add-user-status.yaml
+  - include:
+      file: db/changelog/20250717-change-plan-column.yaml
+  - include:
+      file: db/changelog/20250925-create-organizations-products.yaml
+  - include:
+      file: db/changelog/20250925-create-memberships.yaml
+  - include:
+      file: db/changelog/20250925-backfill-organizations.yaml
+  - include:
+      file: db/changelog/20250126-create-sessions-table.yaml
+  - include:
+      file: db/changelog/20250127-add-sessions-missing-columns-v2.yaml
+  - include:
+      file: db/changelog/20250127-fix-sessions-id-autoincrement.yaml
+  - include:
+      file: db/changelog/20250128-create-account-configs.yaml
+  - include:
+      file: db/changelog/20250128-backfill-account-configs.yaml
+  - include:
+      file: db/changelog/20250129-migrate-accounts-to-auto-random.yaml
+  - include:
+      file: db/changelog/20250129-migrate-users-to-auto-random.yaml
+  - include:
+      file: db/changelog/20250129-migrate-sessions-to-auto-random.yaml
+  - include:
+      file: db/changelog/20250129-migrate-memberships-to-auto-random.yaml
+  - include:
+      file: db/changelog/20250129-migrate-account-configs-to-auto-random.yaml
+  - include:
+      file: db/changelog/20250130-add-client-type-to-sessions.yaml
+  - include:
+      file: db/changelog/20250130-add-updated-at-to-accounts.yaml

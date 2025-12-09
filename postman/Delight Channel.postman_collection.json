@@ -1,0 +1,108 @@
+{
+  "info": {
+    "name": "Delight Channel API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Channel-authenticated endpoints using Bearer {{channel_token}}."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8080", "type": "string" },
+    { "key": "channel_token", "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{channel_token}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Session",
+      "item": [
+        {
+          "name": "GET /channel/validateSession",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/channel/validateSession" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [ "pm.test('Status is 200', () => pm.response.to.have.status(200));" ] }
+            }
+          ]
+        },
+        {
+          "name": "POST /channel/validateSession",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{baseUrl}}/channel/validateSession" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [ "pm.test('Status is 200', () => pm.response.to.have.status(200));" ] }
+            }
+          ]
+        },
+        {
+          "name": "GET /channel/accounts/session",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/channel/accounts/session" } },
+          "event": [ { "listen": "test", "script": { "exec": [ "pm.test('Status is 200', () => pm.response.to.have.status(200));" ] } } ]
+        }
+      ]
+    },
+    {
+      "name": "Accounts",
+      "item": [
+        {
+          "name": "GET /channel/allAccounts",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/channel/allAccounts" } },
+          "event": [ { "listen": "test", "script": { "exec": [ "pm.test('Status is 200', () => pm.response.to.have.status(200));" ] } } ]
+        },
+        {
+          "name": "GET /channel/accounts/info",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/channel/accounts/info" } },
+          "event": [ { "listen": "test", "script": { "exec": [ "pm.test('Status is 200', () => pm.response.to.have.status(200));" ] } } ]
+        }
+      ]
+    },
+    {
+      "name": "Members",
+      "item": [
+        {
+          "name": "GET /channel/accounts/members",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/channel/accounts/members" } },
+          "event": [ { "listen": "test", "script": { "exec": [ "pm.test('Status is 200', () => pm.response.to.have.status(200));" ] } } ]
+        }
+      ]
+    },
+    {
+      "name": "Config",
+      "item": [
+        {
+          "name": "GET /channel/accounts/config",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/channel/accounts/config" } },
+          "event": [ { "listen": "test", "script": { "exec": [ "pm.test('Status is 200', () => pm.response.to.have.status(200));" ] } } ]
+        },
+        {
+          "name": "PUT /channel/accounts/config",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"featureFlag\": true\n}" },
+            "url": { "raw": "{{baseUrl}}/channel/accounts/config" }
+          },
+          "event": [ { "listen": "test", "script": { "exec": [ "pm.test('Status is 200', () => pm.response.to.have.status(200));" ] } } ]
+        },
+        {
+          "name": "DELETE /channel/accounts",
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{baseUrl}}/channel/accounts" } },
+          "event": [ { "listen": "test", "script": { "exec": [ "pm.test('Status is 200', () => pm.response.to.have.status(200));" ] } } ]
+        }
+      ]
+    }
+  ]
+}

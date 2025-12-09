@@ -1,0 +1,109 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-consolidated-organizations-table
+      author: codex
+      comment: Consolidated organizations table - TiDB compatible with AUTO_RANDOM
+      changes:
+        - sql:
+            sql: DROP TABLE IF EXISTS organizations
+        - createTable:
+            tableName: organizations
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: primary_domain
+                  type: varchar(255)
+              - column:
+                  name: status
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: varchar(64)
+                  remarks: Updated timestamp as string with nanosecond precision for versioning
+        - sql:
+            sql: |
+              -- Use TiDB AUTO_RANDOM for better scalability
+              SET @@tidb_allow_remove_auto_inc = 1;
+              SET @@tidb_allow_remove_auto_inc = 1;
+              SET @@tidb_allow_remove_auto_inc = 1;
+              ALTER TABLE organizations MODIFY COLUMN id BIGINT AUTO_RANDOM(3);
+              SET @@tidb_allow_remove_auto_inc = 0;;
+              SET @@tidb_allow_remove_auto_inc = 0;
+              SET @@tidb_allow_remove_auto_inc = 0;
+        - createIndex:
+            indexName: idx_organizations_primary_domain
+            tableName: organizations
+            columns:
+              - column:
+                  name: primary_domain
+
+  - changeSet:
+      id: 20251201-consolidated-products-table
+      author: codex
+      comment: Consolidated products table - TiDB compatible with AUTO_RANDOM
+      validCheckSum: 9:93d5cbfa6bb4a45c7b01173b5c755ffd
+      changes:
+        - sql:
+            sql: DROP TABLE IF EXISTS products
+        - createTable:
+            tableName: products
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: code
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: active
+                  type: boolean
+                  defaultValueBoolean: true
+              - column:
+                  name: updated_at
+                  type: varchar(64)
+                  remarks: Updated timestamp as string with nanosecond precision for versioning
+        - sql:
+            sql: |
+              -- Use TiDB AUTO_RANDOM for better scalability
+              SET @@tidb_allow_remove_auto_inc = 1;
+              SET @@tidb_allow_remove_auto_inc = 1;
+              SET @@tidb_allow_remove_auto_inc = 1;
+              ALTER TABLE products MODIFY COLUMN id BIGINT AUTO_RANDOM(3);
+              SET @@tidb_allow_remove_auto_inc = 0;;
+              SET @@tidb_allow_remove_auto_inc = 0;
+              SET @@tidb_allow_remove_auto_inc = 0;
+        - addUniqueConstraint:
+            tableName: products
+            columnNames: code
+            constraintName: uq_products_code
+        - sql:
+            sql: |
+              -- Seed CHAT product
+              INSERT INTO products(code, name, active, updated_at)
+              SELECT 'CHAT', 'CHAT', true, ''
+              WHERE NOT EXISTS (SELECT 1 FROM products WHERE code = 'CHAT');
+

@@ -1,0 +1,77 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-consolidated-accounts-table
+      author: codex
+      comment: Consolidated accounts table with all modifications - TiDB compatible with AUTO_RANDOM
+      changes:
+        - sql:
+            sql: DROP TABLE IF EXISTS accounts
+        - createTable:
+            tableName: accounts
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: domain
+                  type: varchar(255)
+              - column:
+                  name: plan
+                  type: varchar(255)
+                  remarks: Changed from plan_id to plan (enum/string)
+              - column:
+                  name: status
+                  type: varchar(255)
+              - column:
+                  name: type
+                  type: varchar(255)
+              - column:
+                  name: company_name
+                  type: varchar(255)
+              - column:
+                  name: organization_id
+                  type: bigint
+              - column:
+                  name: product_id
+                  type: bigint
+              - column:
+                  name: updated_at
+                  type: varchar(64)
+                  remarks: Updated timestamp as string with nanosecond precision for versioning
+        - sql:
+            sql: |
+              -- Use TiDB AUTO_RANDOM for better scalability
+              SET @@tidb_allow_remove_auto_inc = 1;
+              SET @@tidb_allow_remove_auto_inc = 1;
+              SET @@tidb_allow_remove_auto_inc = 1;
+              ALTER TABLE accounts MODIFY COLUMN id BIGINT AUTO_RANDOM(3);
+              SET @@tidb_allow_remove_auto_inc = 0;;
+              SET @@tidb_allow_remove_auto_inc = 0;
+              SET @@tidb_allow_remove_auto_inc = 0;
+        - addUniqueConstraint:
+            tableName: accounts
+            columnNames: domain, status
+            constraintName: uq_accounts_domain_status
+        - createIndex:
+            indexName: idx_accounts_domain
+            tableName: accounts
+            columns:
+              - column:
+                  name: domain
+        - createIndex:
+            indexName: idx_accounts_organization_id
+            tableName: accounts
+            columns:
+              - column:
+                  name: organization_id
+        - createIndex:
+            indexName: idx_accounts_product_id
+            tableName: accounts
+            columns:
+              - column:
+                  name: product_id
+

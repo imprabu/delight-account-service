@@ -39,8 +39,8 @@ public class ApiRoutingConfig {
     
     /**
      * Extract the base endpoint from a request path
-     * e.g., "/api/account/info" -> "account/info"
-     * e.g., "/account/info" -> "account/info"
+     * e.g., "/api/accounts/info" -> "accounts/info"
+     * e.g., "/accounts/info" -> "accounts/info"
      */
     public String extractBaseEndpoint(String requestPath) {
         if (requestPath == null) {

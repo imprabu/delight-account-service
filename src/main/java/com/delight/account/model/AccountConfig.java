@@ -1,6 +1,7 @@
 package com.delight.account.model;
 
 import com.delight.account.listener.CacheInvalidationEntityListener;
+import com.delight.account.util.OffsetDateTimeStringConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -35,6 +36,7 @@ public class AccountConfig {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Convert(converter = OffsetDateTimeStringConverter.class)
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 

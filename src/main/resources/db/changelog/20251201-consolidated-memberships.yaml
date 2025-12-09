@@ -1,0 +1,81 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-consolidated-memberships-table
+      author: codex
+      comment: Consolidated memberships table - TiDB compatible with AUTO_RANDOM
+      changes:
+        - sql:
+            sql: DROP TABLE IF EXISTS memberships
+        - createTable:
+            tableName: memberships
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  remarks: Reference to users.id (FK not enforced in TiDB)
+              - column:
+                  name: account_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  remarks: Reference to accounts.id (FK not enforced in TiDB)
+              - column:
+                  name: role
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: invited_by
+                  type: bigint
+                  remarks: Reference to users.id (FK not enforced in TiDB)
+              - column:
+                  name: updated_at
+                  type: varchar(64)
+                  remarks: Updated timestamp as string with nanosecond precision for versioning
+        - sql:
+            sql: |
+              -- Use TiDB AUTO_RANDOM for better scalability
+              SET @@tidb_allow_remove_auto_inc = 1;
+              ALTER TABLE memberships MODIFY COLUMN id BIGINT AUTO_RANDOM(3);
+              SET @@tidb_allow_remove_auto_inc = 0;
+        - addUniqueConstraint:
+            tableName: memberships
+            columnNames: user_id, account_id
+            constraintName: uq_memberships_user_account
+        - createIndex:
+            indexName: idx_memberships_user_id
+            tableName: memberships
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            indexName: idx_memberships_account_id
+            tableName: memberships
+            columns:
+              - column:
+                  name: account_id
+        - createIndex:
+            indexName: idx_memberships_invited_by
+            tableName: memberships
+            columns:
+              - column:
+                  name: invited_by
+
