@@ -5,15 +5,18 @@ import com.delight.account.exception.ApiException;
 import com.delight.account.model.Account;
 import com.delight.account.model.Membership;
 import com.delight.account.model.MembershipStatus;
-import com.delight.account.model.Role;
+import com.delight.account.model.RoleEntity;
 import com.delight.account.model.User;
 import com.delight.account.model.UserCredential;
 import com.delight.account.model.UserStatus;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.MembershipRepository;
+import com.delight.account.repository.RoleRepository;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
 import com.delight.account.service.ActivationService;
+import com.delight.account.service.NotificationService;
+import com.delight.account.service.RoleService;
 import com.delight.account.util.LoggingUtils;
 import com.delight.account.util.PasswordValidator;
 import org.slf4j.Logger;
@@ -36,20 +39,29 @@ public class ActivationServiceImpl implements ActivationService {
     private final UserCredentialRepository credentialRepository;
     private final AccountRepository accountRepository;
     private final MembershipRepository membershipRepository;
+    private final RoleRepository roleRepository;
+    private final RoleService roleService;
     private final PasswordValidator passwordValidator;
     private final String passwordSecret;
+    private final NotificationService notificationService;
 
     public ActivationServiceImpl(UserRepository userRepository,
                                 UserCredentialRepository credentialRepository,
                                 AccountRepository accountRepository,
                                 MembershipRepository membershipRepository,
+                                RoleRepository roleRepository,
+                                RoleService roleService,
                                 PasswordValidator passwordValidator,
+                                NotificationService notificationService,
                                 @Value("${security.password.secret}") String passwordSecret) {
         this.userRepository = userRepository;
         this.credentialRepository = credentialRepository;
         this.accountRepository = accountRepository;
         this.membershipRepository = membershipRepository;
+        this.roleRepository = roleRepository;
+        this.roleService = roleService;
         this.passwordValidator = passwordValidator;
+        this.notificationService = notificationService;
         this.passwordSecret = passwordSecret;
     }
 
@@ -135,24 +147,49 @@ public class ActivationServiceImpl implements ActivationService {
         LoggingUtils.logDatabaseOperation(logger, "SAVE_CREDENTIAL", "UserCredential", "SUCCESS", 
             "userId", user.getId());
 
-        // Ensure membership exists and is ACTIVE for this account
-        Membership membership = membershipRepository
-            .findByUserIdAndAccountId(user.getId(), accountId)
-            .orElseGet(() -> {
-                Membership m = new Membership();
-                m.setUser(user);
-                m.setAccount(account);
-                m.setRole(Role.OWNER); // Default to OWNER for first user in account
-                return m;
-            });
+            // Ensure membership exists and is ACTIVE for this account
+            Membership membership = membershipRepository
+                .findByUserIdAndAccountIdWithRole(user.getId(), accountId)
+                .orElseGet(() -> {
+                    // Find OWNER role for this account - user who created account is by default OWNER
+                    RoleEntity ownerRole = roleRepository.findByAccountIdAndCode(accountId, "OWNER")
+                        .orElseGet(() -> {
+                            // If roles not initialized, initialize them now
+                            return roleService.initializeDefaultRolesForAccount(accountId);
+                        });
+                    Membership m = new Membership();
+                    m.setUser(user);
+                    m.setAccount(account);
+                    m.setRole(ownerRole);
+                    return m;
+                });
         membership.setStatus(MembershipStatus.ACTIVE);
         membershipRepository.save(membership);
         
         LoggingUtils.logDatabaseOperation(logger, "SAVE_MEMBERSHIP", "Membership", "SUCCESS", 
-            "userId", user.getId(), "role", membership.getRole());
+            "userId", user.getId(), "role", membership.getRole() != null ? membership.getRole().getCode() : "null");
 
         // Cache invalidation is now handled automatically by CacheInvalidationEntityListener
         // for User, UserCredential, and Membership entities
+        
+        // Send activation email notification
+        try {
+            LoggingUtils.logBusinessOperation(logger, "SEND_ACTIVATION_EMAIL", "STARTED", 
+                "emailAddress", request.getEmailAddress());
+            notificationService.sendActivationEmail(
+                request.getEmailAddress(), 
+                request.getFirstName(), 
+                request.getLastName()
+            );
+            LoggingUtils.logBusinessOperation(logger, "SEND_ACTIVATION_EMAIL", "COMPLETED", 
+                "emailAddress", request.getEmailAddress());
+        } catch (Exception e) {
+            // Log error but don't fail activation if email fails
+            LoggingUtils.logBusinessOperation(logger, "SEND_ACTIVATION_EMAIL", "FAILED", 
+                "emailAddress", request.getEmailAddress(), 
+                "error", e.getMessage());
+            logger.error("Failed to send activation email to: {}", request.getEmailAddress(), e);
+        }
         
         LoggingUtils.logBusinessOperation(logger, "USER_ACTIVATION", "COMPLETED", 
             "emailAddress", request.getEmailAddress(), 

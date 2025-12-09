@@ -1,8 +1,10 @@
 package com.delight.account.model;
 
+import com.delight.account.util.OffsetDateTimeStringConverter;
 import java.time.OffsetDateTime;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
@@ -53,12 +55,14 @@ public class Account {
     @Column(name = "type")
     private String industryType;
 
-    private String email;
-
     @Column(name = "company_name")
     private String companyName;
 
-    @Column(name = "updated_at", columnDefinition = "datetime(6)")
+    @Column(name = "region")
+    private String region;
+
+    @Convert(converter = OffsetDateTimeStringConverter.class)
+    @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
     @PrePersist

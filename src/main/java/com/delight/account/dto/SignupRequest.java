@@ -11,7 +11,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@Schema(description = "Signup request to create new Organization and HRMS account")
+@Schema(description = "Signup request to create new Organization and account with specified product")
 public class SignupRequest {
     @NotBlank
     @Size(max = 255)
@@ -38,4 +38,14 @@ public class SignupRequest {
     @Size(max = 255)
     @Schema(description = "Last name of the account owner", example = "Smith")
     private String lastName;
+
+    @NotBlank
+    @Size(max = 64)
+    @Schema(description = "Product code for the account", example = "CHAT")
+    private String productCode;
+
+    @NotBlank
+    @Size(max = 64)
+    @Schema(description = "Region for the account", example = "us-east-1")
+    private String region;
 }

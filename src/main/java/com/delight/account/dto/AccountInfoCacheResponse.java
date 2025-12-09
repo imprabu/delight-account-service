@@ -22,8 +22,6 @@ public class AccountInfoCacheResponse {
     private AccountStatus status;
     @Schema(description = "Industry type or business category", example = "Software")
     private String industryType;
-    @Schema(description = "Primary contact email for the account", example = "contact@acme.com")
-    private String email;
     @Schema(description = "Company or organization name", example = "Acme Corp")
     private String companyName;
     @Schema(description = "ID of the organization that owns this account", example = "54321")
@@ -32,7 +30,7 @@ public class AccountInfoCacheResponse {
     private String organizationName;
     @Schema(description = "Primary domain for the organization", example = "acme.com")
     private String organizationPrimaryDomain;
-    @Schema(description = "Product code identifier", example = "HRMS")
+    @Schema(description = "Product code identifier", example = "CHAT")
     private String productCode;
     @Schema(description = "Human-readable product name", example = "Human Resource Management System")
     private String productName;

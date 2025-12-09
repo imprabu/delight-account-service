@@ -3,7 +3,7 @@ package com.delight.account.service;
 import com.delight.account.dto.SessionResponse;
 import com.delight.account.model.Account;
 import com.delight.account.model.ClientType;
-import com.delight.account.model.Role;
+import com.delight.account.model.RoleEntity;
 import com.delight.account.model.Session;
 import com.delight.account.model.User;
 import com.delight.account.repository.SessionRepository;
@@ -34,6 +34,7 @@ class SessionServiceTest {
     private User testUser;
     private Account testAccount;
     private Session testSession;
+    private RoleEntity testRole;
 
     @BeforeEach
     void setUp() {
@@ -51,12 +52,17 @@ class SessionServiceTest {
         testAccount.setId(1L);
         testAccount.setDomain("testcompany");
 
+        testRole = new RoleEntity();
+        testRole.setId(3L);
+        testRole.setCode("AGENT");
+        testRole.setName("Agent");
+
         testSession = new Session();
         testSession.setId(1L);
         testSession.setSessionId(UUID.randomUUID().toString());
         testSession.setUser(testUser);
         testSession.setAccount(testAccount);
-        testSession.setRole(Role.MEMBER);
+        testSession.setRole(testRole);
         testSession.setJwtToken("test-jwt-token");
         testSession.setUserAgent("test-agent");
         testSession.setIpAddress("127.0.0.1");
@@ -73,7 +79,7 @@ class SessionServiceTest {
         when(sessionRepository.save(any(Session.class))).thenReturn(testSession);
 
         // When
-        Session result = sessionService.createSession(testUser, testAccount, Role.MEMBER, 
+        Session result = sessionService.createSession(testUser, testAccount, testRole, 
                                                      "jwt-token", "user-agent", "127.0.0.1", ClientType.WEB);
 
         // Then
@@ -90,7 +96,7 @@ class SessionServiceTest {
         when(sessionRepository.save(any(Session.class))).thenReturn(mobileSession);
 
         // When
-        Session result = sessionService.createSession(testUser, testAccount, Role.MEMBER, 
+        Session result = sessionService.createSession(testUser, testAccount, Role.AGENT, 
                                                      "jwt-token", "user-agent", "127.0.0.1", ClientType.ANDROID);
 
         // Then
@@ -138,7 +144,7 @@ class SessionServiceTest {
         expiredSession.setSessionId(UUID.randomUUID().toString());
         expiredSession.setUser(testUser);
         expiredSession.setAccount(testAccount);
-        expiredSession.setRole(Role.MEMBER);
+        expiredSession.setRole(testRole);
         expiredSession.setJwtToken("test-jwt-token");
         expiredSession.setClientType(ClientType.WEB);
         expiredSession.setCreatedAt(OffsetDateTime.now().minusHours(25));
@@ -186,7 +192,7 @@ class SessionServiceTest {
         expiredSession.setSessionId(UUID.randomUUID().toString());
         expiredSession.setUser(testUser);
         expiredSession.setAccount(testAccount);
-        expiredSession.setRole(Role.MEMBER);
+        expiredSession.setRole(testRole);
         expiredSession.setJwtToken("expired-jwt-token");
         expiredSession.setClientType(ClientType.WEB);
         expiredSession.setCreatedAt(OffsetDateTime.now().minusHours(25));

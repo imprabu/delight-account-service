@@ -109,7 +109,7 @@ class CacheInvalidationIntegrationTest {
         signinRequest.setPassword("SecureTest123!");
 
         updateMemberRequest = new UpdateMemberRequest();
-        updateMemberRequest.setRole(Role.MEMBER);
+        updateMemberRequest.setRole(Role.AGENT);
         updateMemberRequest.setStatus(MembershipStatus.SUSPENDED);
 
         activationRequest = new ActivationRequest();
@@ -214,7 +214,7 @@ class CacheInvalidationIntegrationTest {
                 .header("Host", expectedDomain)
                 .header("Authorization", "Bearer " + jwtToken)
                 .header("X-User-Role", "OWNER")
-                .header("X-Product-Code", "HRMS")
+                .header("X-Product-Code", "CHAT")
                 .content(objectMapper.writeValueAsString(updateMemberRequest)))
             .andExpect(status().isOk());
 
@@ -222,7 +222,7 @@ class CacheInvalidationIntegrationTest {
         // Verify the membership was actually updated
         Optional<Membership> updatedMembership = membershipRepository.findByUserIdAndAccountId(secondUser.getId(), account.getId());
         assertThat(updatedMembership).isPresent();
-        assertThat(updatedMembership.get().getRole()).isEqualTo(Role.MEMBER);
+        assertThat(updatedMembership.get().getRole()).isEqualTo(Role.AGENT);
         assertThat(updatedMembership.get().getStatus()).isEqualTo(MembershipStatus.SUSPENDED);
     }
 
@@ -397,18 +397,18 @@ class CacheInvalidationIntegrationTest {
         mockMvc.perform(get("/account/config")
                 .header("Authorization", "Bearer " + jwtToken)
                 .header("Host", expectedDomain)
-                .header("X-Product-Code", "HRMS"))
+                .header("X-Product-Code", "CHAT"))
             .andExpect(status().isOk());
 
         // Verify cache was warmed (remove verification due to automatic cache invalidation)
         // The cache is automatically invalidated by CacheInvalidationEntityListener
-        // String configCacheKey = String.format("%s:account:config:%d:%s", cacheKeyManager.getVersion(), account.getId(), "HRMS");
+        // String configCacheKey = String.format("%s:account:config:%d:%s", cacheKeyManager.getVersion(), account.getId(), "CHAT");
         // verify(cacheService, atLeastOnce()).put(eq(configCacheKey), any(), any());
 
         // Update account configuration (should invalidate cache)
         String configUpdateJson = """
             {
-                "productCode": "HRMS",
+                "productCode": "CHAT",
                 "settings": {
                     "theme": "dark",
                     "notifications": true
@@ -425,7 +425,7 @@ class CacheInvalidationIntegrationTest {
 
         // Verify cache was invalidated (remove verification due to automatic cache invalidation)
         // The cache is automatically invalidated by CacheInvalidationEntityListener
-        // String configCacheKey = String.format("%s:account:config:%d:%s", cacheKeyManager.getVersion(), account.getId(), "HRMS");
+        // String configCacheKey = String.format("%s:account:config:%d:%s", cacheKeyManager.getVersion(), account.getId(), "CHAT");
         // verify(cacheService).evict(configCacheKey);
     }
 
@@ -515,7 +515,7 @@ class CacheInvalidationIntegrationTest {
         mockMvc.perform(get("/account/config")
                 .header("Authorization", "Bearer " + jwtToken)
                 .header("Host", expectedDomain)
-                .header("X-Product-Code", "HRMS"))
+                .header("X-Product-Code", "CHAT"))
             .andExpect(status().isOk());
 
         // Evict all account config caches using pattern
@@ -526,12 +526,12 @@ class CacheInvalidationIntegrationTest {
         mockMvc.perform(get("/account/config")
                 .header("Authorization", "Bearer " + jwtToken)
                 .header("Host", expectedDomain)
-                .header("X-Product-Code", "HRMS"))
+                .header("X-Product-Code", "CHAT"))
             .andExpect(status().isOk());
 
         // Verify cache was populated again (remove verification due to automatic cache invalidation)
         // The cache is automatically invalidated by CacheInvalidationEntityListener
-        // String configCacheKey = String.format("%s:account:config:%d:%s", cacheKeyManager.getVersion(), account.getId(), "HRMS");
+        // String configCacheKey = String.format("%s:account:config:%d:%s", cacheKeyManager.getVersion(), account.getId(), "CHAT");
         // verify(cacheService, atLeastOnce()).put(eq(configCacheKey), any(), any());
     }
 

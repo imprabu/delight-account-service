@@ -1,0 +1,177 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-create-privileges-table
+      author: codex
+      comment: Create privileges table to store all available privileges
+      changes:
+        - createTable:
+            tableName: privileges
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: code
+                  type: varchar(100)
+                  constraints:
+                    unique: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(255)
+              - column:
+                  name: description
+                  type: text
+              - column:
+                  name: category
+                  type: varchar(100)
+              - column:
+                  name: is_system_privilege
+                  type: boolean
+                  defaultValueBoolean: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: varchar(64)
+                  remarks: Updated timestamp as string with nanosecond precision for versioning
+        - createIndex:
+            indexName: idx_privileges_code
+            tableName: privileges
+            columns:
+              - column:
+                  name: code
+
+  - changeSet:
+      id: 20251201-create-roles-table
+      author: codex
+      comment: Create roles table to store system and custom roles
+      changes:
+        - createTable:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: account_id
+                  type: bigint
+                  remarks: NULL for system roles, account_id for custom roles
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: code
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: text
+              - column:
+                  name: role_type
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+                  remarks: SYSTEM or CUSTOM
+              - column:
+                  name: base_role_id
+                  type: bigint
+                  remarks: For custom roles, references the system role it's based on
+              - column:
+                  name: hierarchy_level
+                  type: int
+                  constraints:
+                    nullable: false
+                  remarks: 1=Org Admin (highest), 2=Account Admin, 3=Agent (lowest)
+              - column:
+                  name: is_active
+                  type: boolean
+                  defaultValueBoolean: true
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: varchar(64)
+                  remarks: Updated timestamp as string with nanosecond precision for versioning
+        - createIndex:
+            indexName: idx_roles_account_id
+            tableName: roles
+            columns:
+              - column:
+                  name: account_id
+        - createIndex:
+            indexName: idx_roles_code
+            tableName: roles
+            columns:
+              - column:
+                  name: code
+        - addUniqueConstraint:
+            tableName: roles
+            columnNames: account_id, code
+            constraintName: uq_roles_account_code
+            deferrable: false
+            initiallyDeferred: false
+
+  - changeSet:
+      id: 20251201-create-role-privileges-table
+      author: codex
+      comment: Create role_privileges junction table for many-to-many relationship
+      changes:
+        - createTable:
+            tableName: role_privileges
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: role_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  remarks: Reference to roles.id
+              - column:
+                  name: privilege_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  remarks: Reference to privileges.id
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - createIndex:
+            indexName: idx_role_privileges_role_id
+            tableName: role_privileges
+            columns:
+              - column:
+                  name: role_id
+        - createIndex:
+            indexName: idx_role_privileges_privilege_id
+            tableName: role_privileges
+            columns:
+              - column:
+                  name: privilege_id
+        - addUniqueConstraint:
+            tableName: role_privileges
+            columnNames: role_id, privilege_id
+            constraintName: uq_role_privileges_role_privilege
+

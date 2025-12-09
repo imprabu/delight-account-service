@@ -49,9 +49,8 @@ public class RequestLoggingFilter implements Filter {
         // Set request ID in response headers
         httpResponse.setHeader("X-Request-ID", requestId);
 
-        // Add request context to MDC
+        // Add request ID to MDC (domain and accountId will be set by TenantFilter)
         LoggingUtils.addRequestContext(requestId);
-        LoggingUtils.addDomainContext(extractDomain(httpRequest));
 
         long startTime = System.currentTimeMillis();
 
@@ -66,7 +65,7 @@ public class RequestLoggingFilter implements Filter {
 
             chain.doFilter(request, response);
 
-            // Log successful response
+            // Log successful response (MDC values set by TenantFilter will be used)
             long duration = System.currentTimeMillis() - startTime;
             if (httpResponse.getStatus() >= 400) {
                 LoggingUtils.logBusinessOperation(logger, "HTTP_REQUEST", "ERROR",
@@ -85,7 +84,7 @@ public class RequestLoggingFilter implements Filter {
             }
 
         } catch (Exception e) {
-            // Log request failure
+            // Log request failure (MDC values set by TenantFilter will be used)
             long duration = System.currentTimeMillis() - startTime;
             LoggingUtils.error(logger, "Request failed: {} {} - {}", 
                 httpRequest.getMethod(), httpRequest.getRequestURI(), e.getMessage(), e);
@@ -100,23 +99,9 @@ public class RequestLoggingFilter implements Filter {
             
             throw e;
         } finally {
-            // Clean up MDC
+            // Clean up MDC (only clear business context, keep requestId/accountId/domain for potential async logging)
             LoggingUtils.clearBusinessContext();
         }
     }
 
-    /**
-     * Extract domain from request for logging context
-     */
-    private String extractDomain(HttpServletRequest request) {
-        String serverName = request.getServerName();
-        if (serverName != null) {
-            int dotIndex = serverName.indexOf('.');
-            if (dotIndex > 0) {
-                return serverName.substring(0, dotIndex);
-            }
-            return serverName;
-        }
-        return "unknown";
-    }
 }

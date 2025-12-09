@@ -19,6 +19,8 @@ public class JobRunrProperties {
     private QueueConfig dataCleanup = new QueueConfig();
     private QueueConfig accountEventPublish = new QueueConfig();
     private QueueConfig bulkAccountSync = new QueueConfig();
+    private QueueConfig userEventPublish = new QueueConfig();
+    private QueueConfig membershipEventPublish = new QueueConfig();
     private RedisConfig redis = new RedisConfig();
     private DashboardConfig dashboard = new DashboardConfig();
 
@@ -68,6 +70,22 @@ public class JobRunrProperties {
 
     public void setBulkAccountSync(QueueConfig bulkAccountSync) {
         this.bulkAccountSync = bulkAccountSync;
+    }
+
+    public QueueConfig getUserEventPublish() {
+        return userEventPublish;
+    }
+
+    public void setUserEventPublish(QueueConfig userEventPublish) {
+        this.userEventPublish = userEventPublish;
+    }
+
+    public QueueConfig getMembershipEventPublish() {
+        return membershipEventPublish;
+    }
+
+    public void setMembershipEventPublish(QueueConfig membershipEventPublish) {
+        this.membershipEventPublish = membershipEventPublish;
     }
 
     public RedisConfig getRedis() {

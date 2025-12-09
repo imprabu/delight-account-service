@@ -157,7 +157,7 @@ class MembershipControllerTest {
                 .emailAddress("test@example.com")
                 .firstName("Test")
                 .lastName("User")
-                .role(Role.MEMBER)
+                .role(Role.AGENT)
                 .status(MembershipStatus.ACTIVE)
                 .build();
 
@@ -288,14 +288,14 @@ class MembershipControllerTest {
     @Test
     void updateMemberWithOnlyRole() throws Exception {
         UpdateMemberRequest roleOnlyRequest = new UpdateMemberRequest();
-        roleOnlyRequest.setRole(Role.MEMBER);
+        roleOnlyRequest.setRole(Role.AGENT);
 
         MemberResponse updatedMember = MemberResponse.builder()
                 .userId(2L)
                 .emailAddress("user@example.com")
                 .firstName("Bob")
                 .lastName("Johnson")
-                .role(Role.MEMBER)
+                .role(Role.AGENT)
                 .status(MembershipStatus.ACTIVE)
                 .build();
 
@@ -327,7 +327,7 @@ class MembershipControllerTest {
                 .emailAddress("user@example.com")
                 .firstName("Bob")
                 .lastName("Johnson")
-                .role(Role.MEMBER)
+                .role(Role.AGENT)
                 .status(MembershipStatus.SUSPENDED)
                 .build();
 
@@ -415,7 +415,7 @@ class MembershipControllerTest {
 
     @Test
     void updateMemberHandlesAuthorizationError() throws Exception {
-        when(membershipService.updateMember(1L, 2L, updateRequest, Role.MEMBER, "TEST_PRODUCT"))
+        when(membershipService.updateMember(1L, 2L, updateRequest, Role.AGENT, "TEST_PRODUCT"))
                 .thenThrow(new ApiException("error.authorization"));
 
         MockHttpServletRequestBuilder request = patch("/account/members/2")
@@ -423,13 +423,13 @@ class MembershipControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest))
                 .requestAttr("accountId", 1L)
-                .requestAttr("role", "MEMBER")
+                .requestAttr("role", "AGENT")
                 .requestAttr("productCode", "TEST_PRODUCT");
 
         mockMvc.perform(request)
                 .andExpect(status().isBadRequest());
 
-        verify(membershipService).updateMember(1L, 2L, updateRequest, Role.MEMBER, "TEST_PRODUCT");
+        verify(membershipService).updateMember(1L, 2L, updateRequest, Role.AGENT, "TEST_PRODUCT");
     }
 
     @Test
@@ -441,7 +441,7 @@ class MembershipControllerTest {
                 .emailAddress("user@example.com")
                 .firstName("Bob")
                 .lastName("Johnson")
-                .role(Role.MEMBER)
+                .role(Role.AGENT)
                 .status(MembershipStatus.ACTIVE)
                 .build();
 

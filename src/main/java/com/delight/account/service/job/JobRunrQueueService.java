@@ -48,13 +48,21 @@ public class JobRunrQueueService implements JobQueueService {
         }
 
         try {
+            // Ensure metadata is not null and create a final copy for lambda
+            Map<String, Object> finalMetadata = metadata != null ? new HashMap<>(metadata) : new HashMap<>();
+            
+            // Ensure accountId is in metadata
+            if (!finalMetadata.containsKey("accountId") && accountId != null) {
+                finalMetadata.put("accountId", accountId);
+            }
+            
             // Create unique job ID with timestamp to prevent duplicates
             String customJobId = jobTypeName + "_" + jobId + "_" + accountId + "_" + System.currentTimeMillis();
             java.util.UUID jobUuid = java.util.UUID.nameUUIDFromBytes(customJobId.getBytes());
             
             // Dynamic job enqueueing with custom job ID - JobRunr prevents duplicates automatically
             jobScheduler.enqueue(jobUuid, 
-                               () -> processJobDynamically(jobTypeName, jobId, accountId, metadata));
+                               () -> processJobDynamically(jobTypeName, jobId, accountId, finalMetadata));
             
             logger.info("📤 [JOBRUNR] Enqueued {} job for ID: {} using worker {} (account: {})", 
                        jobTypeName, jobId, worker.getJobType().getWorkerClassName(), accountId);
@@ -79,6 +87,14 @@ public class JobRunrQueueService implements JobQueueService {
         }
 
         try {
+            // Ensure metadata is not null and create a final copy for lambda
+            Map<String, Object> finalMetadata = metadata != null ? new HashMap<>(metadata) : new HashMap<>();
+            
+            // Ensure accountId is in metadata
+            if (!finalMetadata.containsKey("accountId") && accountId != null) {
+                finalMetadata.put("accountId", accountId);
+            }
+            
             // Create unique job ID with timestamp to prevent duplicates
             String customJobId = jobTypeName + "_" + jobId + "_" + accountId + "_delayed_" + System.currentTimeMillis();
             java.util.UUID jobUuid = java.util.UUID.nameUUIDFromBytes(customJobId.getBytes());
@@ -86,7 +102,7 @@ public class JobRunrQueueService implements JobQueueService {
             // Dynamic delayed job scheduling with custom job ID - JobRunr prevents duplicates automatically
             jobScheduler.schedule(jobUuid,
                                 java.time.Instant.now().plusSeconds(delayInSeconds), 
-                                () -> processJobDynamically(jobTypeName, jobId, accountId, metadata));
+                                () -> processJobDynamically(jobTypeName, jobId, accountId, finalMetadata));
             
             logger.info("📤 [JOBRUNR] Scheduled {} job for ID: {} with {}s delay using worker {} (account: {})", 
                        jobTypeName, jobId, delayInSeconds, worker.getJobType().getWorkerClassName(), accountId);
@@ -227,14 +243,36 @@ public class JobRunrQueueService implements JobQueueService {
     /**
      * Dynamic job processing method - works for ANY job type without modification
      * This is the key to extensibility - no switch statements needed!
+     * Ensures accountId and userId are in metadata for logging purposes.
      */
     public void processJobDynamically(String jobTypeName, Long jobId, Long accountId, Map<String, Object> metadata) {
+        // Ensure accountId and userId are in metadata for background job logging
+        if (metadata == null) {
+            metadata = new HashMap<>();
+        }
+        
+        // Ensure accountId is in metadata (use parameter if not already present)
+        if (!metadata.containsKey("accountId") && accountId != null) {
+            metadata.put("accountId", accountId);
+        }
+        
+        // Use accountId from metadata if parameter is null
+        Long effectiveAccountId = accountId;
+        if (effectiveAccountId == null && metadata.containsKey("accountId")) {
+            Object accountIdObj = metadata.get("accountId");
+            if (accountIdObj instanceof Long) {
+                effectiveAccountId = (Long) accountIdObj;
+            } else if (accountIdObj instanceof Number) {
+                effectiveAccountId = ((Number) accountIdObj).longValue();
+            }
+        }
+        
         try {
             JobWorker worker = workerRegistry.getWorker(jobTypeName);
             if (worker != null) {
                 logger.info("🔄 [JOBRUNR] Executing {} job {} using worker {}", 
                            jobTypeName, jobId, worker.getJobType().getWorkerClassName());
-                worker.processJob(jobId, accountId, metadata);
+                worker.processJob(jobId, effectiveAccountId, metadata);
                 logger.info("✅ [JOBRUNR] Successfully completed {} job {}", jobTypeName, jobId);
             } else {
                 logger.error("❌ [JOBRUNR] No worker found for job type: {} (job: {})", jobTypeName, jobId);

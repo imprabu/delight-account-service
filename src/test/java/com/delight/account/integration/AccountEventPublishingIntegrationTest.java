@@ -58,8 +58,8 @@ class AccountEventPublishingIntegrationTest {
 
         // Create test product
         testProduct = new Product();
-        testProduct.setCode("HRMS");
-        testProduct.setName("HRMS Product");
+        testProduct.setCode("CHAT");
+        testProduct.setName("CHAT Product");
         testProduct = productRepository.save(testProduct);
     }
 

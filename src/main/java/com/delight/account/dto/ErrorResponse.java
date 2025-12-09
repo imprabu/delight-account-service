@@ -29,7 +29,7 @@ public class ErrorResponse {
     @Schema(description = "Machine-readable error code/message key", example = "error.validation")
     private String code;
 
-    @Schema(description = "Request path", example = "/account/signup")
+    @Schema(description = "Request path", example = "/accounts/signup")
     private String path;
 
     @JsonPOJOBuilder(withPrefix = "")

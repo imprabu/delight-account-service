@@ -53,8 +53,8 @@ class AccountEventEntityListenerTest {
 
         testProduct = new Product();
         testProduct.setId(1L);
-        testProduct.setCode("HRMS");
-        testProduct.setName("HRMS Product");
+        testProduct.setCode("CHAT");
+        testProduct.setName("CHAT Product");
 
         testAccount = new Account();
         testAccount.setId(100L);
@@ -288,7 +288,7 @@ class AccountEventEntityListenerTest {
             "organizationPrimaryDomain", "productCode", "productName"
         );
         assertThat(accountInfo.get("organizationId")).isEqualTo(1L);
-        assertThat(accountInfo.get("productCode")).isEqualTo("HRMS");
+        assertThat(accountInfo.get("productCode")).isEqualTo("CHAT");
     }
 
     @Test

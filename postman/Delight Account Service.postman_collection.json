@@ -34,7 +34,7 @@
               { "key": "Content-Type", "value": "application/json" },
               { "key": "Accept-Language", "value": "en" }
             ],
-            "url": "{{baseUrl}}/account/signup",
+            "url": "{{baseUrl}}/accounts/signup",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"companyName\": \"Acme Corp\",\n  \"emailAddress\": \"owner@{{companyDomain}}.com\",\n  \"industryType\": \"Software\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\"\n}"
@@ -72,7 +72,7 @@
               { "key": "Accept-Language", "value": "en" },
               { "key": "Host", "value": "{{companyDomain}}" }
             ],
-            "url": "{{baseUrl}}/account/activate",
+            "url": "{{baseUrl}}/accounts/activate",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"emailAddress\": \"owner@{{companyDomain}}.com\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"phoneNumber\": \"+1-555-123-4567\",\n  \"password\": \"P@ssw0rd123\",\n  \"retypePassword\": \"P@ssw0rd123\"\n}"
@@ -107,7 +107,7 @@
               { "key": "Content-Type", "value": "application/json" },
               { "key": "Host", "value": "{{companyDomain}}" }
             ],
-            "url": "{{baseUrl}}/account/signin",
+            "url": "{{baseUrl}}/accounts/signin",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"emailAddress\": \"owner@{{companyDomain}}.com\",\n  \"password\": \"P@ssw0rd123\"\n}"
@@ -141,7 +141,7 @@
               { "key": "Authorization", "value": "Bearer {{jwt}}" },
               { "key": "Host", "value": "{{companyDomain}}" }
             ],
-            "url": "{{baseUrl}}/account/info",
+            "url": "{{baseUrl}}/accounts/info",
             "description": "Returns account, organization and product details with current user role"
           }
         }
@@ -246,7 +246,7 @@
               { "key": "Authorization", "value": "Bearer {{jwt}}" },
               { "key": "Host", "value": "{{companyDomain}}" }
             ],
-            "url": "{{baseUrl}}/account/members",
+            "url": "{{baseUrl}}/accounts/members",
             "description": "Lists user memberships for the current account"
           }
         },
@@ -280,7 +280,7 @@
               { "key": "Authorization", "value": "Bearer {{jwt}}" },
               { "key": "Host", "value": "{{companyDomain}}" }
             ],
-            "url": "{{baseUrl}}/api/account/info",
+            "url": "{{baseUrl}}/api/accounts/info",
             "description": "Alias for account info under /api; accepts Bearer only (no cookies)."
           }
         },
@@ -292,7 +292,7 @@
               { "key": "Authorization", "value": "Bearer {{jwt}}" },
               { "key": "Host", "value": "{{companyDomain}}" }
             ],
-            "url": "{{baseUrl}}/api/account/members",
+            "url": "{{baseUrl}}/api/accounts/members",
             "description": "Alias for listing members under /api; accepts Bearer only."
           }
         },

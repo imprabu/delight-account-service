@@ -87,7 +87,7 @@ class MembershipServiceTest {
         testMembership2.setStatus(MembershipStatus.ACTIVE);
 
         updateRequest = new UpdateMemberRequest();
-        updateRequest.setRole(Role.MEMBER);
+        updateRequest.setRole(Role.AGENT);
         updateRequest.setStatus(MembershipStatus.SUSPENDED);
     }
 
@@ -164,11 +164,11 @@ class MembershipServiceTest {
 
         assertThat(result.getUserId()).isEqualTo(2L);
         assertThat(result.getEmailAddress()).isEqualTo("user2@test.com");
-        assertThat(result.getRole()).isEqualTo(Role.MEMBER);
+        assertThat(result.getRole()).isEqualTo(Role.AGENT);
         assertThat(result.getStatus()).isEqualTo(MembershipStatus.SUSPENDED);
 
         // Verify the membership was updated
-        assertThat(testMembership2.getRole()).isEqualTo(Role.MEMBER);
+        assertThat(testMembership2.getRole()).isEqualTo(Role.AGENT);
         assertThat(testMembership2.getStatus()).isEqualTo(MembershipStatus.SUSPENDED);
 
         verify(accountRepository).findById(1L);
@@ -257,7 +257,7 @@ class MembershipServiceTest {
 
     @Test
     void updateMemberThrowsExceptionWhenActorRoleIsUser() {
-        assertThatThrownBy(() -> membershipService.updateMember(1L, 2L, updateRequest, Role.MEMBER, "TEST_PRODUCT"))
+        assertThatThrownBy(() -> membershipService.updateMember(1L, 2L, updateRequest, Role.AGENT, "TEST_PRODUCT"))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("error.authorization");
 
@@ -352,7 +352,7 @@ class MembershipServiceTest {
     @Test
     void updateMemberUpdatesAllRoleTypes() {
         // Test updating to each role type
-        Role[] roles = {Role.MEMBER, Role.ADMIN, Role.OWNER};
+        Role[] roles = {Role.AGENT, Role.ADMIN, Role.OWNER};
         
         for (Role targetRole : roles) {
             UpdateMemberRequest roleRequest = new UpdateMemberRequest();
@@ -362,7 +362,7 @@ class MembershipServiceTest {
             testMembership.setId(2L);
             testMembership.setUser(testUser2);
             testMembership.setAccount(testAccount);
-            testMembership.setRole(Role.MEMBER); // Start with MEMBER role
+            testMembership.setRole(Role.AGENT); // Start with AGENT role
             testMembership.setStatus(MembershipStatus.ACTIVE);
 
             when(accountRepository.findById(1L))

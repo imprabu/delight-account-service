@@ -22,7 +22,7 @@ public class TestAccountUpdateController {
     @Autowired
     private AccountRepository accountRepository;
 
-    @PostMapping("/account/{accountId}/update")
+    @PostMapping("/accounts/{accountId}/update")
     @Transactional
     public ResponseEntity<Map<String, Object>> updateAccount(@PathVariable Long accountId) {
         Map<String, Object> response = new HashMap<>();

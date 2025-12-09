@@ -1,4 +1,4 @@
-DB_URL=jdbc:mysql://delight-account-service-tidb-1:4000/delight-accounts?createDatabaseIfNotExist=true&characterEncoding=UTF-8
+DB_URL=jdbc:mysql://127.0.0.1:4000/delight-accounts?createDatabaseIfNotExist=true&characterEncoding=UTF-8
 DB_USER=root
 DB_PASSWORD=
 LOG_LEVEL=ERROR
@@ -10,3 +10,4 @@ JWT_SECRET=sampleJwtSecret123sampleJwtSecret123
 JWT_EXPIRATION=86400000
 CHANNEL_AUTH_KEYS_V1=zcPXq33YkT6zxK950bMR+I5bmEEJ/YZ/IFeR/ogeVVM=
 CHANNEL_AUTH_KEYS_V2=sQ35GIHp/YqoIxNtuutTHzWN0xgWLkAWZG0z2UArMe0=
+SENDGRID_API_KEY=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

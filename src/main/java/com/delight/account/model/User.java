@@ -1,10 +1,13 @@
 package com.delight.account.model;
 
 import com.delight.account.listener.CacheInvalidationEntityListener;
+import com.delight.account.util.OffsetDateTimeStringConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.OffsetDateTime;
 
 
 /**
@@ -16,7 +19,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @Entity
 @Table(name = "users")
-@EntityListeners(CacheInvalidationEntityListener.class)
+@EntityListeners({CacheInvalidationEntityListener.class, com.delight.account.listener.UserEventEntityListener.class})
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,5 +49,14 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     private UserStatus status;
+
+    @Convert(converter = OffsetDateTimeStringConverter.class)
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = OffsetDateTime.now();
+    }
 }
 

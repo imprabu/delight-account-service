@@ -35,10 +35,10 @@ public class ChannelController {
         this.jobQueueService = jobQueueService;
     }
 
-    @GetMapping(value = "/allAccount", produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = {"/allAccounts", "/allAccount"}, produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @Operation(
         summary = "Get all accounts information (Channel)",
-        description = "Returns a list of all accounts with their organization and product details. Channel authentication required. Does not include user-specific information.",
+        description = "Returns a list of all accounts with their organization and product details. Channel authentication required. Does not include user-specific information. Supports both /channel/allAccounts and /channel/allAccount paths.",
         responses = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
@@ -51,7 +51,7 @@ public class ChannelController {
                     ),
                     examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
                         name = "AllAccountsResponse",
-                        value = "[\n  {\n    \"id\": 1,\n    \"domain\": \"acmecorp\",\n    \"plan\": \"TRIAL\",\n    \"status\": \"ACTIVE\",\n    \"industryType\": \"Software\",\n    \"email\": \"owner@acme.com\",\n    \"companyName\": \"Acme Corp\",\n    \"currentUserId\": null,\n    \"currentUserRole\": null,\n    \"organizationId\": 1,\n    \"organizationName\": \"Acme Corp\",\n    \"organizationPrimaryDomain\": \"acmecorp\",\n    \"productCode\": \"HRMS\",\n    \"productName\": \"HRMS\"\n  }\n]"
+                        value = "[\n  {\n    \"id\": 1,\n    \"domain\": \"acmecorp\",\n    \"plan\": \"TRIAL\",\n    \"status\": \"ACTIVE\",\n    \"industryType\": \"Software\",\n    \"email\": \"owner@acme.com\",\n    \"companyName\": \"Acme Corp\",\n    \"currentUserId\": null,\n    \"currentUserRole\": null,\n    \"organizationId\": 1,\n    \"organizationName\": \"Acme Corp\",\n    \"organizationPrimaryDomain\": \"acmecorp\",\n    \"productCode\": \"CHAT\",\n    \"productName\": \"CHAT\"\n  }\n]"
                     )
                 )
             ),
@@ -75,14 +75,28 @@ public class ChannelController {
     )
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<List<AccountInfoResponse>> getAllAccounts(
-        @RequestHeader(name = "Authorization") String authorization
+        @RequestHeader(name = "Authorization") String authorization,
+        HttpServletRequest request
     ) {
+        // Ensure this endpoint is only accessible via channel authentication
+        String requestURI = request.getRequestURI();
+        Object channelAuthAttr = request.getAttribute("channelAuth");
+        
+        // Reject if not accessed via /channel/ path
+        if (!requestURI.contains("/channel/")) {
+            throw new ApiException("error.authorization", "This endpoint requires channel authentication. Access via /channel/allAccounts or /channel/allAccount with Channel JWT token.");
+        }
+        
+        // Verify channel authentication attribute is set (set by ChannelAuthFilter)
+        if (channelAuthAttr == null || !Boolean.TRUE.equals(channelAuthAttr)) {
+            throw new ApiException("error.authorization", "Invalid channel authentication. This endpoint only accepts Channel JWT tokens, not regular user JWT tokens.");
+        }
+        
         List<AccountInfoResponse> accounts = accountService.getAllAccounts();
         return ResponseEntity.ok(accounts);
     }
 
-    @GetMapping(value = "/validateSession", produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
-    @PostMapping(value = "/validateSession", produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/validateSession", method = {org.springframework.web.bind.annotation.RequestMethod.GET, org.springframework.web.bind.annotation.RequestMethod.POST}, produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @Operation(
         summary = "Validate channel session",
         description = "Validates the current channel session using the channel JWT processed by the ChannelAuthFilter. Supports both GET and POST methods.",
@@ -128,7 +142,6 @@ public class ChannelController {
     ) {
         Object accountIdObj = request.getAttribute("accountId");
         String accountId = accountIdObj != null ? String.valueOf(accountIdObj) : null;
-        String keyVersion = (String) request.getAttribute("keyVersion");
 
         if (accountId == null) {
             throw new ApiException("error.session.invalid");
@@ -138,6 +151,7 @@ public class ChannelController {
                 .accountId(Long.valueOf(accountId))
                 .isActive(true)
                 .sessionId("channel-" + accountId + "-" + System.currentTimeMillis())
+                .privileges(java.util.Collections.emptyList()) // Channel sessions don't have user privileges
                 .build();
 
         return ResponseEntity.ok(response);

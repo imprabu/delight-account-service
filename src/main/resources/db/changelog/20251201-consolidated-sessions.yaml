@@ -1,0 +1,131 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-consolidated-sessions-table
+      author: codex
+      comment: Consolidated sessions table - TiDB compatible with AUTO_RANDOM
+      validCheckSum: 9:5849e032c935e20c9965e4f020b7ffd0
+      changes:
+        - sql:
+            sql: DROP TABLE IF EXISTS sessions
+        - createTable:
+            tableName: sessions
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  remarks: Reference to users.id (FK not enforced in TiDB)
+              - column:
+                  name: account_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  remarks: Reference to accounts.id (FK not enforced in TiDB)
+              - column:
+                  name: jwt_token
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: session_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role
+                  type: varchar(50)
+                  defaultValue: 'AGENT'
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_accessed_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_active
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_agent
+                  type: varchar(500)
+              - column:
+                  name: ip_address
+                  type: varchar(45)
+              - column:
+                  name: client_type
+                  type: varchar(20)
+                  defaultValue: 'WEB'
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: varchar(64)
+                  remarks: Updated timestamp as string with nanosecond precision for versioning
+        - sql:
+            sql: |
+              -- Use TiDB AUTO_RANDOM for better scalability
+              SET @@tidb_allow_remove_auto_inc = 1;
+              ALTER TABLE sessions MODIFY COLUMN id BIGINT AUTO_RANDOM(3);
+              SET @@tidb_allow_remove_auto_inc = 0;
+        - addUniqueConstraint:
+            tableName: sessions
+            columnNames: session_id
+            constraintName: uk_sessions_session_id
+        - createIndex:
+            indexName: idx_sessions_user_id
+            tableName: sessions
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            indexName: idx_sessions_account_id
+            tableName: sessions
+            columns:
+              - column:
+                  name: account_id
+        - createIndex:
+            indexName: idx_sessions_expires_at
+            tableName: sessions
+            columns:
+              - column:
+                  name: expires_at
+        - createIndex:
+            indexName: idx_sessions_last_accessed_at
+            tableName: sessions
+            columns:
+              - column:
+                  name: last_accessed_at
+        - createIndex:
+            indexName: idx_sessions_session_id
+            tableName: sessions
+            columns:
+              - column:
+                  name: session_id
+        - sql:
+            sql: |
+              -- Create index on JWT token (first 255 chars for TiDB compatibility)
+              CREATE INDEX idx_sessions_jwt_token ON sessions(jwt_token(255))
+

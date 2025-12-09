@@ -187,7 +187,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception ex, HttpServletRequest request) {
         Locale locale = request.getLocale();
-        String message = messageSource.getMessage("error.signup.failed", null, locale);
+        // Use a generic error message for internal server errors
+        String message = messageSource.getMessage("error.internal", null, 
+            "An internal server error occurred. Please try again later.", locale);
         
         // Log the general exception with enhanced context and stack trace
         LoggingUtils.logInternalServerError(logger, "Unhandled exception occurred at path: " + request.getRequestURI(), 

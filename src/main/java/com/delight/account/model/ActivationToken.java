@@ -1,11 +1,13 @@
 package com.delight.account.model;
 
+import com.delight.account.util.OffsetDateTimeStringConverter;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "activation_tokens")
@@ -38,6 +40,10 @@ public class ActivationToken {
     
     @Column(name = "used_at")
     private LocalDateTime usedAt;
+
+    @Convert(converter = OffsetDateTimeStringConverter.class)
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
     
     @PrePersist
     protected void onCreate() {
@@ -46,6 +52,11 @@ public class ActivationToken {
             // Default expiration: 24 hours from creation
             expiresAt = createdAt.plusHours(24);
         }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = OffsetDateTime.now();
     }
     
     public boolean isExpired() {

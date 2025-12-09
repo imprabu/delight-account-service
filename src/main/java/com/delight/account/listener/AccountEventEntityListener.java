@@ -8,11 +8,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
+import com.delight.account.event.AccountCreatedEvent;
+import com.delight.account.event.AccountDeletedEvent;
+import com.delight.account.event.AccountUpdatedEvent;
 import com.delight.account.model.Account;
 import com.delight.account.repository.AccountRepository;
-import com.delight.account.service.job.JobQueueService;
 
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.PostRemove;
@@ -41,15 +44,20 @@ public class AccountEventEntityListener implements ApplicationContextAware {
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         AccountEventEntityListener.applicationContext = applicationContext;
     }
-
-    private static JobQueueService getJobQueueService() {
+    
+    private static ApplicationEventPublisher getEventPublisher() {
         if (applicationContext == null) {
             return null;
         }
         try {
-            return applicationContext.getBean(JobQueueService.class);
+            // ApplicationEventPublisher is typically the ApplicationContext itself
+            if (applicationContext instanceof ApplicationEventPublisher) {
+                return (ApplicationEventPublisher) applicationContext;
+            }
+            // Fallback: try to get it as a bean
+            return applicationContext.getBean(ApplicationEventPublisher.class);
         } catch (BeansException | IllegalStateException e) {
-            logger.warn("⚠️ [ACCOUNT-EVENT] Failed to get JobQueueService bean: {}", e.getMessage());
+            logger.warn("⚠️ [ACCOUNT-EVENT] Failed to get ApplicationEventPublisher: {}", e.getMessage());
             return null;
         }
     }
@@ -102,42 +110,33 @@ public class AccountEventEntityListener implements ApplicationContextAware {
 
     @PostPersist
     public void onAccountCreated(Account account) {
-        JobQueueService jobQueueService = getJobQueueService();
-        if (jobQueueService == null) {
-            logger.warn("⚠️ [ACCOUNT-EVENT] JobQueueService not available, skipping event publication");
+        ApplicationEventPublisher eventPublisher = getEventPublisher();
+        if (eventPublisher == null) {
+            logger.warn("⚠️ [ACCOUNT-EVENT] ApplicationEventPublisher not available, skipping event publication");
             return;
         }
 
         try {
-            logger.info("📤 [ACCOUNT-EVENT] Account created: {}", account.getId());
-            
-            // Only pass accountId - worker will fetch account from DB
-            Map<String, Object> metadata = new HashMap<>();
-            metadata.put("payloadType", "account_created");
-            
-            jobQueueService.enqueueJob(
-                com.delight.account.domain.BatchJobType.ACCOUNT_EVENT_PUBLISH,
-                account.getId(),
-                account.getId(),
-                metadata
-            );
+            logger.debug("📤 [ACCOUNT-EVENT] Publishing AccountCreatedEvent for account: {}", account.getId());
+            // Publish Spring event - will be handled by @TransactionalEventListener AFTER_COMMIT
+            eventPublisher.publishEvent(new AccountCreatedEvent(account));
         } catch (Exception e) {
-            logger.error("❌ [ACCOUNT-EVENT] Failed to enqueue account_created event for account {}: {}", 
+            logger.error("❌ [ACCOUNT-EVENT] Failed to publish AccountCreatedEvent for account {}: {}", 
                         account.getId(), e.getMessage(), e);
         }
     }
 
     @PostUpdate
     public void onAccountUpdated(Account account) {
-        JobQueueService jobQueueService = getJobQueueService();
-        if (jobQueueService == null) {
-            logger.warn("⚠️ [ACCOUNT-EVENT] JobQueueService not available, skipping event publication");
+        ApplicationEventPublisher eventPublisher = getEventPublisher();
+        if (eventPublisher == null) {
+            logger.warn("⚠️ [ACCOUNT-EVENT] ApplicationEventPublisher not available, skipping event publication");
             oldState.remove();
             return;
         }
 
         try {
-            logger.info("📤 [ACCOUNT-EVENT] Account updated: {}", account.getId());
+            logger.debug("📤 [ACCOUNT-EVENT] Publishing AccountUpdatedEvent for account: {}", account.getId());
             
             // Get old state captured in @PreUpdate
             Map<String, Object> oldAccountState = oldState.get();
@@ -146,18 +145,10 @@ public class AccountEventEntityListener implements ApplicationContextAware {
             // Build changeset by comparing old and new state
             Map<String, Object> changeSet = buildChangeSet(oldAccountState, newAccountState);
             
-            Map<String, Object> metadata = new HashMap<>();
-            metadata.put("payloadType", "account_modified");
-            metadata.put("changeSet", changeSet);
-            
-            jobQueueService.enqueueJob(
-                com.delight.account.domain.BatchJobType.ACCOUNT_EVENT_PUBLISH,
-                account.getId(),
-                account.getId(),
-                metadata
-            );
+            // Publish Spring event - will be handled by @TransactionalEventListener AFTER_COMMIT
+            eventPublisher.publishEvent(new AccountUpdatedEvent(account, changeSet));
         } catch (Exception e) {
-            logger.error("❌ [ACCOUNT-EVENT] Failed to enqueue account_modified event for account {}: {}", 
+            logger.error("❌ [ACCOUNT-EVENT] Failed to publish AccountUpdatedEvent for account {}: {}", 
                         account.getId(), e.getMessage(), e);
         } finally {
             // Clean up ThreadLocal
@@ -167,28 +158,18 @@ public class AccountEventEntityListener implements ApplicationContextAware {
 
     @PostRemove
     public void onAccountDeleted(Account account) {
-        JobQueueService jobQueueService = getJobQueueService();
-        if (jobQueueService == null) {
-            logger.warn("⚠️ [ACCOUNT-EVENT] JobQueueService not available, skipping event publication");
+        ApplicationEventPublisher eventPublisher = getEventPublisher();
+        if (eventPublisher == null) {
+            logger.warn("⚠️ [ACCOUNT-EVENT] ApplicationEventPublisher not available, skipping event publication");
             return;
         }
 
         try {
-            logger.info("📤 [ACCOUNT-EVENT] Account deleted: {}", account.getId());
-            
-            // Only pass accountId - worker will fetch account from DB
-            // Note: Account may already be deleted from DB, but worker will try to fetch it
-            Map<String, Object> metadata = new HashMap<>();
-            metadata.put("payloadType", "account_deleted");
-            
-            jobQueueService.enqueueJob(
-                com.delight.account.domain.BatchJobType.ACCOUNT_EVENT_PUBLISH,
-                account.getId(),
-                account.getId(),
-                metadata
-            );
+            logger.debug("📤 [ACCOUNT-EVENT] Publishing AccountDeletedEvent for account: {}", account.getId());
+            // Publish Spring event - will be handled by @TransactionalEventListener AFTER_COMMIT
+            eventPublisher.publishEvent(new AccountDeletedEvent(account));
         } catch (Exception e) {
-            logger.error("❌ [ACCOUNT-EVENT] Failed to enqueue account_deleted event for account {}: {}", 
+            logger.error("❌ [ACCOUNT-EVENT] Failed to publish AccountDeletedEvent for account {}: {}", 
                         account.getId(), e.getMessage(), e);
         }
     }
@@ -207,12 +188,15 @@ public class AccountEventEntityListener implements ApplicationContextAware {
         accountInfo.put("plan", account.getPlan() != null ? account.getPlan().name() : null);
         accountInfo.put("status", account.getStatus() != null ? account.getStatus().name() : null);
         accountInfo.put("industryType", account.getIndustryType());
-        accountInfo.put("email", account.getEmail());
         accountInfo.put("companyName", account.getCompanyName());
+        accountInfo.put("region", account.getRegion());
         
-        // Include updated_at timestamp with nanosecond precision (stored as microseconds in DB)
+        // Include updated_at timestamp with nanosecond precision (used as version of the payload)
         if (account.getUpdatedAt() != null) {
-            accountInfo.put("updatedAt", account.getUpdatedAt().toString());
+            accountInfo.put("updated_at", account.getUpdatedAt().toString());
+        } else {
+            // If updated_at is null, use current timestamp with nanosecond precision
+            accountInfo.put("updated_at", java.time.OffsetDateTime.now().toString());
         }
         
         if (account.getOrganization() != null) {

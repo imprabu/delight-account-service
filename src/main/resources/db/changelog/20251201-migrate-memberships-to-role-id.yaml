@@ -1,0 +1,63 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-add-role-id-to-memberships
+      author: codex
+      comment: Add role_id column to memberships table
+      changes:
+        - addColumn:
+            tableName: memberships
+            columns:
+              - column:
+                  name: role_id
+                  type: bigint
+                  remarks: Reference to roles.id
+
+  - changeSet:
+      id: 20251201-migrate-membership-roles-to-role-id
+      author: codex
+      comment: Migrate existing role enum values to role_id by mapping to system roles
+      changes:
+        - sql:
+            sql: |
+              UPDATE memberships m
+              INNER JOIN roles r ON (
+                (m.role = 'OWNER' AND r.code = 'ORG_ADMIN') OR
+                (m.role = 'ADMIN' AND r.code = 'ACCOUNT_ADMIN') OR
+                (m.role = 'MEMBER' AND r.code = 'AGENT')
+              )
+              SET m.role_id = r.id
+              WHERE m.role_id IS NULL;
+
+  - changeSet:
+      id: 20251201-make-role-id-required
+      author: codex
+      comment: Make role_id required and add index
+      changes:
+        - sql:
+            sql: |
+              -- Set default for any remaining NULL values to AGENT
+              UPDATE memberships
+              SET role_id = (SELECT id FROM roles WHERE code = 'AGENT' LIMIT 1)
+              WHERE role_id IS NULL;
+        - addNotNullConstraint:
+            tableName: memberships
+            columnName: role_id
+            columnDataType: bigint
+        - createIndex:
+            indexName: idx_memberships_role_id
+            tableName: memberships
+            columns:
+              - column:
+                  name: role_id
+
+  - changeSet:
+      id: 20251201-drop-role-column-from-memberships
+      author: codex
+      comment: Drop old role enum column from memberships table
+      changes:
+        - dropColumn:
+            tableName: memberships
+            columnName: role
+
+
+

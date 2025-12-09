@@ -56,8 +56,8 @@ class AccountEventPublisherWorkerTest {
 
         testProduct = new Product();
         testProduct.setId(1L);
-        testProduct.setCode("HRMS");
-        testProduct.setName("HRMS Product");
+        testProduct.setCode("CHAT");
+        testProduct.setName("CHAT Product");
 
         testAccount = new Account();
         testAccount.setId(100L);

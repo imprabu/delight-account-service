@@ -53,6 +53,10 @@ dependencies {
         implementation 'io.lettuce:lettuce-core:6.8.1.RELEASE'
         // Commons Pool2 for Lettuce connection pooling
         implementation 'org.apache.commons:commons-pool2:2.11.1'
+        // Casbin for authorization
+        implementation 'org.casbin:jcasbin:1.40.0'
+        // SendGrid for email notifications
+        implementation 'com.sendgrid:sendgrid-java:4.10.1'
         compileOnly 'org.projectlombok:lombok'
         developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
@@ -94,6 +98,31 @@ if (envFile.exists()) {
     envFile.eachLine { line ->
         def parts = line.split('=', 2)
         if (parts.length == 2) envProps[parts[0]] = parts[1]
+    }
+}
+
+// Load additional environment variables from sendgrid.env if it exists
+def sendgridEnvFile = file("sendgrid.env")
+if (sendgridEnvFile.exists()) {
+    logger.lifecycle("Loading additional environment variables from: ${sendgridEnvFile}")
+    sendgridEnvFile.eachLine { line ->
+        // Handle both "export KEY='value'" and "KEY=value" formats
+        def trimmedLine = line.trim()
+        if (trimmedLine.startsWith("export ")) {
+            trimmedLine = trimmedLine.substring(7) // Remove "export "
+        }
+        def parts = trimmedLine.split('=', 2)
+        if (parts.length == 2) {
+            def key = parts[0].trim()
+            def value = parts[1].trim()
+            // Remove surrounding quotes if present
+            if ((value.startsWith("'") && value.endsWith("'")) || 
+                (value.startsWith('"') && value.endsWith('"'))) {
+                value = value.substring(1, value.length() - 1)
+            }
+            envProps[key] = value
+            logger.lifecycle("  Loaded: ${key}")
+        }
     }
 }
 
@@ -212,10 +241,130 @@ task killPort8080 {
     }
 }
 
+// Frontend build tasks
+def frontendDir = file('frontend')
+def frontendBuildDir = file('frontend/build')
+def frontendPackageJson = file('frontend/package.json')
+
+// Check if frontend directory and package.json exist
+// Make it a project property so it's accessible in all tasks
+project.ext.hasFrontend = frontendDir.exists() && frontendDir.isDirectory() && frontendPackageJson.exists()
+
+if (project.ext.hasFrontend) {
+    // Task to install frontend dependencies
+    task npmInstall(type: Exec) {
+        description = 'Install frontend dependencies'
+        group = 'build'
+        workingDir = frontendDir
+        commandLine = ['npm', 'install']
+        
+        // Only run if package.json exists and node_modules doesn't exist or package.json is newer
+        inputs.file('frontend/package.json')
+        outputs.dir('frontend/node_modules')
+        
+        // Don't ignore exit value - fail build if npm install fails
+        ignoreExitValue = false
+        
+        // Provide helpful error message if npm is not found
+        doFirst {
+            try {
+                exec {
+                    commandLine = ['npm', '--version']
+                    ignoreExitValue = false
+                }
+            } catch (Exception e) {
+                throw new GradleException(
+                    "npm is not installed or not in PATH. " +
+                    "Please install Node.js and npm to build the frontend. " +
+                    "You can skip frontend build by running: ./gradlew build -x npmBuild"
+                )
+            }
+        }
+    }
+
+    // Task to build frontend
+    task npmBuild(type: Exec) {
+        description = 'Build frontend application'
+        group = 'build'
+        workingDir = frontendDir
+        commandLine = ['npm', 'run', 'build']
+        
+        // Depend on npm install
+        dependsOn npmInstall
+        
+        // Only run if source files changed
+        inputs.dir('frontend/src')
+        inputs.file('frontend/package.json')
+        inputs.file('frontend/vite.config.ts')
+        inputs.file('frontend/index.html')
+        outputs.dir('frontend/build')
+        
+        // Don't ignore exit value - fail build if npm build fails
+        ignoreExitValue = false
+        
+        // Log build output
+        standardOutput = new java.io.ByteArrayOutputStream()
+        errorOutput = new java.io.ByteArrayOutputStream()
+        
+        doLast {
+            def output = standardOutput.toString()
+            if (output) {
+                logger.lifecycle("Frontend build output:\n${output}")
+            }
+            def error = errorOutput.toString()
+            if (error) {
+                logger.error("Frontend build errors:\n${error}")
+            }
+        }
+    }
+
+    // Make the main build task depend on frontend build
+    // This ensures frontend is built whenever you run ./gradlew build
+    tasks.named('build') {
+        dependsOn npmBuild
+        logger.lifecycle("✓ Frontend build (npmBuild) will run automatically as part of 'build' task")
+    }
+
+    // Make the bootJar task depend on frontend build (for creating the JAR with frontend)
+    // This ensures frontend is built when creating the executable JAR
+    tasks.named('bootJar') {
+        dependsOn npmBuild
+        logger.lifecycle("✓ Frontend build (npmBuild) will run automatically as part of 'bootJar' task")
+    }
+    
+    // Make the jar task also depend on frontend build (for regular JAR creation)
+    tasks.named('jar') {
+        dependsOn npmBuild
+    }
+    
+    // Clean task should also clean frontend build directory
+    tasks.named('clean') {
+        doLast {
+            if (frontendBuildDir.exists()) {
+                logger.lifecycle("Cleaning frontend build directory: {}", frontendBuildDir.absolutePath)
+                delete frontendBuildDir
+            }
+        }
+    }
+    
+    logger.lifecycle("✅ Frontend build automation configured:")
+    logger.lifecycle("   - 'build' task: automatically runs npmInstall → npmBuild")
+    logger.lifecycle("   - 'bootJar' task: automatically runs npmInstall → npmBuild")
+    logger.lifecycle("   - 'bootRun' task: automatically runs npmInstall → npmBuild before starting")
+    logger.lifecycle("   - 'clean' task: removes frontend/build directory")
+} else {
+    logger.lifecycle("Frontend directory or package.json not found. Skipping frontend build tasks.")
+}
+
 // Configure bootRun task specifically
 tasks.named('bootRun') {
     // Kill any process on port 8080 before starting
     dependsOn killPort8080
+    
+    // Build frontend before running to ensure it's ready when app opens in browser
+    if (project.ext.hasFrontend) {
+        dependsOn npmBuild
+    }
     
     // Ensure bootRun gets the environment variables
     environment envProps
@@ -225,5 +374,27 @@ tasks.named('bootRun') {
         key.startsWith("app.")
     }.collectEntries { key, value ->
         [(key.substring(4)): value]
+    }
+    
+    // Verify frontend build exists before starting (npmBuild dependency runs first, then we verify)
+    doFirst {
+        if (project.ext.hasFrontend) {
+            // npmBuild dependency will have run by this point
+            def buildDir = file('frontend/build')
+            if (!buildDir.exists() || !buildDir.isDirectory()) {
+                throw new GradleException(
+                    "Frontend build directory does not exist: ${buildDir.absolutePath}\n" +
+                    "The npmBuild task should have created this. Please check the build output for errors."
+                )
+            }
+            def indexHtml = file('frontend/build/index.html')
+            if (!indexHtml.exists()) {
+                throw new GradleException(
+                    "Frontend index.html not found: ${indexHtml.absolutePath}\n" +
+                    "Frontend build may have failed. Please check the npm build output."
+                )
+            }
+            logger.lifecycle("✅ Frontend build verified. Starting Spring Boot application...")
+        }
     }
 }

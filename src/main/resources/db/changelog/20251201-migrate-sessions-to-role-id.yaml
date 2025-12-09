@@ -1,0 +1,63 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-add-role-id-to-sessions
+      author: codex
+      comment: Add role_id column to sessions table
+      changes:
+        - addColumn:
+            tableName: sessions
+            columns:
+              - column:
+                  name: role_id
+                  type: bigint
+                  remarks: Reference to roles.id
+
+  - changeSet:
+      id: 20251201-migrate-session-roles-to-role-id
+      author: codex
+      comment: Migrate existing role enum values to role_id by mapping to system roles
+      changes:
+        - sql:
+            sql: |
+              UPDATE sessions s
+              INNER JOIN roles r ON (
+                (s.role = 'OWNER' AND r.code = 'ORG_ADMIN') OR
+                (s.role = 'ADMIN' AND r.code = 'ACCOUNT_ADMIN') OR
+                (s.role = 'MEMBER' AND r.code = 'AGENT')
+              )
+              SET s.role_id = r.id
+              WHERE s.role_id IS NULL;
+
+  - changeSet:
+      id: 20251201-make-session-role-id-required
+      author: codex
+      comment: Make role_id required and add index for sessions
+      changes:
+        - sql:
+            sql: |
+              -- Set default for any remaining NULL values to AGENT
+              UPDATE sessions
+              SET role_id = (SELECT id FROM roles WHERE code = 'AGENT' LIMIT 1)
+              WHERE role_id IS NULL;
+        - addNotNullConstraint:
+            tableName: sessions
+            columnName: role_id
+            columnDataType: bigint
+        - createIndex:
+            indexName: idx_sessions_role_id
+            tableName: sessions
+            columns:
+              - column:
+                  name: role_id
+
+  - changeSet:
+      id: 20251201-drop-role-column-from-sessions
+      author: codex
+      comment: Drop old role enum column from sessions table
+      changes:
+        - dropColumn:
+            tableName: sessions
+            columnName: role
+
+
+

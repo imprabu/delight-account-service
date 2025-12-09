@@ -1,6 +1,5 @@
 package com.delight.account.dto;
 
-import com.delight.account.model.Role;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,8 +21,14 @@ public class SessionResponse {
     @Schema(description = "ID of the account associated with this session", example = "12345")
     private Long accountId;
     
-    @Schema(description = "User's role within the account", example = "ADMIN", allowableValues = {"OWNER", "ADMIN", "USER"})
-    private Role role;
+    @Schema(description = "Role ID", example = "1")
+    private Long roleId;
+    
+    @Schema(description = "Role code", example = "ORG_ADMIN")
+    private String roleCode;
+    
+    @Schema(description = "Role name", example = "Org Admin")
+    private String roleName;
     
     @Schema(description = "User's email address", example = "john.doe@acme.com")
     private String emailAddress;
@@ -51,4 +56,7 @@ public class SessionResponse {
 
     @Schema(description = "JWT token for authentication", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
     private String token;
+    
+    @Schema(description = "List of privilege codes accessible by the session user", example = "[\"user.create\", \"user.read\", \"account.update\"]")
+    private java.util.List<String> privileges;
 }

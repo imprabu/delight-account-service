@@ -56,6 +56,14 @@ public class ActivationTokenServiceImpl implements ActivationTokenService {
     }
     
     @Override
+    public ActivationToken validateToken(String token) {
+        LocalDateTime now = LocalDateTime.now();
+        
+        return tokenRepository.findValidToken(token, now)
+            .orElse(null);
+    }
+    
+    @Override
     public ActivationToken validateAndConsumeToken(String token) {
         LocalDateTime now = LocalDateTime.now();
         

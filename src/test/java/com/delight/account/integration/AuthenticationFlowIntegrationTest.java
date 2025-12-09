@@ -346,7 +346,7 @@ class AuthenticationFlowIntegrationTest {
         Membership secondMembership = new Membership();
         secondMembership.setAccount(account);
         secondMembership.setUser(secondUser);
-        secondMembership.setRole(Role.MEMBER);
+        secondMembership.setRole(Role.AGENT);
         secondMembership.setStatus(MembershipStatus.ACTIVE);
         membershipRepository.save(secondMembership);
 

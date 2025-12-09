@@ -22,12 +22,21 @@ import org.springframework.context.annotation.Configuration;
                      "• User authentication (signin/signout) with JWT tokens\n" +
                      "• Account activation and user onboarding\n" +
                      "• Session validation and management\n" +
-                     "• Membership management with role-based access control (OWNER, ADMIN, MEMBER)\n" +
+                     "• Membership management with role-based access control using role IDs\n" +
                      "• Multi-endpoint support (regular, API, and channel endpoints)\n\n" +
+                     "Role-Based Access Control:\n" +
+                     "• Default system roles: Org Admin (ID: 1), Account Admin (ID: 2), Agent (ID: 3)\n" +
+                     "• Custom roles can be created based on default roles\n" +
+                     "• Roles are referenced by ID in API requests (e.g., Update Member uses roleId)\n" +
+                     "• Privilege-based permissions system with role-privilege assignments\n\n" +
                      "Authentication:\n" +
-                     "• Cookie-based (session) and JWT Bearer token authentication are supported.\n" +
-                     "• Channel endpoints under '/channel/**' require a ChannelJWT provided via Authorization header (Bearer).\n" +
-                     "• Use the Swagger 'Authorize' button with a ChannelJWT to try channel endpoints.",
+                     "• Cookie-based (session) and JWT Bearer token authentication are supported for user endpoints.\n" +
+                     "• Channel endpoints under '/channel/**' require a ChannelJWT (different from user JWT tokens).\n" +
+                     "• Channel endpoints include: /channel/allAccounts (requires channel auth only), /channel/validateSession, /channel/accounts/info\n" +
+                     "• Use the Swagger 'Authorize' button with a ChannelJWT to try channel endpoints.\n\n" +
+                     "Important Changes:\n" +
+                     "• The /accounts/allAccounts endpoint has been removed. Use /channel/allAccounts with channel authentication instead.\n" +
+                     "• Role system now uses role IDs instead of role enums. Update API calls to use roleId parameter.",
         termsOfService = "https://delight.example/terms",
         contact = @Contact(
             name = "Delight API Support Team",

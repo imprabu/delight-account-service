@@ -3,7 +3,7 @@ package com.delight.account.service;
 import com.delight.account.dto.SessionResponse;
 import com.delight.account.model.Account;
 import com.delight.account.model.ClientType;
-import com.delight.account.model.Role;
+import com.delight.account.model.RoleEntity;
 import com.delight.account.model.Session;
 import com.delight.account.model.User;
 
@@ -14,7 +14,7 @@ public interface SessionService {
     /**
      * Creates a new session for the user with client type detection
      */
-    Session createSession(User user, Account account, Role role, String jwtToken, 
+    Session createSession(User user, Account account, RoleEntity role, String jwtToken, 
                          String userAgent, String ipAddress, ClientType clientType);
     
     /**
@@ -36,6 +36,11 @@ public interface SessionService {
      * Invalidates all sessions for a user
      */
     void invalidateAllUserSessions(Long userId);
+    
+    /**
+     * Invalidates all active sessions for a user, account, and client type combination
+     */
+    void invalidateSessionsByUserAccountAndClientType(Long userId, Long accountId, ClientType clientType);
     
     /**
      * Updates the last accessed time for a session

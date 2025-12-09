@@ -89,7 +89,6 @@ public class AccountServiceImpl implements AccountService {
                 .plan(account.getPlan())
                 .status(account.getStatus())
                 .industryType(account.getIndustryType())
-                .email(account.getEmail())
                 .companyName(account.getCompanyName())
                 .organizationId(account.getOrganization() != null ? account.getOrganization().getId() : null)
                 .organizationName(account.getOrganization() != null ? account.getOrganization().getName() : null)
@@ -107,10 +106,10 @@ public class AccountServiceImpl implements AccountService {
             : String.format("user:membership:%d:%d", accountId, userId);
         
         Optional<UserMembershipCacheResponse> cachedMembershipData = cacheService.get(membershipCacheKey, () -> {
-            Membership membership = membershipRepository.findByUserIdAndAccountId(userId, accountId).orElse(null);
+            Membership membership = membershipRepository.findByUserIdAndAccountIdWithRole(userId, accountId).orElse(null);
             UserMembershipCacheResponse response = UserMembershipCacheResponse.builder()
                 .userId(userId)
-                .role(membership != null && membership.getRole() != null ? membership.getRole().name() : null)
+                .role(membership != null && membership.getRole() != null ? membership.getRole().getCode() : null)
                 .build();
             return Optional.of(response);
         }, Duration.ofMinutes(15), UserMembershipCacheResponse.class);
@@ -127,7 +126,6 @@ public class AccountServiceImpl implements AccountService {
             .plan(accountData.getPlan())
             .status(accountData.getStatus())
             .industryType(accountData.getIndustryType())
-            .email(accountData.getEmail())
             .companyName(accountData.getCompanyName())
             .currentUserId(membershipData.getUserId())
             .currentUserRole(membershipData.getRole())
@@ -158,7 +156,6 @@ public class AccountServiceImpl implements AccountService {
                 .plan(account.getPlan())
                 .status(account.getStatus())
                 .industryType(account.getIndustryType())
-                .email(account.getEmail())
                 .companyName(account.getCompanyName())
                 .organizationId(account.getOrganization() != null ? account.getOrganization().getId() : null)
                 .organizationName(account.getOrganization() != null ? account.getOrganization().getName() : null)
@@ -179,7 +176,6 @@ public class AccountServiceImpl implements AccountService {
             .plan(accountData.getPlan())
             .status(accountData.getStatus())
             .industryType(accountData.getIndustryType())
-            .email(accountData.getEmail())
             .companyName(accountData.getCompanyName())
             .currentUserId(null) // No user context in Channel
             .currentUserRole(null) // No user context in Channel
@@ -205,7 +201,6 @@ public class AccountServiceImpl implements AccountService {
                 .plan(account.getPlan())
                 .status(account.getStatus())
                 .industryType(account.getIndustryType())
-                .email(account.getEmail())
                 .companyName(account.getCompanyName())
                 .currentUserId(null) // No user context for getAllAccounts
                 .currentUserRole(null) // No user context for getAllAccounts

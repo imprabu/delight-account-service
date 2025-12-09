@@ -12,7 +12,9 @@ public enum BatchJobType {
     CACHE_WARMUP("cache_warmup", "cacheWarmup", "CacheWarmupJobWorker"),
     DATA_CLEANUP("data_cleanup", "dataCleanup", "DataCleanupJobWorker"),
     ACCOUNT_EVENT_PUBLISH("account_event_publish", "accountEventPublish", "AccountEventPublisherWorker"),
-    BULK_ACCOUNT_SYNC("bulk_account_sync", "bulkAccountSync", "BulkAccountSyncWorker");
+    BULK_ACCOUNT_SYNC("bulk_account_sync", "bulkAccountSync", "BulkAccountSyncWorker"),
+    USER_EVENT_PUBLISH("user_event_publish", "userEventPublish", "UserEventPublisherWorker"),
+    MEMBERSHIP_EVENT_PUBLISH("membership_event_publish", "membershipEventPublish", "MembershipEventPublisherWorker");
     
     private final String name;
     private final String propertyKey;

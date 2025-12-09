@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251201-backfill-organizations
+      author: codex
+      comment: Backfill organizations for existing accounts
+      changes:
+        - sql:
+            sql: |
+              -- Create an organization per account (if missing), keyed by domain
+              INSERT INTO organizations(name, primary_domain, status, updated_at)
+              SELECT a.company_name, a.domain, 'ACTIVE', ''
+              FROM accounts a
+              LEFT JOIN organizations o ON o.primary_domain = a.domain
+              WHERE a.organization_id IS NULL AND o.id IS NULL;
+        - sql:
+            sql: |
+              -- Link accounts to their organization by matching domain
+              UPDATE accounts a
+              JOIN organizations o ON o.primary_domain = a.domain
+              SET a.organization_id = o.id
+              WHERE a.organization_id IS NULL;
+
+
+

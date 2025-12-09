@@ -7,6 +7,10 @@ import com.delight.account.model.Account;
 import com.delight.account.model.AccountStatus;
 import com.delight.account.model.Membership;
 import com.delight.account.model.Role;
+import com.delight.account.model.RoleEntity;
+import com.delight.account.model.RoleType;
+import com.delight.account.model.Session;
+import com.delight.account.model.ClientType;
 import com.delight.account.model.MembershipStatus;
 import com.delight.account.model.Organization;
 import com.delight.account.model.PlanType;
@@ -14,11 +18,18 @@ import com.delight.account.model.Product;
 import com.delight.account.model.User;
 import com.delight.account.model.UserCredential;
 import com.delight.account.model.UserStatus;
+import com.delight.account.dto.SigninResponse;
+import com.delight.account.model.ClientType;
+import com.delight.account.model.RoleEntity;
+import com.delight.account.model.RoleType;
+import com.delight.account.model.Session;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.MembershipRepository;
+import com.delight.account.repository.RoleRepository;
 import com.delight.account.repository.UserCredentialRepository;
 import com.delight.account.repository.UserRepository;
 import com.delight.account.service.CacheService;
+import com.delight.account.service.RoleService;
 import com.delight.account.service.SessionService;
 import com.delight.account.service.impl.SigninServiceImpl;
 import io.jsonwebtoken.Claims;
@@ -31,6 +42,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
+import static org.mockito.ArgumentMatchers.*;
 import java.util.Base64;
 import java.util.Date;
 import java.util.Optional;
@@ -67,6 +80,12 @@ class SigninServiceTest {
     @Mock
     private CacheKeyManager cacheKeyManager;
 
+    @Mock
+    private RoleRepository roleRepository;
+
+    @Mock
+    private RoleService roleService;
+
     private SigninService signinService;
 
     private static final String PASSWORD_SECRET = "1234567890123456";
@@ -90,6 +109,8 @@ class SigninServiceTest {
             JWT_EXPIRATION,
             membershipRepository,
             accountRepository,
+            roleRepository,
+            roleService,
             sessionService,
             cacheService,
             cacheKeyManager
@@ -145,8 +166,15 @@ class SigninServiceTest {
         testMembership.setId(1L);
         testMembership.setUser(testUser);
         testMembership.setAccount(testAccount);
-        testMembership.setRole(Role.OWNER);
         testMembership.setStatus(MembershipStatus.ACTIVE);
+        
+        // Create RoleEntity for membership
+        RoleEntity ownerRole = new RoleEntity();
+        ownerRole.setId(1L);
+        ownerRole.setCode("OWNER");
+        ownerRole.setAccount(testAccount);
+        ownerRole.setRoleType(RoleType.SYSTEM);
+        testMembership.setRole(ownerRole);
     }
 
     @Test
@@ -160,13 +188,29 @@ class SigninServiceTest {
             .thenReturn(Optional.of(testUser));
         when(credentialRepository.findByUser(testUser))
             .thenReturn(Optional.of(testCredential));
-        when(membershipRepository.findByUserIdAndAccountId(1L, 1L))
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(1L, 1L))
             .thenReturn(Optional.of(testMembership));
-        when(accountRepository.findById(1L))
+        when(accountRepository.findByIdWithRelations(1L))
             .thenReturn(Optional.of(testAccount));
+        when(roleRepository.findByAccountIdAndCodeAndRoleType(1L, "AGENT", RoleType.SYSTEM))
+            .thenReturn(Optional.empty());
+        when(roleRepository.findById(1L))
+            .thenReturn(Optional.of(testMembership.getRole()));
+        
+        // Mock session service
+        Session session = new Session();
+        session.setSessionId("test-session-id");
+        session.setJwtToken("");
+        session.setCreatedAt(OffsetDateTime.now());
+        session.setClientType(ClientType.WEB);
+        when(sessionService.createSession(any(), any(), any(), anyString(), anyString(), anyString(), any()))
+            .thenReturn(session);
+        org.mockito.Mockito.doNothing().when(sessionService).invalidateSessionsByUserAccountAndClientType(anyLong(), anyLong(), any());
+        org.mockito.Mockito.doNothing().when(sessionService).updateSessionToken(anyString(), anyString());
 
         // When
-        String token = signinService.signin(1L, "localhost", request);
+        SigninResponse response = signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB);
+        String token = response.getJwtToken();
 
         // Then
         assertThat(token).isNotNull().isNotEmpty();
@@ -202,13 +246,29 @@ class SigninServiceTest {
             .thenReturn(Optional.of(testUser));
         when(credentialRepository.findByUser(testUser))
             .thenReturn(Optional.of(testCredential));
-        when(membershipRepository.findByUserIdAndAccountId(1L, 1L))
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(1L, 1L))
             .thenReturn(Optional.of(testMembership));
-        when(accountRepository.findById(1L))
+        when(accountRepository.findByIdWithRelations(1L))
             .thenReturn(Optional.of(testAccount));
+        when(roleRepository.findByAccountIdAndCodeAndRoleType(1L, "AGENT", RoleType.SYSTEM))
+            .thenReturn(Optional.empty());
+        when(roleRepository.findById(1L))
+            .thenReturn(Optional.of(testMembership.getRole()));
+        
+        // Mock session service
+        Session session = new Session();
+        session.setSessionId("test-session-id");
+        session.setJwtToken("");
+        session.setCreatedAt(OffsetDateTime.now());
+        session.setClientType(ClientType.WEB);
+        when(sessionService.createSession(any(), any(), any(), anyString(), anyString(), anyString(), any()))
+            .thenReturn(session);
+        org.mockito.Mockito.doNothing().when(sessionService).invalidateSessionsByUserAccountAndClientType(anyLong(), anyLong(), any());
+        org.mockito.Mockito.doNothing().when(sessionService).updateSessionToken(anyString(), anyString());
 
         // When
-        String token = signinService.signin(1L, "localhost", request);
+        SigninResponse response = signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB);
+        String token = response.getJwtToken();
 
         // Then
         Claims claims = Jwts.parser()
@@ -232,7 +292,7 @@ class SigninServiceTest {
             .thenReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> signinService.signin(1L, "localhost", request))
+        assertThatThrownBy(() -> signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB))
             .isInstanceOf(ApiException.class)
             .hasMessage("error.user.notfound");
     }
@@ -250,7 +310,7 @@ class SigninServiceTest {
             .thenReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> signinService.signin(1L, "localhost", request))
+        assertThatThrownBy(() -> signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB))
             .isInstanceOf(ApiException.class)
             .hasMessage("error.signin.invalid");
     }
@@ -268,7 +328,7 @@ class SigninServiceTest {
             .thenReturn(Optional.of(testCredential));
 
         // When & Then
-        assertThatThrownBy(() -> signinService.signin(1L, "localhost", request))
+        assertThatThrownBy(() -> signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB))
             .isInstanceOf(ApiException.class)
             .hasMessage("error.signin.invalid");
     }
@@ -288,7 +348,7 @@ class SigninServiceTest {
             .thenReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> signinService.signin(1L, "localhost", request))
+        assertThatThrownBy(() -> signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB))
             .isInstanceOf(ApiException.class)
             .hasMessage("error.signin.invalid");
     }
@@ -306,11 +366,11 @@ class SigninServiceTest {
             .thenReturn(Optional.of(testUser));
         when(credentialRepository.findByUser(testUser))
             .thenReturn(Optional.of(testCredential));
-        when(membershipRepository.findByUserIdAndAccountId(1L, 1L))
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(1L, 1L))
             .thenReturn(Optional.of(testMembership));
 
         // When & Then
-        assertThatThrownBy(() -> signinService.signin(1L, "localhost", request))
+        assertThatThrownBy(() -> signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB))
             .isInstanceOf(ApiException.class)
             .hasMessage("error.signin.invalid");
     }
@@ -318,7 +378,12 @@ class SigninServiceTest {
     @Test
     void signinWorksWithDifferentMembershipRoles() {
         // Test with ADMIN role
-        testMembership.setRole(Role.ADMIN);
+        RoleEntity adminRole = new RoleEntity();
+        adminRole.setId(2L);
+        adminRole.setCode("ADMIN");
+        adminRole.setAccount(testAccount);
+        adminRole.setRoleType(RoleType.SYSTEM);
+        testMembership.setRole(adminRole);
 
         SigninRequest request = new SigninRequest();
         request.setEmailAddress("test@example.com");
@@ -328,12 +393,28 @@ class SigninServiceTest {
             .thenReturn(Optional.of(testUser));
         when(credentialRepository.findByUser(testUser))
             .thenReturn(Optional.of(testCredential));
-        when(membershipRepository.findByUserIdAndAccountId(1L, 1L))
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(1L, 1L))
             .thenReturn(Optional.of(testMembership));
-        when(accountRepository.findById(1L))
+        when(accountRepository.findByIdWithRelations(1L))
             .thenReturn(Optional.of(testAccount));
+        when(roleRepository.findByAccountIdAndCodeAndRoleType(1L, "AGENT", RoleType.SYSTEM))
+            .thenReturn(Optional.empty());
+        when(roleRepository.findById(2L))
+            .thenReturn(Optional.of(adminRole));
+        
+        // Mock session service
+        Session session = new Session();
+        session.setSessionId("test-session-id");
+        session.setJwtToken("");
+        session.setCreatedAt(OffsetDateTime.now());
+        session.setClientType(ClientType.WEB);
+        when(sessionService.createSession(any(), any(), any(), anyString(), anyString(), anyString(), any()))
+            .thenReturn(session);
+        org.mockito.Mockito.doNothing().when(sessionService).invalidateSessionsByUserAccountAndClientType(anyLong(), anyLong(), any());
+        org.mockito.Mockito.doNothing().when(sessionService).updateSessionToken(anyString(), anyString());
 
-        String token = signinService.signin(1L, "localhost", request);
+        SigninResponse response = signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB);
+        String token = response.getJwtToken();
 
         Claims claims = Jwts.parser()
             .verifyWith(Keys.hmacShaKeyFor(JWT_SECRET.getBytes(StandardCharsets.UTF_8)))
@@ -355,15 +436,15 @@ class SigninServiceTest {
             .thenReturn(Optional.of(testUser));
         when(credentialRepository.findByUser(testUser))
             .thenReturn(Optional.of(testCredential));
-        when(membershipRepository.findByUserIdAndAccountId(1L, 1L))
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(1L, 1L))
             .thenReturn(Optional.of(testMembership));
-        when(accountRepository.findById(1L))
+        when(accountRepository.findByIdWithRelations(1L))
             .thenReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> signinService.signin(1L, "localhost", request))
+        assertThatThrownBy(() -> signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB))
             .isInstanceOf(ApiException.class)
-            .hasMessage("error.signin.invalid");
+            .hasMessage("error.account.notfound");
     }
 
     @Test
@@ -377,15 +458,31 @@ class SigninServiceTest {
             .thenReturn(Optional.of(testUser));
         when(credentialRepository.findByUser(testUser))
             .thenReturn(Optional.of(testCredential));
-        when(membershipRepository.findByUserIdAndAccountId(1L, 1L))
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(1L, 1L))
             .thenReturn(Optional.of(testMembership));
-        when(accountRepository.findById(1L))
+        when(accountRepository.findByIdWithRelations(1L))
             .thenReturn(Optional.of(testAccount));
+        when(roleRepository.findByAccountIdAndCodeAndRoleType(1L, "AGENT", RoleType.SYSTEM))
+            .thenReturn(Optional.empty());
+        when(roleRepository.findById(1L))
+            .thenReturn(Optional.of(testMembership.getRole()));
+        
+        // Mock session service
+        Session session = new Session();
+        session.setSessionId("test-session-id");
+        session.setJwtToken("");
+        session.setCreatedAt(OffsetDateTime.now());
+        session.setClientType(ClientType.WEB);
+        when(sessionService.createSession(any(), any(), any(), anyString(), anyString(), anyString(), any()))
+            .thenReturn(session);
+        org.mockito.Mockito.doNothing().when(sessionService).invalidateSessionsByUserAccountAndClientType(anyLong(), anyLong(), any());
+        org.mockito.Mockito.doNothing().when(sessionService).updateSessionToken(anyString(), anyString());
 
         long beforeSignin = System.currentTimeMillis();
 
         // When
-        String token = signinService.signin(1L, "localhost", request);
+        SigninResponse response = signinService.signinWithSession(1L, "localhost", request, "test-agent", "127.0.0.1", ClientType.WEB);
+        String token = response.getJwtToken();
 
         long afterSignin = System.currentTimeMillis();
 

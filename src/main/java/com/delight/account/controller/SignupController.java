@@ -18,7 +18,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
-@RequestMapping("/account")
+@RequestMapping("/accounts")
 @Tag(name = "Authentication", description = "User authentication endpoints including signup, signin, and account activation")
 public class SignupController {
 
@@ -33,15 +33,15 @@ public class SignupController {
     @PostMapping(value = "/signup", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE, produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @RateLimit(keyPrefix = "signup")
     @Operation(
-        summary = "Signup new organization and HRMS account",
-        description = "Creates Organization, HRMS Account, initial User and OWNER membership. Returns the domain that can be used for signin.",
+        summary = "Signup new organization and account",
+        description = "Creates Organization, Account with specified product, initial User and OWNER membership. Returns the domain that can be used for signin.",
         requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
             content = @io.swagger.v3.oas.annotations.media.Content(
                 mediaType = "application/json",
                 examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
                     name = "SignupRequest",
-                    value = "{\n  \"companyName\": \"Acme Corp\",\n  \"emailAddress\": \"owner@acme.com\",\n  \"industryType\": \"Software\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\"\n}"
+                    value = "{\n  \"companyName\": \"Acme Corp\",\n  \"emailAddress\": \"owner@acme.com\",\n  \"industryType\": \"Software\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"productCode\": \"CHAT\",\n  \"region\": \"us-east-1\"\n}"
                 )
             )
         ),

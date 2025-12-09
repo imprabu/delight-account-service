@@ -12,22 +12,62 @@ public class LoggingUtils {
 
     /**
      * Formats log message according to the standard format: <Domain> - <request_id> - <account_id> - <class name> - <actual log>
+     * Reads from MDC which is set by TenantFilter (domain, accountId) and RequestLoggingFilter (requestId).
      */
     private static String formatLogMessage(Logger logger, String message) {
         String domain = MDC.get("domain");
         String requestId = MDC.get("requestId");
         String accountId = MDC.get("accountId");
-        String className = logger.getName();
+        String className = "UNKNOWN_CLASS";
         
-        // Extract simple class name from full package name
-        if (className != null && className.contains(".")) {
-            className = className.substring(className.lastIndexOf(".") + 1);
+        // Safely get class name from logger
+        if (logger != null) {
+            try {
+                className = logger.getName();
+                // Extract simple class name from full package name
+                if (className != null && className.contains(".")) {
+                    className = className.substring(className.lastIndexOf(".") + 1);
+                }
+            } catch (Exception e) {
+                // If logger.getName() fails, use class name from logger's class if available
+                className = logger.getClass().getSimpleName();
+            }
         }
         
         return String.format("%s - %s - %s - %s - %s",
             domain != null ? domain : "UNKNOWN",
             requestId != null ? requestId : "NO_REQUEST_ID",
             accountId != null ? accountId : "NO_ACCOUNT_ID",
+            className != null ? className : "UNKNOWN_CLASS",
+            message
+        );
+    }
+
+    /**
+     * Formats log message for background jobs with explicit parameters (no MDC).
+     * Format: <Domain> - <job_id> - <account_id> - <class name> - <actual log>
+     */
+    private static String formatLogMessageWithJobContext(Logger logger, Long jobId, Long accountId, Long userId, String message) {
+        String className = "UNKNOWN_CLASS";
+        
+        // Safely get class name from logger
+        if (logger != null) {
+            try {
+                className = logger.getName();
+                // Extract simple class name from full package name
+                if (className != null && className.contains(".")) {
+                    className = className.substring(className.lastIndexOf(".") + 1);
+                }
+            } catch (Exception e) {
+                // If logger.getName() fails, use class name from logger's class if available
+                className = logger.getClass().getSimpleName();
+            }
+        }
+        
+        return String.format("%s - %s - %s - %s - %s",
+            "BACKGROUND_JOB", // Domain for background jobs
+            jobId != null ? String.valueOf(jobId) : "NO_JOB_ID",
+            accountId != null ? String.valueOf(accountId) : "NO_ACCOUNT_ID",
             className != null ? className : "UNKNOWN_CLASS",
             message
         );
@@ -93,6 +133,7 @@ public class LoggingUtils {
         }
         logger.info(formatLogMessage(logger, sb.toString()));
     }
+
 
     /**
      * Log security-related events with structured information
@@ -181,6 +222,10 @@ public class LoggingUtils {
      * Standard info logging with the new format
      */
     public static void info(Logger logger, String message, Object... params) {
+        if (logger == null) {
+            System.err.println("WARNING: Logger is null. Message: " + message);
+            return;
+        }
         if (params.length > 0) {
             message = String.format(message.replace("{}", "%s"), params);
         }
@@ -203,6 +248,10 @@ public class LoggingUtils {
      * Standard warn logging with the new format
      */
     public static void warn(Logger logger, String message, Object... params) {
+        if (logger == null) {
+            System.err.println("WARNING: Logger is null. Message: " + message);
+            return;
+        }
         if (params.length > 0) {
             message = String.format(message.replace("{}", "%s"), params);
         }
@@ -213,6 +262,13 @@ public class LoggingUtils {
      * Standard error logging with the new format
      */
     public static void error(Logger logger, String message, Throwable throwable, Object... params) {
+        if (logger == null) {
+            System.err.println("WARNING: Logger is null. Message: " + message);
+            if (throwable != null) {
+                throwable.printStackTrace();
+            }
+            return;
+        }
         if (params.length > 0) {
             message = String.format(message.replace("{}", "%s"), params);
         }
@@ -223,6 +279,10 @@ public class LoggingUtils {
      * Standard error logging with the new format (without throwable)
      */
     public static void error(Logger logger, String message, Object... params) {
+        if (logger == null) {
+            System.err.println("WARNING: Logger is null. Message: " + message);
+            return;
+        }
         if (params.length > 0) {
             message = String.format(message.replace("{}", "%s"), params);
         }
@@ -357,5 +417,57 @@ public class LoggingUtils {
         MDC.remove("errorCode");
         MDC.remove("errorType");
         MDC.remove("httpStatus");
+    }
+
+    /**
+     * Debug logging for background jobs with explicit job context (no MDC).
+     */
+    public static void debugWithJobContext(Logger logger, Long jobId, Long accountId, Long userId, String message, Object... params) {
+        if (logger.isDebugEnabled()) {
+            if (params.length > 0) {
+                message = String.format(message.replace("{}", "%s"), params);
+            }
+            logger.debug(formatLogMessageWithJobContext(logger, jobId, accountId, userId, message));
+        }
+    }
+
+    /**
+     * Info logging for background jobs with explicit job context (no MDC).
+     */
+    public static void infoWithJobContext(Logger logger, Long jobId, Long accountId, Long userId, String message, Object... params) {
+        if (params.length > 0) {
+            message = String.format(message.replace("{}", "%s"), params);
+        }
+        logger.info(formatLogMessageWithJobContext(logger, jobId, accountId, userId, message));
+    }
+
+    /**
+     * Warn logging for background jobs with explicit job context (no MDC).
+     */
+    public static void warnWithJobContext(Logger logger, Long jobId, Long accountId, Long userId, String message, Object... params) {
+        if (params.length > 0) {
+            message = String.format(message.replace("{}", "%s"), params);
+        }
+        logger.warn(formatLogMessageWithJobContext(logger, jobId, accountId, userId, message));
+    }
+
+    /**
+     * Error logging for background jobs with explicit job context (no MDC).
+     */
+    public static void errorWithJobContext(Logger logger, Long jobId, Long accountId, Long userId, String message, Throwable throwable, Object... params) {
+        if (params.length > 0) {
+            message = String.format(message.replace("{}", "%s"), params);
+        }
+        logger.error(formatLogMessageWithJobContext(logger, jobId, accountId, userId, message), throwable);
+    }
+
+    /**
+     * Error logging for background jobs with explicit job context (no MDC, no throwable).
+     */
+    public static void errorWithJobContext(Logger logger, Long jobId, Long accountId, Long userId, String message, Object... params) {
+        if (params.length > 0) {
+            message = String.format(message.replace("{}", "%s"), params);
+        }
+        logger.error(formatLogMessageWithJobContext(logger, jobId, accountId, userId, message));
     }
 }

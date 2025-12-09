@@ -47,7 +47,7 @@ class SessionControllerJwtValidationTest {
                 .firstName("Test")
                 .lastName("User")
                 .emailAddress("test@example.com")
-                .role(Role.MEMBER)
+                .role(Role.AGENT)
                 .accountDomain("test-domain")
                 .companyName("Test Company")
                 .lastAccessedAt(OffsetDateTime.now())
@@ -77,7 +77,7 @@ class SessionControllerJwtValidationTest {
                 .andExpect(jsonPath("$.firstName").value("Test"))
                 .andExpect(jsonPath("$.lastName").value("User"))
                 .andExpect(jsonPath("$.emailAddress").value("test@example.com"))
-                .andExpect(jsonPath("$.role").value("MEMBER"))
+                .andExpect(jsonPath("$.role").value("USER"))
                 .andExpect(jsonPath("$.accountDomain").value("test-domain"));
 
         verify(sessionService).validateSessionByToken("valid-jwt-token");

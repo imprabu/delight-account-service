@@ -59,7 +59,7 @@ class MessagingServiceTest {
         lenient().when(retryConfig.getDelayMs()).thenReturn(100L);
 
         lenient().when(accountActivitiesConfig.getServiceName()).thenReturn("delight_accounts");
-        lenient().when(accountActivitiesConfig.getTopicName()).thenReturn("account_actvities_v1");
+        lenient().when(accountActivitiesConfig.getTopicName()).thenReturn("account_activities_v1");
         lenient().when(accountActivitiesConfig.isPayloadTypeEnabled(anyString())).thenReturn(true);
     }
 

@@ -37,11 +37,20 @@ public class InterceptorConfig implements WebMvcConfigurer {
             .excludePathPatterns("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
                               "/actuator/health");
         
-        // Add domain account interceptor for all paths except channel endpoints (runs last)
+        // Add domain account interceptor for all paths except channel endpoints and frontend routes (runs last)
         registry.addInterceptor(domainAccountInterceptor)
             .addPathPatterns("/**")
-            .excludePathPatterns("/account/signup", "/channel/**",
+            .excludePathPatterns("/accounts/signup", "/accounts/activate", "/accounts/activate/validate-token", "/accounts/signin", 
+                              "/signup", "/activate", "/signin", "/channel/**",
                               "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
-                              "/actuator/health");
+                              "/actuator/health",
+                              // Exclude frontend static assets and common frontend routes
+                              "/assets/**", "/*.js", "/*.css", "/*.html", "/index.html", "/*.ico", "/*.png", "/*.jpg", 
+                              "/*.jpeg", "/*.gif", "/*.svg", "/*.woff", "/*.woff2", "/*.ttf", 
+                              "/*.eot", "/*.json", "/*.map",
+                              // Exclude frontend SPA routes
+                              "/", "/login", "/dashboard", "/settings", "/contacts", "/conversations",
+                              "/inbox", "/analytics", "/integrations", "/knowledge-base", "/flows",
+                              "/channels", "/billing", "/security");
     }
 }

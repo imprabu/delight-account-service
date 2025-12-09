@@ -1,0 +1,90 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251208-create-activation-tokens-table
+      author: codex
+      comment: Create activation_tokens table for user account activation with email links
+      changes:
+        - createTable:
+            tableName: activation_tokens
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: token
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+                  remarks: Unique activation token (URL-safe Base64 encoded)
+              - column:
+                  name: email_address
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+                  remarks: Email address of the user to activate
+              - column:
+                  name: account_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  remarks: Reference to accounts.id (FK not enforced in TiDB)
+              - column:
+                  name: expires_at
+                  type: datetime
+                  constraints:
+                    nullable: false
+                  remarks: Token expiration timestamp (default 24 hours from creation)
+              - column:
+                  name: used
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+                  remarks: Whether the token has been used
+              - column:
+                  name: created_at
+                  type: datetime
+                  constraints:
+                    nullable: false
+                  remarks: Token creation timestamp
+              - column:
+                  name: used_at
+                  type: datetime
+                  constraints:
+                    nullable: true
+                  remarks: Timestamp when token was used
+              - column:
+                  name: updated_at
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+                  remarks: Last update timestamp (stored as ISO-8601 string)
+        - createIndex:
+            indexName: idx_activation_tokens_email_account
+            tableName: activation_tokens
+            columns:
+              - column:
+                  name: email_address
+              - column:
+                  name: account_id
+            remarks: Index for rate limiting queries
+        - createIndex:
+            indexName: idx_activation_tokens_token
+            tableName: activation_tokens
+            columns:
+              - column:
+                  name: token
+            remarks: Index for token lookup (unique constraint already provides this, but explicit for clarity)
+        - createIndex:
+            indexName: idx_activation_tokens_expires_at
+            tableName: activation_tokens
+            columns:
+              - column:
+                  name: expires_at
+            remarks: Index for cleanup of expired tokens
+

@@ -77,12 +77,11 @@ public class ChannelJwtServiceImpl implements ChannelJwtService {
                     
                     // If we get here, the token was successfully parsed
                     String accountId = claims.get("account_id", String.class);
+                    String userId = claims.get("user_id", String.class);
                     String tokenKeyVersion = claims.get("key_version", String.class);
                     
-                    if (accountId == null) {
-                        throw new RuntimeException("Missing account_id in JWT token");
-                    }
-                    
+                    // account_id is optional - can be null if domain lookup will be used
+                    // key_version is required
                     if (tokenKeyVersion == null) {
                         throw new RuntimeException("Missing key_version in JWT token");
                     }
@@ -92,10 +91,10 @@ public class ChannelJwtServiceImpl implements ChannelJwtService {
                         continue; // Try next key
                     }
                     
-                    logger.debug("Successfully validated channel JWT for account_id: {} with key_version: {}", 
-                               accountId, tokenKeyVersion);
+                    logger.debug("Successfully validated channel JWT for account_id: {}, user_id: {}, key_version: {}", 
+                               accountId, userId, tokenKeyVersion);
                     
-                    return new ChannelJwtClaims(accountId, tokenKeyVersion);
+                    return new ChannelJwtClaims(accountId, userId, tokenKeyVersion);
                     
                 } catch (Exception e) {
                     lastException = new RuntimeException("Failed to validate JWT token with key version: " + keyEntry.getKey(), e);

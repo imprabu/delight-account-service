@@ -3,7 +3,9 @@ package com.delight.account.service.impl;
 import com.delight.account.dto.SessionResponse;
 import com.delight.account.model.Account;
 import com.delight.account.model.ClientType;
-import com.delight.account.model.Role;
+import com.delight.account.model.Privilege;
+import com.delight.account.model.RoleEntity;
+import com.delight.account.model.RolePrivilege;
 import com.delight.account.model.Session;
 import com.delight.account.model.User;
 import com.delight.account.repository.SessionRepository;
@@ -16,7 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -30,7 +34,7 @@ public class SessionServiceImpl implements SessionService {
     
     @Override
     @Transactional
-    public Session createSession(User user, Account account, Role role, String jwtToken, 
+    public Session createSession(User user, Account account, RoleEntity role, String jwtToken, 
                                 String userAgent, String ipAddress, ClientType clientType) {
         Session session = new Session();
         session.setUser(user);
@@ -79,15 +83,16 @@ public class SessionServiceImpl implements SessionService {
     }
     
     private boolean isSessionExpired(Session session) {
-        // Calculate expiry based on lastAccessedAt + TTL instead of fixed expiresAt
-        OffsetDateTime lastAccessed = session.getLastAccessedAt();
-        if (lastAccessed == null) {
-            lastAccessed = session.getCreatedAt();
+        // Calculate expiry based on createdAt + TTL (fixed expiration time from creation)
+        OffsetDateTime createdAt = session.getCreatedAt();
+        if (createdAt == null) {
+            // If createdAt is null, consider session expired
+            return true;
         }
         
         // Get TTL hours based on client type
         int ttlHours = session.getClientType().getDefaultTtlHours();
-        OffsetDateTime expiryTime = lastAccessed.plusHours(ttlHours);
+        OffsetDateTime expiryTime = createdAt.plusHours(ttlHours);
         
         return expiryTime.isBefore(OffsetDateTime.now());
     }
@@ -142,6 +147,22 @@ public class SessionServiceImpl implements SessionService {
     
     @Override
     @Transactional
+    public void invalidateSessionsByUserAccountAndClientType(Long userId, Long accountId, ClientType clientType) {
+        // Get count for logging before deactivating
+        List<Session> sessions = sessionRepository.findByUserIdAndAccountIdAndClientTypeAndIsActiveTrue(userId, accountId, clientType);
+        
+        // Deactivate sessions for this user, account, and client type combination
+        sessionRepository.deactivateByUserIdAndAccountIdAndClientType(userId, accountId, clientType);
+        
+        LoggingUtils.logBusinessOperation(log, "SESSIONS_INVALIDATION_BY_CLIENT_TYPE", "SUCCESS", 
+            "userId", userId,
+            "accountId", accountId,
+            "clientType", clientType.name(),
+            "sessionsCount", sessions.size());
+    }
+    
+    @Override
+    @Transactional
     public void updateLastAccessed(String sessionId) {
         Optional<Session> sessionOpt = sessionRepository.findBySessionIdAndIsActiveTrue(sessionId);
         if (sessionOpt.isPresent()) {
@@ -177,11 +198,16 @@ public class SessionServiceImpl implements SessionService {
             throw new IllegalStateException("Session account relationship not loaded for sessionId: " + session.getSessionId());
         }
         
+        RoleEntity role = session.getRole();
+        List<String> privileges = extractPrivileges(role);
+        
         return SessionResponse.builder()
                 .sessionId(session.getSessionId())
                 .userId(session.getUser().getId())
                 .accountId(session.getAccount().getId())
-                .role(session.getRole())
+                .roleId(role != null ? role.getId() : null)
+                .roleCode(role != null ? role.getCode() : null)
+                .roleName(role != null ? role.getName() : null)
                 .emailAddress(session.getUser().getEmailAddress())
                 .firstName(session.getUser().getFirstName())
                 .lastName(session.getUser().getLastName())
@@ -190,6 +216,26 @@ public class SessionServiceImpl implements SessionService {
                 .expiresAt(session.getExpiresAt())
                 .lastAccessedAt(session.getLastAccessedAt())
                 .isActive(session.getIsActive())
+                .privileges(privileges)
                 .build();
+    }
+    
+    private List<String> extractPrivileges(RoleEntity role) {
+        if (role == null) {
+            return List.of();
+        }
+        
+        Set<RolePrivilege> rolePrivileges = role.getRolePrivileges();
+        if (rolePrivileges == null || rolePrivileges.isEmpty()) {
+            return List.of();
+        }
+        
+        return rolePrivileges.stream()
+                .map(RolePrivilege::getPrivilege)
+                .filter(privilege -> privilege != null)
+                .map(Privilege::getCode)
+                .filter(code -> code != null)
+                .sorted()
+                .collect(Collectors.toList());
     }
 }
