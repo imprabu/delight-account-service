@@ -81,18 +81,37 @@ export function BotSettings({ onNavigate }: BotSettingsProps) {
         apiGet<AiModel[]>('/rag/models'),
       ]);
 
-      if (configResponse) {
-        setBotConfig(configResponse);
-        setSelectedManagedModelId(configResponse.managedModelId || null);
-      }
-
       if (modelsResponse) {
         setModels(modelsResponse);
-        // If no model selected and models available, select recommended or first
-        if (!selectedManagedModelId && modelsResponse.length > 0) {
-          const recommended = modelsResponse.find(m => m.isRecommended);
-          setSelectedManagedModelId(recommended?.id || modelsResponse[0].id);
+      }
+
+      if (configResponse) {
+        setBotConfig(configResponse);
+        
+        // Set selected model ID from config, but validate it exists in models list
+        const configModelId = configResponse.managedModelId;
+        if (configModelId && modelsResponse) {
+          // Verify the model exists in the available models
+          const modelExists = modelsResponse.some(m => m.id === configModelId && m.isAvailable);
+          if (modelExists) {
+            setSelectedManagedModelId(configModelId);
+          } else {
+            // Model from config doesn't exist or isn't available - use recommended or first
+            console.warn(`Model ID ${configModelId} from config not found in available models, selecting recommended/default`);
+            const recommended = modelsResponse.find(m => m.isRecommended && m.isAvailable);
+            setSelectedManagedModelId(recommended?.id || modelsResponse.find(m => m.isAvailable)?.id || null);
+          }
+        } else if (!configModelId && modelsResponse && modelsResponse.length > 0) {
+          // No model selected in config - select recommended or first available
+          const recommended = modelsResponse.find(m => m.isRecommended && m.isAvailable);
+          setSelectedManagedModelId(recommended?.id || modelsResponse.find(m => m.isAvailable)?.id || null);
+        } else {
+          setSelectedManagedModelId(null);
         }
+      } else if (modelsResponse && modelsResponse.length > 0) {
+        // No config exists yet - select recommended or first available
+        const recommended = modelsResponse.find(m => m.isRecommended && m.isAvailable);
+        setSelectedManagedModelId(recommended?.id || modelsResponse.find(m => m.isAvailable)?.id || null);
       }
     } catch (err: any) {
       console.error('Error loading data:', err);
