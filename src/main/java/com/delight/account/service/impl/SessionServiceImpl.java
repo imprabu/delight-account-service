@@ -1,6 +1,8 @@
 package com.delight.account.service.impl;
 
+import com.delight.account.dto.FeatureInfo;
 import com.delight.account.dto.SessionResponse;
+import com.delight.account.dto.SubscriptionInfo;
 import com.delight.account.model.Account;
 import com.delight.account.model.ClientType;
 import com.delight.account.model.Privilege;
@@ -9,7 +11,9 @@ import com.delight.account.model.RolePrivilege;
 import com.delight.account.model.Session;
 import com.delight.account.model.User;
 import com.delight.account.repository.SessionRepository;
+import com.delight.account.service.FeatureService;
 import com.delight.account.service.SessionService;
+import com.delight.account.service.SubscriptionService;
 import com.delight.account.util.LoggingUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,9 +31,15 @@ import java.util.stream.Collectors;
 public class SessionServiceImpl implements SessionService {
     
     private final SessionRepository sessionRepository;
+    private final SubscriptionService subscriptionService;
+    private final FeatureService featureService;
     
-    public SessionServiceImpl(SessionRepository sessionRepository) {
+    public SessionServiceImpl(SessionRepository sessionRepository,
+                             SubscriptionService subscriptionService,
+                             FeatureService featureService) {
         this.sessionRepository = sessionRepository;
+        this.subscriptionService = subscriptionService;
+        this.featureService = featureService;
     }
     
     @Override
@@ -187,6 +197,20 @@ public class SessionServiceImpl implements SessionService {
         sessionRepository.updateJwtTokenBySessionId(sessionId, jwtToken);
     }
     
+    @Override
+    @Transactional
+    public void invalidateAccountSessions(Long accountId) {
+        // Get count for logging before deactivating
+        List<Session> accountSessions = sessionRepository.findByAccountIdAndIsActiveTrue(accountId);
+        
+        // Deactivate all active sessions for this account
+        sessionRepository.deactivateAllByAccountId(accountId);
+        
+        LoggingUtils.logBusinessOperation(log, "ACCOUNT_SESSIONS_INVALIDATION", "SUCCESS", 
+            "accountId", accountId, 
+            "sessionsCount", accountSessions.size());
+    }
+    
     private SessionResponse buildSessionResponse(Session session) {
         if (session.getUser() == null) {
             log.error("Session user is null for sessionId: {}", session.getSessionId());
@@ -201,10 +225,18 @@ public class SessionServiceImpl implements SessionService {
         RoleEntity role = session.getRole();
         List<String> privileges = extractPrivileges(role);
         
+        Long accountId = session.getAccount().getId();
+        
+        // Load subscription info
+        Optional<SubscriptionInfo> subscriptionOpt = subscriptionService.getSubscriptionInfo(accountId);
+        
+        // Load active features
+        List<FeatureInfo> features = featureService.getActiveFeatures(accountId);
+        
         return SessionResponse.builder()
                 .sessionId(session.getSessionId())
                 .userId(session.getUser().getId())
-                .accountId(session.getAccount().getId())
+                .accountId(accountId)
                 .roleId(role != null ? role.getId() : null)
                 .roleCode(role != null ? role.getCode() : null)
                 .roleName(role != null ? role.getName() : null)
@@ -217,6 +249,8 @@ public class SessionServiceImpl implements SessionService {
                 .lastAccessedAt(session.getLastAccessedAt())
                 .isActive(session.getIsActive())
                 .privileges(privileges)
+                .subscription(subscriptionOpt.orElse(null))
+                .features(features)
                 .build();
     }
     

@@ -6,6 +6,7 @@ import com.delight.account.dto.SessionValidationRequest;
 import com.delight.account.model.Account;
 import com.delight.account.model.AccountStatus;
 import com.delight.account.repository.AccountRepository;
+import com.delight.account.service.AccountService;
 import com.delight.account.service.ChannelJwtService;
 import com.delight.account.service.SessionService;
 import com.delight.account.context.TenantContext;
@@ -43,6 +44,7 @@ public class ChannelAuthFilter extends OncePerRequestFilter {
     private final ChannelJwtService channelJwtService;
     private final ObjectMapper objectMapper;
     private final AccountRepository accountRepository;
+    private final AccountService accountService;
     private final SessionService sessionService;
     private final String jwtSecret;
     private final DomainHelper domainHelper;
@@ -50,11 +52,13 @@ public class ChannelAuthFilter extends OncePerRequestFilter {
     public ChannelAuthFilter(ChannelJwtService channelJwtService, 
                             ObjectMapper objectMapper,
                             AccountRepository accountRepository,
+                            AccountService accountService,
                             SessionService sessionService,
                             @Value("${security.jwt.secret}") String jwtSecret,
                             DomainHelper domainHelper) {
         this.channelJwtService = channelJwtService;
         this.objectMapper = objectMapper;
+        this.accountService = accountService;
         this.accountRepository = accountRepository;
         this.sessionService = sessionService;
         this.jwtSecret = jwtSecret;

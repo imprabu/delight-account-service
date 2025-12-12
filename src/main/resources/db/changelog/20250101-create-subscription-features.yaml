@@ -1,0 +1,82 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20250101-create-subscription-features-table
+      author: codex
+      comment: Create subscription_features table for feature definitions per subscription - TiDB compatible with AUTO_RANDOM
+      changes:
+        - createTable:
+            tableName: subscription_features
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: subscription_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: feature_code
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: limit_value
+                  type: bigint
+                  remarks: NULL for boolean features, -1 for unlimited
+              - column:
+                  name: enabled
+                  type: boolean
+                  remarks: For boolean features
+              - column:
+                  name: rate_limit_rpm
+                  type: integer
+                  remarks: For api.access feature (3000 RPM)
+              - column:
+                  name: channel_list
+                  type: text
+                  remarks: JSON array for channels.allowed feature
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                  remarks: Updated timestamp as string with nanosecond precision for versioning
+        - sql:
+            sql: |
+              -- Use TiDB AUTO_RANDOM for better scalability
+              SET @@tidb_allow_remove_auto_inc = 1;
+              SET @@tidb_allow_remove_auto_inc = 1;
+              SET @@tidb_allow_remove_auto_inc = 1;
+              ALTER TABLE subscription_features MODIFY COLUMN id BIGINT AUTO_RANDOM(3);
+              SET @@tidb_allow_remove_auto_inc = 0;;
+              SET @@tidb_allow_remove_auto_inc = 0;
+              SET @@tidb_allow_remove_auto_inc = 0;
+        - addUniqueConstraint:
+            tableName: subscription_features
+            columnNames: subscription_id, feature_code
+            constraintName: uq_subscription_features_subscription_feature
+        - createIndex:
+            indexName: idx_subscription_features_subscription_id
+            tableName: subscription_features
+            columns:
+              - column:
+                  name: subscription_id
+        - createIndex:
+            indexName: idx_subscription_features_feature_code
+            tableName: subscription_features
+            columns:
+              - column:
+                  name: feature_code
+
+
+

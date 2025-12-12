@@ -3,7 +3,6 @@ package com.delight.account.controller;
 import com.delight.account.dto.ActivationRequest;
 import com.delight.account.model.Account;
 import com.delight.account.model.AccountStatus;
-import com.delight.account.model.PlanType;
 import com.delight.account.repository.AccountRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,7 +36,6 @@ class ActivationControllerTest {
     void setUp() {
         Account account = new Account();
         account.setDomain("localhost");
-        account.setPlan(PlanType.TRIAL);
         account.setStatus(AccountStatus.ACTIVE);
         accountRepository.save(account);
     }

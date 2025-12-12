@@ -59,10 +59,8 @@ class AccountEventEntityListenerTest {
         testAccount = new Account();
         testAccount.setId(100L);
         testAccount.setDomain("testdomain");
-        testAccount.setPlan(PlanType.TRIAL);
         testAccount.setStatus(AccountStatus.ACTIVE);
         testAccount.setIndustryType("Technology");
-        testAccount.setEmail("test@example.com");
         testAccount.setCompanyName("Test Company");
         testAccount.setOrganization(testOrganization);
         testAccount.setProduct(testProduct);
@@ -102,10 +100,8 @@ class AccountEventEntityListenerTest {
         Account oldAccount = new Account();
         oldAccount.setId(100L);
         oldAccount.setDomain("olddomain");
-        oldAccount.setPlan(PlanType.TRIAL);
         oldAccount.setStatus(AccountStatus.ACTIVE);
         oldAccount.setIndustryType("Old Industry");
-        oldAccount.setEmail("old@example.com");
         oldAccount.setCompanyName("Old Company");
         oldAccount.setOrganization(testOrganization);
         oldAccount.setProduct(testProduct);
@@ -118,7 +114,6 @@ class AccountEventEntityListenerTest {
 
         // Update account
         testAccount.setDomain("newdomain");
-        testAccount.setPlan(PlanType.PAID);
         testAccount.setCompanyName("New Company");
 
         // When
@@ -244,10 +239,8 @@ class AccountEventEntityListenerTest {
         Account oldAccount = new Account();
         oldAccount.setId(100L);
         oldAccount.setDomain("olddomain");
-        oldAccount.setPlan(PlanType.TRIAL);
         oldAccount.setStatus(AccountStatus.ACTIVE);
         oldAccount.setIndustryType("Technology");
-        oldAccount.setEmail("test@example.com");
         oldAccount.setCompanyName("Test Company");
         oldAccount.setOrganization(testOrganization);
         oldAccount.setProduct(testProduct);
@@ -297,7 +290,6 @@ class AccountEventEntityListenerTest {
         Account accountWithoutRelations = new Account();
         accountWithoutRelations.setId(200L);
         accountWithoutRelations.setDomain("nodomain");
-        accountWithoutRelations.setEmail("no@example.com");
 
         // When
         listener.onAccountDeleted(accountWithoutRelations);

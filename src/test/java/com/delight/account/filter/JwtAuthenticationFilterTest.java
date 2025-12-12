@@ -5,6 +5,7 @@ import com.delight.account.dto.SessionResponse;
 import com.delight.account.model.Membership;
 import com.delight.account.model.MembershipStatus;
 import com.delight.account.model.Role;
+import com.delight.account.model.RoleEntity;
 import com.delight.account.model.User;
 import com.delight.account.model.Account;
 import com.delight.account.repository.MembershipRepository;
@@ -87,11 +88,17 @@ class JwtAuthenticationFilterTest {
         testAccount.setId(1L);
         testAccount.setDomain("example.com");
 
+        // Create a mock RoleEntity for testing
+        RoleEntity agentRole = new RoleEntity();
+        agentRole.setId(3L);
+        agentRole.setCode("AGENT");
+        agentRole.setName("Agent");
+        
         testMembership = new Membership();
         testMembership.setId(1L);
         testMembership.setUser(testUser);
         testMembership.setAccount(testAccount);
-        testMembership.setRole(Role.AGENT);
+        testMembership.setRole(agentRole);
         testMembership.setStatus(MembershipStatus.ACTIVE);
     }
 
@@ -295,7 +302,12 @@ class JwtAuthenticationFilterTest {
         adminMembership.setId(1L);
         adminMembership.setUser(testUser);
         adminMembership.setAccount(testAccount);
-        adminMembership.setRole(Role.ADMIN); // Database has ADMIN, token has AGENT
+        // Create a mock RoleEntity for ADMIN role
+        RoleEntity adminRole = new RoleEntity();
+        adminRole.setId(2L);
+        adminRole.setCode("ACCOUNT_ADMIN");
+        adminRole.setName("Account Admin");
+        adminMembership.setRole(adminRole); // Database has ACCOUNT_ADMIN, token has AGENT
         adminMembership.setStatus(MembershipStatus.ACTIVE);
         
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
@@ -357,13 +369,29 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void doFilterInternalSetsCorrectSecurityContextForDifferentRoles() throws ServletException, IOException {
-        Role[] roles = {Role.AGENT, Role.ADMIN, Role.OWNER};
+        // Create RoleEntity objects for different roles
+        RoleEntity agentRole = new RoleEntity();
+        agentRole.setId(3L);
+        agentRole.setCode("AGENT");
+        agentRole.setName("Agent");
         
-        for (Role role : roles) {
+        RoleEntity accountAdminRole = new RoleEntity();
+        accountAdminRole.setId(2L);
+        accountAdminRole.setCode("ACCOUNT_ADMIN");
+        accountAdminRole.setName("Account Admin");
+        
+        RoleEntity orgAdminRole = new RoleEntity();
+        orgAdminRole.setId(1L);
+        orgAdminRole.setCode("ORG_ADMIN");
+        orgAdminRole.setName("Org Admin");
+        
+        RoleEntity[] roles = {agentRole, accountAdminRole, orgAdminRole};
+        
+        for (RoleEntity role : roles) {
             SecurityContextHolder.clearContext();
             testMembership.setRole(role);
             
-            String token = createValidToken(1L, 1L, role.name(), 1L, "TEST_PRODUCT");
+            String token = createValidToken(1L, 1L, role.getCode(), 1L, "TEST_PRODUCT");
             
             when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
             when(membershipRepository.findByUserIdAndAccountId(1L, 1L))
@@ -375,7 +403,7 @@ class JwtAuthenticationFilterTest {
             assertThat(auth).isNotNull();
             assertThat(auth.getName()).isEqualTo("1");
             assertThat(auth.getAuthorities()).hasSize(1);
-            assertThat(auth.getAuthorities().iterator().next()).isEqualTo(new SimpleGrantedAuthority("ROLE_" + role.name()));
+            assertThat(auth.getAuthorities().iterator().next()).isEqualTo(new SimpleGrantedAuthority("ROLE_" + role.getCode()));
         }
     }
 

@@ -5,11 +5,11 @@ import com.delight.account.dto.SigninRequest;
 import com.delight.account.dto.SigninResponse;
 import com.delight.account.model.ClientType;
 import com.delight.account.model.Session;
+import com.delight.account.service.AccountService;
 import com.delight.account.service.SigninService;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.SessionRepository;
 import com.delight.account.model.Account;
-import com.delight.account.model.AccountStatus;
 import com.delight.account.exception.ApiException;
 import com.delight.account.util.LoggingUtils;
 import com.delight.account.util.DomainHelper;
@@ -41,15 +41,18 @@ public class SigninController {
     
     private final SigninService signinService;
     private final AccountRepository accountRepository;
+    private final AccountService accountService;
     private final SessionRepository sessionRepository;
     private final DomainHelper domainHelper;
 
     public SigninController(SigninService signinService, 
                            AccountRepository accountRepository,
+                           AccountService accountService,
                            SessionRepository sessionRepository,
                            DomainHelper domainHelper) {
         this.signinService = signinService;
         this.accountRepository = accountRepository;
+        this.accountService = accountService;
         this.sessionRepository = sessionRepository;
         this.domainHelper = domainHelper;
     }
@@ -116,13 +119,20 @@ public class SigninController {
         LoggingUtils.logMethodEntry(logger, "signin", "domain", domain, "emailAddress", request.getEmailAddress());
         
         // Since signin is excluded from DomainAccountInterceptor, we need to resolve accountId manually
-        Optional<Account> accountOpt = accountRepository.findByDomainAndStatus(domain, AccountStatus.ACTIVE);
+        Optional<Account> accountOpt = accountRepository.findByDomain(domain);
         if (accountOpt.isEmpty()) {
             LoggingUtils.logSecurityEvent(logger, "ACCOUNT_NOT_FOUND", "FAILED", "domain", domain);
             throw new ApiException("error.account.notfound");
         }
         
-        Long accountId = accountOpt.get().getId();
+        Account account = accountOpt.get();
+        // Check if account is active (account.status is ACTIVE and subscription.status is TRIAL or ACTIVE)
+        if (!accountService.isAccountActive(account.getId())) {
+            LoggingUtils.logSecurityEvent(logger, "ACCOUNT_NOT_ACTIVE", "FAILED", "domain", domain, "accountId", account.getId());
+            throw new ApiException("error.account.notfound");
+        }
+        
+        Long accountId = account.getId();
         LoggingUtils.logBusinessOperation(logger, "ACCOUNT_RESOLUTION", "SUCCESS", "accountId", accountId, "domain", domain);
         
         // Extract user agent and IP address for session tracking

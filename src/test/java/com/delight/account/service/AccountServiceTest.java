@@ -9,6 +9,7 @@ import com.delight.account.exception.ApiException;
 import com.delight.account.model.*;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.MembershipRepository;
+import com.delight.account.repository.SubscriptionRepository;
 import com.delight.account.service.CacheService;
 import com.delight.account.service.impl.AccountServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +36,9 @@ class AccountServiceTest {
     private MembershipRepository membershipRepository;
 
     @Mock
+    private SubscriptionRepository subscriptionRepository;
+
+    @Mock
     private CacheService cacheService;
 
     @Mock
@@ -52,7 +56,7 @@ class AccountServiceTest {
 
     @BeforeEach
     void setUp() {
-        accountService = new AccountServiceImpl(accountRepository, membershipRepository, cacheService, accountCacheKeyManager, userCacheKeyManager);
+        accountService = new AccountServiceImpl(accountRepository, membershipRepository, subscriptionRepository, cacheService, accountCacheKeyManager, userCacheKeyManager);
 
         testOrganization = new Organization();
         testOrganization.setId(1L);
@@ -67,10 +71,9 @@ class AccountServiceTest {
         testAccount = new Account();
         testAccount.setId(1L);
         testAccount.setDomain("testdomain");
-        testAccount.setPlan(PlanType.TRIAL);
         testAccount.setStatus(AccountStatus.ACTIVE);
         testAccount.setIndustryType("Technology");
-        testAccount.setEmail("test@example.com");
+        // Note: email is no longer on Account entity
         testAccount.setCompanyName("Test Company");
         testAccount.setOrganization(testOrganization);
         testAccount.setProduct(testProduct);
@@ -79,11 +82,17 @@ class AccountServiceTest {
         testUser.setId(1L);
         testUser.setEmailAddress("user@example.com");
 
+        // Create a mock RoleEntity for testing
+        RoleEntity agentRole = new RoleEntity();
+        agentRole.setId(3L);
+        agentRole.setCode("AGENT");
+        agentRole.setName("Agent");
+        
         testMembership = new Membership();
         testMembership.setId(1L);
         testMembership.setUser(testUser);
         testMembership.setAccount(testAccount);
-        testMembership.setRole(Role.AGENT);
+        testMembership.setRole(agentRole);
         testMembership.setStatus(MembershipStatus.ACTIVE);
 
         // Setup cache key manager mocks - updated for new split cache key structure
@@ -116,11 +125,11 @@ class AccountServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getDomain()).isEqualTo("testdomain");
-        assertThat(result.getPlan()).isEqualTo(PlanType.TRIAL);
         assertThat(result.getStatus()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(result.getIndustryType()).isEqualTo("Technology");
-        assertThat(result.getEmail()).isEqualTo("test@example.com");
+        // Note: email is no longer on Account entity
         assertThat(result.getCompanyName()).isEqualTo("Test Company");
+        // Note: plan is now retrieved from subscription, not account
         assertThat(result.getCurrentUserId()).isEqualTo(1L);
         assertThat(result.getCurrentUserRole()).isEqualTo("AGENT");
         assertThat(result.getOrganizationId()).isEqualTo(1L);
@@ -184,9 +193,25 @@ class AccountServiceTest {
         Long accountId = 1L;
         Long userId = 1L;
 
-        Role[] roles = {Role.AGENT, Role.ADMIN, Role.OWNER};
+        // Create RoleEntity objects for different roles
+        RoleEntity agentRole = new RoleEntity();
+        agentRole.setId(3L);
+        agentRole.setCode("AGENT");
+        agentRole.setName("Agent");
+        
+        RoleEntity accountAdminRole = new RoleEntity();
+        accountAdminRole.setId(2L);
+        accountAdminRole.setCode("ACCOUNT_ADMIN");
+        accountAdminRole.setName("Account Admin");
+        
+        RoleEntity orgAdminRole = new RoleEntity();
+        orgAdminRole.setId(1L);
+        orgAdminRole.setCode("ORG_ADMIN");
+        orgAdminRole.setName("Org Admin");
 
-        for (Role role : roles) {
+        RoleEntity[] roles = {agentRole, accountAdminRole, orgAdminRole};
+
+        for (RoleEntity role : roles) {
             testMembership.setRole(role);
 
             when(accountRepository.findById(accountId)).thenReturn(Optional.of(testAccount));
@@ -195,7 +220,7 @@ class AccountServiceTest {
 
             AccountInfoResponse result = accountService.getAccountInfo(accountId, userId);
 
-            assertThat(result.getCurrentUserRole()).isEqualTo(role.name());
+            assertThat(result.getCurrentUserRole()).isEqualTo(role.getCode());
         }
     }
 
@@ -262,10 +287,10 @@ class AccountServiceTest {
         assertThat(result.getCurrentUserId()).isEqualTo(1L);
         
         // All optional fields should be null
-        assertThat(result.getPlan()).isNull();
+        // Note: plan is now retrieved from subscription, not account
         assertThat(result.getStatus()).isNull();
         assertThat(result.getIndustryType()).isNull();
-        assertThat(result.getEmail()).isNull();
+        // Note: email is no longer on AccountInfoResponse
         assertThat(result.getCompanyName()).isNull();
         assertThat(result.getCurrentUserRole()).isNull();
         assertThat(result.getOrganizationId()).isNull();
@@ -295,25 +320,8 @@ class AccountServiceTest {
         }
     }
 
-    @Test
-    void getAccountInfoWithAllPlanTypesReturnsCorrectPlan() {
-        Long accountId = 1L;
-        Long userId = 1L;
-
-        PlanType[] plans = PlanType.values();
-
-        for (PlanType plan : plans) {
-            testAccount.setPlan(plan);
-
-            when(accountRepository.findById(accountId)).thenReturn(Optional.of(testAccount));
-            when(membershipRepository.findByUserIdAndAccountId(userId, accountId))
-                    .thenReturn(Optional.of(testMembership));
-
-            AccountInfoResponse result = accountService.getAccountInfo(accountId, userId);
-
-            assertThat(result.getPlan()).isEqualTo(plan);
-        }
-    }
+    // Note: Plan is now retrieved from subscription, not account
+    // This test is no longer applicable as plan is subscription-based
 
     @Test
     void getAccountInfoIsReadOnlyTransaction() {

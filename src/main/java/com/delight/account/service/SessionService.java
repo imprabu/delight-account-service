@@ -56,4 +56,10 @@ public interface SessionService {
      * Updates the JWT token for an existing session
      */
     void updateSessionToken(String sessionId, String jwtToken);
+    
+    /**
+     * Invalidates all active sessions for an account
+     * Used when subscription or account changes occur
+     */
+    void invalidateAccountSessions(Long accountId);
 }

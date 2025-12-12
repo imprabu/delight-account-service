@@ -14,7 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.delight.account.domain.BatchJobType;
 import com.delight.account.model.Account;
 import com.delight.account.model.AccountStatus;
+import com.delight.account.model.SubscriptionStatus;
 import com.delight.account.repository.AccountRepository;
+import com.delight.account.repository.SubscriptionRepository;
+import com.delight.account.service.AccountService;
 import com.delight.account.service.KafkaEventPublisher;
 import com.delight.account.service.job.BaseWorker;
 
@@ -34,6 +37,12 @@ public class BulkAccountSyncWorker extends BaseWorker {
     @Autowired
     private AccountRepository accountRepository;
     
+    @Autowired
+    private SubscriptionRepository subscriptionRepository;
+    
+    @Autowired
+    private AccountService accountService;
+    
     /**
      * Process the bulk account sync job.
      * This method is called by BaseWorker.processJob() after retry logic setup.
@@ -43,10 +52,24 @@ public class BulkAccountSyncWorker extends BaseWorker {
     protected void doProcessJob(Long jobId, Long accountIdParam, Map<String, Object> metadata) throws Exception {
         LoggingUtils.info(logger, "🔄 [BULK-ACCOUNT-SYNC] Starting bulk account sync job {}", jobId);
         
-        // Fetch all active accounts with relations loaded
-        List<Account> activeAccounts = accountRepository.findAllByStatusWithRelations(AccountStatus.ACTIVE);
+        // Fetch all accounts with ACTIVE status (will filter by subscription status later)
+        List<Account> accounts = accountRepository.findAllByStatusWithRelations(AccountStatus.ACTIVE);
         
-        LoggingUtils.info(logger, "📊 [BULK-ACCOUNT-SYNC] Found {} active accounts to sync", activeAccounts.size());
+        // Filter accounts to only include those that are truly active (account.status is ACTIVE and subscription.status is TRIAL or ACTIVE)
+        List<Account> activeAccounts = accounts.stream()
+            .filter(account -> {
+                try {
+                    return accountService.isAccountActive(account.getId());
+                } catch (Exception e) {
+                    LoggingUtils.warn(logger, "⚠️ [BULK-ACCOUNT-SYNC] Failed to check if account {} is active: {}", 
+                        account.getId(), e.getMessage());
+                    return false;
+                }
+            })
+            .collect(java.util.stream.Collectors.toList());
+        
+        LoggingUtils.info(logger, "📊 [BULK-ACCOUNT-SYNC] Found {} active accounts to sync (filtered from {} accounts with ACTIVE status)", 
+            activeAccounts.size(), accounts.size());
         
         int successCount = 0;
         int failureCount = 0;
@@ -100,7 +123,22 @@ public class BulkAccountSyncWorker extends BaseWorker {
         Long accountId = account.getId();
         accountInfo.put("id", accountId);
         accountInfo.put("domain", account.getDomain());
-        accountInfo.put("plan", account.getPlan() != null ? account.getPlan().name() : null);
+        
+        // Fetch planCode from subscription
+        String planCode = null;
+        try {
+            java.util.List<SubscriptionStatus> activeStatuses = java.util.Arrays.asList(
+                SubscriptionStatus.TRIAL, 
+                SubscriptionStatus.ACTIVE
+            );
+            planCode = subscriptionRepository.findPlanCodeByAccountId(accountId, activeStatuses)
+                .orElse(null);
+        } catch (Exception e) {
+            LoggingUtils.warn(logger, "⚠️ [BULK-ACCOUNT-SYNC] Failed to fetch planCode for account {}: {}", 
+                accountId, e.getMessage());
+        }
+        accountInfo.put("plan", planCode);
+        
         accountInfo.put("status", account.getStatus() != null ? account.getStatus().name() : null);
         accountInfo.put("industryType", account.getIndustryType());
         accountInfo.put("companyName", account.getCompanyName());

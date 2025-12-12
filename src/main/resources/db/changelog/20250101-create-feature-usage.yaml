@@ -1,0 +1,104 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20250101-create-feature-usage-table
+      author: codex
+      comment: Create feature_usage table for tracking feature usage per billing cycle - TiDB compatible with AUTO_RANDOM
+      changes:
+        - createTable:
+            tableName: feature_usage
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: account_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: subscription_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: feature_code
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: usage_value
+                  type: bigint
+                  constraints:
+                    nullable: false
+                  defaultValueNumeric: 0
+              - column:
+                  name: billing_cycle_start_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: billing_cycle_end_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_reset_at
+                  type: timestamp
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                  remarks: Updated timestamp as string with nanosecond precision for versioning
+        - sql:
+            sql: |
+              -- Use TiDB AUTO_RANDOM for better scalability
+              SET @@tidb_allow_remove_auto_inc = 1;
+              SET @@tidb_allow_remove_auto_inc = 1;
+              SET @@tidb_allow_remove_auto_inc = 1;
+              ALTER TABLE feature_usage MODIFY COLUMN id BIGINT AUTO_RANDOM(3);
+              SET @@tidb_allow_remove_auto_inc = 0;;
+              SET @@tidb_allow_remove_auto_inc = 0;
+              SET @@tidb_allow_remove_auto_inc = 0;
+        - addUniqueConstraint:
+            tableName: feature_usage
+            columnNames: account_id, subscription_id, feature_code, billing_cycle_start_date
+            constraintName: uq_feature_usage_account_subscription_feature_cycle
+        - createIndex:
+            indexName: idx_feature_usage_account_id
+            tableName: feature_usage
+            columns:
+              - column:
+                  name: account_id
+        - createIndex:
+            indexName: idx_feature_usage_subscription_id
+            tableName: feature_usage
+            columns:
+              - column:
+                  name: subscription_id
+        - createIndex:
+            indexName: idx_feature_usage_feature_code
+            tableName: feature_usage
+            columns:
+              - column:
+                  name: feature_code
+        - createIndex:
+            indexName: idx_feature_usage_billing_cycle
+            tableName: feature_usage
+            columns:
+              - column:
+                  name: billing_cycle_start_date
+              - column:
+                  name: billing_cycle_end_date
+
+
+

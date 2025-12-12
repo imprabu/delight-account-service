@@ -5,6 +5,7 @@ import com.delight.account.dto.SigninRequest;
 import com.delight.account.dto.UpdateMemberRequest;
 import com.delight.account.dto.ActivationRequest;
 import com.delight.account.model.*;
+import com.delight.account.model.RoleType;
 import com.delight.account.repository.*;
 import com.delight.account.service.CacheService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -66,6 +67,9 @@ class CacheInvalidationIntegrationTest {
     @Autowired
     private UserCredentialRepository credentialRepository;
 
+    @Autowired
+    private RoleRepository roleRepository;
+
   @SpyBean
   private CacheService cacheService;
 
@@ -109,7 +113,7 @@ class CacheInvalidationIntegrationTest {
         signinRequest.setPassword("SecureTest123!");
 
         updateMemberRequest = new UpdateMemberRequest();
-        updateMemberRequest.setRole(Role.AGENT);
+        updateMemberRequest.setRoleId(3L); // AGENT role ID (will be set properly in test)
         updateMemberRequest.setStatus(MembershipStatus.SUSPENDED);
 
         activationRequest = new ActivationRequest();
@@ -200,12 +204,35 @@ class CacheInvalidationIntegrationTest {
         secondUser.setCompanyName(signupRequest.getCompanyName());
         userRepository.save(secondUser);
 
+        // Find or create roles
+        RoleEntity accountAdminRole = roleRepository.findByAccountIdAndCode(account.getId(), "ACCOUNT_ADMIN")
+            .orElseGet(() -> {
+                RoleEntity role = new RoleEntity();
+                role.setAccount(account);
+                role.setCode("ACCOUNT_ADMIN");
+                role.setName("Account Admin");
+                role.setRoleType(RoleType.SYSTEM);
+                return roleRepository.save(role);
+            });
+        RoleEntity agentRole = roleRepository.findByAccountIdAndCode(account.getId(), "AGENT")
+            .orElseGet(() -> {
+                RoleEntity role = new RoleEntity();
+                role.setAccount(account);
+                role.setCode("AGENT");
+                role.setName("Agent");
+                role.setRoleType(RoleType.SYSTEM);
+                return roleRepository.save(role);
+            });
+
         Membership secondMembership = new Membership();
         secondMembership.setAccount(account);
         secondMembership.setUser(secondUser);
-        secondMembership.setRole(Role.ADMIN);
+        secondMembership.setRole(accountAdminRole);
         secondMembership.setStatus(MembershipStatus.ACTIVE);
         membershipRepository.save(secondMembership);
+
+        // Update the request with the correct roleId
+        updateMemberRequest.setRoleId(agentRole.getId());
 
         // Update membership
         mockMvc.perform(patch("/account/members/{userId}", secondUser.getId())
@@ -213,7 +240,7 @@ class CacheInvalidationIntegrationTest {
                 .with(req -> { req.setServerName(expectedDomain); return req; })
                 .header("Host", expectedDomain)
                 .header("Authorization", "Bearer " + jwtToken)
-                .header("X-User-Role", "OWNER")
+                .header("X-User-Role", "ORG_ADMIN")
                 .header("X-Product-Code", "CHAT")
                 .content(objectMapper.writeValueAsString(updateMemberRequest)))
             .andExpect(status().isOk());
@@ -222,7 +249,8 @@ class CacheInvalidationIntegrationTest {
         // Verify the membership was actually updated
         Optional<Membership> updatedMembership = membershipRepository.findByUserIdAndAccountId(secondUser.getId(), account.getId());
         assertThat(updatedMembership).isPresent();
-        assertThat(updatedMembership.get().getRole()).isEqualTo(Role.AGENT);
+        assertThat(updatedMembership.get().getRole()).isNotNull();
+        assertThat(updatedMembership.get().getRole().getCode()).isEqualTo("AGENT");
         assertThat(updatedMembership.get().getStatus()).isEqualTo(MembershipStatus.SUSPENDED);
     }
 

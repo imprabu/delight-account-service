@@ -152,3 +152,7 @@ This document lists all possible event types published to each Kafka topic by th
 **Last Updated**: 2025-12-08
 **Version**: 1.0
 
+
+
+
+

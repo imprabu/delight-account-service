@@ -1,0 +1,75 @@
+version: "122024"
+effectiveDate: "2024-12-01"
+products:
+  - code: "CHAT"
+    name: "Chat Product"
+    plans:
+      - code: "STARTER"
+        name: "Starter Plan"
+        features:
+          - code: "conversations.monthly"
+            limit: 500
+          - code: "team.members"
+            limit: 1
+          - code: "api.access"
+            enabled: true
+            rateLimitRpm: 3000
+          - code: "channels.allowed"
+            channels: ["INSTAGRAM"]
+          - code: "custom.ai.training"
+            enabled: false
+          - code: "storage.gb"
+            limit: 10
+      
+      - code: "PROFESSIONAL"
+        name: "Professional Plan"
+        features:
+          - code: "conversations.monthly"
+            limit: 5000
+          - code: "team.members"
+            limit: 5
+          - code: "api.access"
+            enabled: true
+            rateLimitRpm: 3000
+          - code: "channels.allowed"
+            channels: ["INSTAGRAM", "WHATSAPP"]
+          - code: "custom.ai.training"
+            enabled: true
+          - code: "storage.gb"
+            limit: 100
+      
+      - code: "ENTERPRISE"
+        name: "Enterprise Plan"
+        features:
+          - code: "conversations.monthly"
+            limit: -1
+          - code: "team.members"
+            limit: -1
+          - code: "api.access"
+            enabled: true
+            rateLimitRpm: 3000
+          - code: "channels.allowed"
+            channels: ["INSTAGRAM", "WHATSAPP", "FACEBOOK", "TWITTER", "SMS", "EMAIL", "WEB"]
+          - code: "custom.ai.training"
+            enabled: true
+          - code: "storage.gb"
+            limit: 1000
+  
+  - code: "SUPPORT"
+    name: "Support Product"
+    plans:
+      - code: "STARTER"
+        name: "Starter Plan"
+        features:
+          - code: "conversations.monthly"
+            limit: 300
+          - code: "team.members"
+            limit: 2
+          - code: "api.access"
+            enabled: true
+            rateLimitRpm: 3000
+          - code: "storage.gb"
+            limit: 5
+
+
+

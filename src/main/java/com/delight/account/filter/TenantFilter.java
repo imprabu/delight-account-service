@@ -3,8 +3,8 @@ package com.delight.account.filter;
 import com.delight.account.context.TenantContext;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.Account;
-import com.delight.account.model.AccountStatus;
 import com.delight.account.repository.AccountRepository;
+import com.delight.account.service.AccountService;
 import com.delight.account.util.DomainHelper;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +27,7 @@ public class TenantFilter implements Filter {
     private static final Logger logger = LoggerFactory.getLogger(TenantFilter.class);
     
     private final AccountRepository accountRepository;
+    private final AccountService accountService;
     private final DomainHelper domainHelper;
     
     // Paths that should be excluded from tenant resolution
@@ -52,8 +53,10 @@ public class TenantFilter implements Filter {
     );
 
     public TenantFilter(AccountRepository accountRepository,
+                       AccountService accountService,
                        @Autowired DomainHelper domainHelper) {
         this.accountRepository = accountRepository;
+        this.accountService = accountService;
         this.domainHelper = domainHelper;
         logger.info("TenantFilter initialized with domain name: {}", domainHelper.getDomainName());
     }
@@ -230,11 +233,18 @@ public class TenantFilter implements Filter {
         
         // Look up account by subdomain (which should match the account domain)
         logger.debug("Looking up account by subdomain: {}", subdomain);
-        Optional<Account> accountOpt = accountRepository.findByDomainAndStatus(subdomain, AccountStatus.ACTIVE);
+        Optional<Account> accountOpt = accountRepository.findByDomain(subdomain);
         if (accountOpt.isPresent()) {
-            Long accountId = accountOpt.get().getId();
-            logger.debug("Found account by subdomain {}: accountId={}", subdomain, accountId);
-            return accountId;
+            Account account = accountOpt.get();
+            // Check if account is active (account.status is ACTIVE and subscription.status is TRIAL or ACTIVE)
+            if (accountService.isAccountActive(account.getId())) {
+                Long accountId = account.getId();
+                logger.debug("Found active account by subdomain {}: accountId={}", subdomain, accountId);
+                return accountId;
+            } else {
+                logger.warn("Account found for subdomain {} but is not active: accountId={}", subdomain, account.getId());
+                return null;
+            }
         } else {
             logger.warn("Account not found for subdomain: {}", subdomain);
             return null;
@@ -251,9 +261,16 @@ public class TenantFilter implements Filter {
         }
         
         // Look up account by domain
-        Optional<Account> accountOpt = accountRepository.findByDomainAndStatus(domain, AccountStatus.ACTIVE);
+        Optional<Account> accountOpt = accountRepository.findByDomain(domain);
         if (accountOpt.isPresent()) {
-            return accountOpt.get().getId();
+            Account account = accountOpt.get();
+            // Check if account is active (account.status is ACTIVE and subscription.status is TRIAL or ACTIVE)
+            if (accountService.isAccountActive(account.getId())) {
+                return account.getId();
+            } else {
+                logger.debug("Account found for domain {} but is not active: accountId={}", domain, account.getId());
+                return null;
+            }
         }
         
         return null;

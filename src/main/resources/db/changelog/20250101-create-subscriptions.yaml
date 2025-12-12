@@ -1,0 +1,118 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20250101-create-subscriptions-table
+      author: codex
+      comment: Create subscriptions table for feature and subscription management - TiDB compatible with AUTO_RANDOM
+      changes:
+        - createTable:
+            tableName: subscriptions
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: account_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: product_code
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+                  remarks: CHAT, SUPPORT, etc.
+              - column:
+                  name: plan_code
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: plan_version
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+                  remarks: mmyyyy format
+              - column:
+                  name: status
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+                  remarks: ACTIVE, CANCELLED, EXPIRED, TRIAL
+              - column:
+                  name: provider
+                  type: varchar(50)
+                  remarks: STRIPE, CHARGEBEE, INTERNAL, NULL for stub
+              - column:
+                  name: provider_subscription_id
+                  type: varchar(255)
+                  remarks: External subscription ID
+              - column:
+                  name: billing_cycle_start_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: billing_cycle_end_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: next_billing_date
+                  type: date
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                  remarks: Updated timestamp as string with nanosecond precision for versioning
+              - column:
+                  name: cancelled_at
+                  type: timestamp
+        - sql:
+            sql: |
+              -- Use TiDB AUTO_RANDOM for better scalability
+              SET @@tidb_allow_remove_auto_inc = 1;
+              SET @@tidb_allow_remove_auto_inc = 1;
+              SET @@tidb_allow_remove_auto_inc = 1;
+              ALTER TABLE subscriptions MODIFY COLUMN id BIGINT AUTO_RANDOM(3);
+              SET @@tidb_allow_remove_auto_inc = 0;;
+              SET @@tidb_allow_remove_auto_inc = 0;
+              SET @@tidb_allow_remove_auto_inc = 0;
+        - createIndex:
+            indexName: idx_subscriptions_account_id
+            tableName: subscriptions
+            columns:
+              - column:
+                  name: account_id
+        - createIndex:
+            indexName: idx_subscriptions_product_code
+            tableName: subscriptions
+            columns:
+              - column:
+                  name: product_code
+        - createIndex:
+            indexName: idx_subscriptions_status
+            tableName: subscriptions
+            columns:
+              - column:
+                  name: status
+        - createIndex:
+            indexName: idx_subscriptions_account_status
+            tableName: subscriptions
+            columns:
+              - column:
+                  name: account_id
+              - column:
+                  name: status
+
+
+

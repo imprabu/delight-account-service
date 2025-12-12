@@ -65,7 +65,6 @@ class SigninControllerClientTypeTest {
         // Create active account with localhost domain
         activeAccount = new Account();
         activeAccount.setDomain("localhost");
-        activeAccount.setPlan(PlanType.TRIAL);
         activeAccount.setStatus(AccountStatus.ACTIVE);
         accountRepository.save(activeAccount);
 

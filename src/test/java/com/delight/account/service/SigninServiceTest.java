@@ -13,7 +13,6 @@ import com.delight.account.model.Session;
 import com.delight.account.model.ClientType;
 import com.delight.account.model.MembershipStatus;
 import com.delight.account.model.Organization;
-import com.delight.account.model.PlanType;
 import com.delight.account.model.Product;
 import com.delight.account.model.User;
 import com.delight.account.model.UserCredential;
@@ -135,7 +134,6 @@ class SigninServiceTest {
         testAccount = new Account();
         testAccount.setId(1L);
         testAccount.setDomain("localhost");
-        testAccount.setPlan(PlanType.TRIAL);
         testAccount.setStatus(AccountStatus.ACTIVE);
 
         testOrganization = new Organization();

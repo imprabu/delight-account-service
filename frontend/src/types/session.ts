@@ -38,6 +38,29 @@ export interface SessionStore {
   user: UserData | null;
   account: AccountData | null;
   privileges: PrivilegeData | null;
+  subscription: SubscriptionInfo | null;
+  features: FeatureInfo[];
+}
+
+export interface SubscriptionInfo {
+  planCode: string;
+  planName: string;
+  status: string;
+  billingCycleEndDate: string; // ISO date format
+  productCode: string;
+  billingCycleStartDate: string; // ISO date format
+  nextBillingDate: string | null; // ISO date format
+}
+
+export interface FeatureInfo {
+  code: string;
+  name: string;
+  type: string;
+  limit: number | null;
+  currentUsage: number | null;
+  enabled: boolean | null;
+  rateLimitRpm: number | null; // For api.access feature
+  allowedChannels: string[] | null; // For channels.allowed feature
 }
 
 export interface SessionResponse {
@@ -57,6 +80,10 @@ export interface SessionResponse {
   isActive: boolean;
   token: string | null;
   privileges: string[];
+  subscription: SubscriptionInfo | null;
+  features: FeatureInfo[];
 }
+
+
 
 

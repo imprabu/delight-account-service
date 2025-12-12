@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: remove-account-plan-column
+      author: system
+      comment: Remove plan column from accounts table - plan information is now fetched from subscriptions.plan_code
+      preConditions:
+        - onFail: MARK_RAN
+        - columnExists:
+            tableName: accounts
+            columnName: plan
+      changes:
+        - dropColumn:
+            tableName: accounts
+            columnName: plan
+      rollback:
+        - addColumn:
+            tableName: accounts
+            columns:
+              - column:
+                  name: plan
+                  type: VARCHAR(50)
+                  remarks: "Deprecated - use subscriptions.plan_code instead"
+
+
+

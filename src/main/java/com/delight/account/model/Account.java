@@ -46,10 +46,6 @@ public class Account {
     private String domain;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "plan")
-    private PlanType plan;
-
-    @Enumerated(EnumType.STRING)
     private AccountStatus status;
 
     @Column(name = "type")

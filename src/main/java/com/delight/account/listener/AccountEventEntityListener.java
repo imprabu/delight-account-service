@@ -15,7 +15,9 @@ import com.delight.account.event.AccountCreatedEvent;
 import com.delight.account.event.AccountDeletedEvent;
 import com.delight.account.event.AccountUpdatedEvent;
 import com.delight.account.model.Account;
+import com.delight.account.model.SubscriptionStatus;
 import com.delight.account.repository.AccountRepository;
+import com.delight.account.repository.SubscriptionRepository;
 
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.PostRemove;
@@ -70,6 +72,18 @@ public class AccountEventEntityListener implements ApplicationContextAware {
             return applicationContext.getBean(AccountRepository.class);
         } catch (BeansException | IllegalStateException e) {
             logger.warn("⚠️ [ACCOUNT-EVENT] Failed to get AccountRepository bean: {}", e.getMessage());
+            return null;
+        }
+    }
+    
+    private static SubscriptionRepository getSubscriptionRepository() {
+        if (applicationContext == null) {
+            return null;
+        }
+        try {
+            return applicationContext.getBean(SubscriptionRepository.class);
+        } catch (BeansException | IllegalStateException e) {
+            logger.warn("⚠️ [ACCOUNT-EVENT] Failed to get SubscriptionRepository bean: {}", e.getMessage());
             return null;
         }
     }
@@ -185,7 +199,25 @@ public class AccountEventEntityListener implements ApplicationContextAware {
         
         accountInfo.put("id", account.getId());
         accountInfo.put("domain", account.getDomain());
-        accountInfo.put("plan", account.getPlan() != null ? account.getPlan().name() : null);
+        
+        // Fetch planCode from subscription
+        String planCode = null;
+        SubscriptionRepository subscriptionRepository = getSubscriptionRepository();
+        if (subscriptionRepository != null && account.getId() != null) {
+            try {
+                java.util.List<SubscriptionStatus> activeStatuses = java.util.Arrays.asList(
+                    SubscriptionStatus.TRIAL, 
+                    SubscriptionStatus.ACTIVE
+                );
+                planCode = subscriptionRepository.findPlanCodeByAccountId(account.getId(), activeStatuses)
+                    .orElse(null);
+            } catch (Exception e) {
+                logger.warn("⚠️ [ACCOUNT-EVENT] Failed to fetch planCode for account {}: {}", 
+                    account.getId(), e.getMessage());
+            }
+        }
+        accountInfo.put("plan", planCode);
+        
         accountInfo.put("status", account.getStatus() != null ? account.getStatus().name() : null);
         accountInfo.put("industryType", account.getIndustryType());
         accountInfo.put("companyName", account.getCompanyName());

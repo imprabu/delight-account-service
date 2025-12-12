@@ -13,7 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.delight.account.domain.BatchJobType;
 import com.delight.account.model.Account;
+import com.delight.account.model.SubscriptionStatus;
 import com.delight.account.repository.AccountRepository;
+import com.delight.account.repository.SubscriptionRepository;
 import com.delight.account.service.KafkaEventPublisher;
 import com.delight.account.service.job.BaseWorker;
 
@@ -36,6 +38,9 @@ public class AccountEventPublisherWorker extends BaseWorker {
     
     @Autowired
     private AccountRepository accountRepository;
+    
+    @Autowired
+    private SubscriptionRepository subscriptionRepository;
     
     /**
      * Process the account event job.
@@ -162,7 +167,22 @@ public class AccountEventPublisherWorker extends BaseWorker {
         Long accountId = account.getId();
         accountInfo.put("id", accountId);
         accountInfo.put("domain", account.getDomain());
-        accountInfo.put("plan", account.getPlan() != null ? account.getPlan().name() : null);
+        
+        // Fetch planCode from subscription
+        String planCode = null;
+        try {
+            java.util.List<SubscriptionStatus> activeStatuses = java.util.Arrays.asList(
+                SubscriptionStatus.TRIAL, 
+                SubscriptionStatus.ACTIVE
+            );
+            planCode = subscriptionRepository.findPlanCodeByAccountId(accountId, activeStatuses)
+                .orElse(null);
+        } catch (Exception e) {
+            LoggingUtils.warn(logger, "⚠️ [ACCOUNT-EVENT-WORKER] Failed to fetch planCode for account {}: {}", 
+                accountId, e.getMessage());
+        }
+        accountInfo.put("plan", planCode);
+        
         accountInfo.put("status", account.getStatus() != null ? account.getStatus().name() : null);
         accountInfo.put("industryType", account.getIndustryType());
         accountInfo.put("companyName", account.getCompanyName());

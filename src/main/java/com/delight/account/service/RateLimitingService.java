@@ -64,4 +64,42 @@ public interface RateLimitingService {
      * @return Number of remaining requests
      */
     int getAccountEndpointRemainingRequests(Long accountId, String endpoint, String clientKey);
+    
+    /**
+     * Get rate limiting configuration for an account
+     * Returns default configuration and any account-specific overrides
+     * 
+     * @param accountId The account ID
+     * @return AccountRateLimitResponse containing default config and endpoint overrides
+     */
+    com.delight.account.dto.AccountRateLimitResponse getAccountRateLimitConfig(Long accountId);
+    
+    /**
+     * Get default per-account rate limiting configuration
+     * 
+     * @return RateLimitConfig with default maxRequests and windowSeconds
+     */
+    com.delight.account.dto.AccountRateLimitResponse.RateLimitConfig getDefaultAccountRateLimitConfig();
+    
+    /**
+     * Atomically check if a request is allowed and increment the counter if allowed.
+     * This method performs both operations atomically to ensure consistency.
+     * 
+     * @param accountId The account ID
+     * @param endpoint The endpoint name (e.g., "api", "chat", "upload")
+     * @param clientKey The client identifier (e.g., IP address)
+     * @return RateLimitCheckResponse containing allowed status, remaining requests, and rate limit information
+     */
+    com.delight.account.dto.RateLimitCheckResponse checkAndIncrementAccountRateLimit(Long accountId, String endpoint, String clientKey);
+    
+    /**
+     * Get current rate limit status without incrementing the counter.
+     * This is useful for checking remaining requests without consuming a rate limit slot.
+     * 
+     * @param accountId The account ID
+     * @param endpoint The endpoint name (e.g., "api", "chat", "upload")
+     * @param clientKey The client identifier (e.g., IP address)
+     * @return RateLimitCheckResponse containing current status without incrementing
+     */
+    com.delight.account.dto.RateLimitCheckResponse getAccountRateLimitStatus(Long accountId, String endpoint, String clientKey);
 }

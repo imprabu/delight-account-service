@@ -5,6 +5,7 @@ import com.delight.account.dto.SigninRequest;
 import com.delight.account.dto.SigninResponse;
 import com.delight.account.dto.ActivationRequest;
 import com.delight.account.model.*;
+import com.delight.account.model.RoleType;
 import com.delight.account.repository.*;
 import com.delight.account.util.LoggingUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -77,6 +78,9 @@ class AuthenticationFlowIntegrationTest {
     private SessionRepository sessionRepository;
 
     @Autowired
+    private RoleRepository roleRepository;
+
+    @Autowired
     private com.delight.account.service.CacheService cacheService;
 
     @Autowired
@@ -132,8 +136,6 @@ class AuthenticationFlowIntegrationTest {
         assertThat(accountOpt).isPresent();
         Account account = accountOpt.get();
         assertThat(account.getCompanyName()).isEqualTo("IntegrationTestCo");
-        assertThat(account.getEmail()).isEqualTo("integration@test.com");
-        assertThat(account.getPlan()).isEqualTo(PlanType.TRIAL);
 
         // Verify user was created
         Optional<User> userOpt = userRepository.findByAccountIdAndEmailAddress(account.getId(), "integration@test.com");
@@ -146,7 +148,8 @@ class AuthenticationFlowIntegrationTest {
         Optional<Membership> membershipOpt = membershipRepository.findByUserIdAndAccountId(user.getId(), account.getId());
         assertThat(membershipOpt).isPresent();
         Membership membership = membershipOpt.get();
-        assertThat(membership.getRole()).isEqualTo(Role.OWNER);
+        assertThat(membership.getRole()).isNotNull();
+        assertThat(membership.getRole().getCode()).isEqualTo("ORG_ADMIN");
         assertThat(membership.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
 
         // Step 2: Create credentials for signin (simulating activation)
@@ -343,15 +346,35 @@ class AuthenticationFlowIntegrationTest {
         secondUser.setCompanyName("IntegrationTestCo");
         userRepository.save(secondUser);
 
+        // Find or create roles
+        RoleEntity agentRole = roleRepository.findByAccountIdAndCode(account.getId(), "AGENT")
+            .orElseGet(() -> {
+                RoleEntity role = new RoleEntity();
+                role.setAccount(account);
+                role.setCode("AGENT");
+                role.setName("Agent");
+                role.setRoleType(RoleType.SYSTEM);
+                return roleRepository.save(role);
+            });
+        RoleEntity accountAdminRole = roleRepository.findByAccountIdAndCode(account.getId(), "ACCOUNT_ADMIN")
+            .orElseGet(() -> {
+                RoleEntity role = new RoleEntity();
+                role.setAccount(account);
+                role.setCode("ACCOUNT_ADMIN");
+                role.setName("Account Admin");
+                role.setRoleType(RoleType.SYSTEM);
+                return roleRepository.save(role);
+            });
+
         Membership secondMembership = new Membership();
         secondMembership.setAccount(account);
         secondMembership.setUser(secondUser);
-        secondMembership.setRole(Role.AGENT);
+        secondMembership.setRole(agentRole);
         secondMembership.setStatus(MembershipStatus.ACTIVE);
         membershipRepository.save(secondMembership);
 
         // Step 5: Update member role
-        String updateRequest = "{\"role\":\"ADMIN\"}";
+        String updateRequest = "{\"roleId\":" + accountAdminRole.getId() + "}";
         mockMvc.perform(patch("/account/members/" + secondUser.getId())
                 .header("Authorization", "Bearer " + jwtToken)
                 .header("Host", "integrationtestco")
@@ -361,7 +384,8 @@ class AuthenticationFlowIntegrationTest {
 
         // Verify the update
         Membership updatedMembership = membershipRepository.findByUserIdAndAccountId(secondUser.getId(), account.getId()).orElseThrow();
-        assertThat(updatedMembership.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(updatedMembership.getRole()).isNotNull();
+        assertThat(updatedMembership.getRole().getCode()).isEqualTo("ACCOUNT_ADMIN");
     }
 
     @Test

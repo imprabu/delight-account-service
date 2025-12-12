@@ -57,6 +57,8 @@ dependencies {
         implementation 'org.casbin:jcasbin:1.40.0'
         // SendGrid for email notifications
         implementation 'com.sendgrid:sendgrid-java:4.10.1'
+        // SnakeYAML for parsing YAML configuration files
+        implementation 'org.yaml:snakeyaml:2.2'
         compileOnly 'org.projectlombok:lombok'
         developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'

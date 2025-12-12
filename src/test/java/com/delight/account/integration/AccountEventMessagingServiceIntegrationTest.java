@@ -4,7 +4,7 @@ import com.delight.account.model.*;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.OrganizationRepository;
 import com.delight.account.repository.ProductRepository;
-import com.delight.account.service.MessagingService;
+import com.delight.account.service.KafkaEventPublisher;
 import com.delight.account.service.job.JobQueueService;
 import com.delight.account.service.job.worker.AccountEventPublisherWorker;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,7 +50,7 @@ class AccountEventMessagingServiceIntegrationTest {
     private AccountEventPublisherWorker accountEventPublisherWorker;
 
     @SpyBean
-    private MessagingService messagingService;
+    private KafkaEventPublisher kafkaEventPublisher;
 
     private Organization testOrganization;
     private Product testProduct;
@@ -76,10 +76,8 @@ class AccountEventMessagingServiceIntegrationTest {
         // Given
         Account account = new Account();
         account.setDomain("newaccount");
-        account.setPlan(PlanType.TRIAL);
         account.setStatus(AccountStatus.ACTIVE);
         account.setIndustryType("Technology");
-        account.setEmail("new@example.com");
         account.setCompanyName("New Company");
         account.setOrganization(testOrganization);
         account.setProduct(testProduct);
@@ -105,28 +103,24 @@ class AccountEventMessagingServiceIntegrationTest {
         // Manually trigger the worker (simulating JobRunr)
         accountEventPublisherWorker.processJob(1L, savedAccount.getId(), metadata);
 
-        // Then - verify messaging service was called
-        ArgumentCaptor<String> payloadTypeCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> accountIdCaptor = ArgumentCaptor.forClass(String.class);
+        // Then - verify Kafka event publisher was called
+        ArgumentCaptor<String> eventTypeCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Long> accountIdCaptor = ArgumentCaptor.forClass(Long.class);
         ArgumentCaptor<Map<String, Object>> accountInfoCaptor = ArgumentCaptor.forClass(Map.class);
-        ArgumentCaptor<Map<String, Object>> changeSetCaptor = ArgumentCaptor.forClass(Map.class);
 
-        verify(messagingService, atLeastOnce()).publishAccountEventWithRetry(
-            payloadTypeCaptor.capture(),
+        verify(kafkaEventPublisher, atLeastOnce()).publishAccountEvent(
+            eventTypeCaptor.capture(),
             accountIdCaptor.capture(),
-            accountInfoCaptor.capture(),
-            changeSetCaptor.capture()
+            accountInfoCaptor.capture()
         );
 
-        assertThat(payloadTypeCaptor.getValue()).isEqualTo("account_created");
-        assertThat(accountIdCaptor.getValue()).isEqualTo(savedAccount.getId().toString());
-        assertThat(changeSetCaptor.getValue()).isNull();
+        assertThat(eventTypeCaptor.getValue()).isEqualTo("account_created");
+        assertThat(accountIdCaptor.getValue()).isEqualTo(savedAccount.getId());
         
         Map<String, Object> accountInfo = accountInfoCaptor.getValue();
         assertThat(accountInfo).isNotNull();
         assertThat(accountInfo.get("id")).isEqualTo(savedAccount.getId());
         assertThat(accountInfo.get("domain")).isEqualTo("newaccount");
-        assertThat(accountInfo.get("email")).isEqualTo("new@example.com");
     }
 
     @Test
@@ -134,10 +128,8 @@ class AccountEventMessagingServiceIntegrationTest {
         // Given - create account first
         Account account = new Account();
         account.setDomain("updateaccount");
-        account.setPlan(PlanType.TRIAL);
         account.setStatus(AccountStatus.ACTIVE);
         account.setIndustryType("Technology");
-        account.setEmail("update@example.com");
         account.setCompanyName("Update Company");
         account.setOrganization(testOrganization);
         account.setProduct(testProduct);
@@ -149,7 +141,6 @@ class AccountEventMessagingServiceIntegrationTest {
 
         // When - update account
         savedAccount.setDomain("updateddomain");
-        savedAccount.setPlan(PlanType.PAID);
         savedAccount.setCompanyName("Updated Company");
         accountRepository.save(savedAccount);
         accountRepository.flush();
@@ -174,31 +165,22 @@ class AccountEventMessagingServiceIntegrationTest {
         // Manually trigger worker
         accountEventPublisherWorker.processJob(2L, savedAccount.getId(), metadata);
 
-        // Then - verify messaging service was called with changeset
-        ArgumentCaptor<String> payloadTypeCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Map<String, Object>> changeSetCaptor = ArgumentCaptor.forClass(Map.class);
+        // Then - verify Kafka event publisher was called
+        ArgumentCaptor<String> eventTypeCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Long> accountIdCaptor = ArgumentCaptor.forClass(Long.class);
+        ArgumentCaptor<Map<String, Object>> accountInfoCaptor = ArgumentCaptor.forClass(Map.class);
 
-        verify(messagingService, atLeastOnce()).publishAccountEventWithRetry(
-            payloadTypeCaptor.capture(),
-            eq(savedAccount.getId().toString()),
-            any(),
-            changeSetCaptor.capture()
+        verify(kafkaEventPublisher, atLeastOnce()).publishAccountEvent(
+            eventTypeCaptor.capture(),
+            accountIdCaptor.capture(),
+            accountInfoCaptor.capture()
         );
 
-        assertThat(payloadTypeCaptor.getValue()).isEqualTo("account_modified");
+        assertThat(eventTypeCaptor.getValue()).isEqualTo("account_modified");
+        assertThat(accountIdCaptor.getValue()).isEqualTo(savedAccount.getId());
         
-        @SuppressWarnings("unchecked")
-        Map<String, Object> changeSet = changeSetCaptor.getValue();
-        assertThat(changeSet).isNotNull();
-        // Verify changeset is passed (may be empty if no actual changes detected, but structure should be correct)
-        // The changeset structure: { "fieldName": { "old": oldValue, "new": newValue } }
-        // Note: Changeset might be empty if oldState wasn't captured properly, but the messaging service should still be called
-        verify(messagingService, atLeastOnce()).publishAccountEventWithRetry(
-            eq("account_modified"),
-            eq(savedAccount.getId().toString()),
-            any(Map.class),
-            any(Map.class)
-        );
+        Map<String, Object> accountInfo = accountInfoCaptor.getValue();
+        assertThat(accountInfo).isNotNull();
     }
 
     @Test
@@ -206,10 +188,8 @@ class AccountEventMessagingServiceIntegrationTest {
         // Given - create account first
         Account account = new Account();
         account.setDomain("deleteaccount");
-        account.setPlan(PlanType.TRIAL);
         account.setStatus(AccountStatus.ACTIVE);
         account.setIndustryType("Technology");
-        account.setEmail("delete@example.com");
         account.setCompanyName("Delete Company");
         account.setOrganization(testOrganization);
         account.setProduct(testProduct);
@@ -240,18 +220,19 @@ class AccountEventMessagingServiceIntegrationTest {
         // Manually trigger worker
         accountEventPublisherWorker.processJob(3L, savedAccount.getId(), metadata);
 
-        // Then - verify messaging service was called
-        ArgumentCaptor<String> payloadTypeCaptor = ArgumentCaptor.forClass(String.class);
+        // Then - verify Kafka event publisher was called
+        ArgumentCaptor<String> eventTypeCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Long> accountIdCaptor = ArgumentCaptor.forClass(Long.class);
         ArgumentCaptor<Map<String, Object>> accountInfoCaptor = ArgumentCaptor.forClass(Map.class);
 
-        verify(messagingService, atLeastOnce()).publishAccountEventWithRetry(
-            payloadTypeCaptor.capture(),
-            eq(savedAccount.getId().toString()),
-            accountInfoCaptor.capture(),
-            isNull()
+        verify(kafkaEventPublisher, atLeastOnce()).publishAccountEvent(
+            eventTypeCaptor.capture(),
+            accountIdCaptor.capture(),
+            accountInfoCaptor.capture()
         );
 
-        assertThat(payloadTypeCaptor.getValue()).isEqualTo("account_deleted");
+        assertThat(eventTypeCaptor.getValue()).isEqualTo("account_deleted");
+        assertThat(accountIdCaptor.getValue()).isEqualTo(savedAccount.getId());
         
         @SuppressWarnings("unchecked")
         Map<String, Object> accountInfo = accountInfoCaptor.getValue();

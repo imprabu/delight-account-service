@@ -29,6 +29,12 @@ class SessionServiceTest {
     @Mock
     private SessionRepository sessionRepository;
 
+    @Mock
+    private SubscriptionService subscriptionService;
+
+    @Mock
+    private FeatureService featureService;
+
     private SessionService sessionService;
 
     private User testUser;
@@ -38,7 +44,7 @@ class SessionServiceTest {
 
     @BeforeEach
     void setUp() {
-        sessionService = new SessionServiceImpl(sessionRepository);
+        sessionService = new SessionServiceImpl(sessionRepository, subscriptionService, featureService);
 
         // Setup test data
         testUser = new User();
@@ -96,7 +102,7 @@ class SessionServiceTest {
         when(sessionRepository.save(any(Session.class))).thenReturn(mobileSession);
 
         // When
-        Session result = sessionService.createSession(testUser, testAccount, Role.AGENT, 
+        Session result = sessionService.createSession(testUser, testAccount, testRole, 
                                                      "jwt-token", "user-agent", "127.0.0.1", ClientType.ANDROID);
 
         // Then

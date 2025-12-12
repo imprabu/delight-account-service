@@ -1645,47 +1645,233 @@ public class YourBusinessService {
 | `/accounts/members` | GET | List account members | Bearer/Cookie |
 | `/channel/accounts/members` | GET | List account members (channel) | Channel JWT |
 
-### 5.4 Authorization (To Be Implemented)
+### 5.4 Authorization
 
 | Endpoint | Method | Description | Auth Required |
 |----------|--------|-------------|---------------|
 | `/channel/accounts/authorize/check` | POST | Check if user has privilege (server-to-server) | Channel JWT |
 
+### 5.5 Subscription and Feature Management
+
+#### User-Facing Endpoints (Direct, NOT /api/*)
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/accounts/{accountId}/subscription` | GET | Get current subscription | Bearer/Cookie |
+| `/accounts/{accountId}/subscription/features` | GET | Get active features with limits and usage | Bearer/Cookie |
+| `/accounts/{accountId}/subscription/usage` | GET | Get usage statistics for all features | Bearer/Cookie |
+| `/accounts/{accountId}/subscription/upgrade` | POST | Upgrade subscription plan (stub) | Bearer/Cookie |
+| `/accounts/{accountId}/subscription/cancel` | POST | Cancel subscription (stub) | Bearer/Cookie |
+
+**Note:** These endpoints are NOT rate-limited as they use direct paths (not `/api/*`).
+
+#### Channel Endpoints (For Microservices)
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/channel/accounts/{accountId}/subscription` | GET | Get subscription details | Channel JWT |
+| `/channel/accounts/{accountId}/features` | GET | Get active features and limits | Channel JWT |
+| `/channel/accounts/{accountId}/usage/increment` | POST | Increment usage counter | Channel JWT |
+| `/channel/accounts/{accountId}/usage/decrement` | POST | Decrement usage counter | Channel JWT |
+| `/channel/accounts/{accountId}/usage/set` | POST | Set usage value | Channel JWT |
+| `/channel/accounts/{accountId}/usage/check` | GET | Check if feature usage is allowed | Channel JWT |
+
+**Usage Tracking Endpoints:**
+
+- **Increment Usage**: `POST /channel/accounts/{accountId}/usage/increment`
+  ```json
+  {
+    "featureCode": "conversations.monthly",
+    "increment": 1
+  }
+  ```
+
+- **Decrement Usage**: `POST /channel/accounts/{accountId}/usage/decrement`
+  ```json
+  {
+    "featureCode": "conversations.monthly",
+    "decrement": 1
+  }
+  ```
+
+- **Set Usage**: `POST /channel/accounts/{accountId}/usage/set`
+  ```json
+  {
+    "featureCode": "conversations.monthly",
+    "value": 100
+  }
+  ```
+
+- **Check Usage**: `GET /channel/accounts/{accountId}/usage/check?featureCode=conversations.monthly`
+  - Returns: `allowed`, `currentUsage`, `limit`, `remaining`, `message`
+
+### 5.6 Rate Limiting
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/channel/accounts/{accountId}/rateLimit` | GET | Get account-specific rate limit configuration | Channel JWT |
+| `/channel/accounts/rateLimit/default` | GET | Get default rate limit configuration | Channel JWT |
+| `/channel/accounts/{accountId}/rateLimit/check` | POST | Atomic check-and-increment rate limit | Channel JWT |
+| `/channel/accounts/{accountId}/rateLimit/status` | GET | Read-only rate limit status check | Channel JWT |
+
 ---
 
-## 7. Best Practices
+## 8. Subscription and Feature Management
 
-### 6.1 Caching
+### 8.1 Overview
+
+The IAM service provides a comprehensive subscription and feature management system that allows:
+- Managing subscriptions with different plans (STARTER, PROFESSIONAL, ENTERPRISE)
+- Tracking feature usage per billing cycle
+- Checking feature limits and availability
+- Managing API rate limits per account
+- Channel-based access for microservices to update usage centrally
+
+### 8.2 Session Response Includes Subscription Data
+
+When validating a session, the `SessionResponse` now includes:
+- `subscription`: Subscription information (planCode, planName, status, billingCycleEndDate, productCode)
+- `features`: Array of active features with limits and current usage
+
+**Example SessionResponse:**
+```json
+{
+  "sessionId": "sess_abc123",
+  "userId": 123,
+  "accountId": 456,
+  "subscription": {
+    "planCode": "ENTERPRISE",
+    "planName": "Enterprise Plan",
+    "status": "ACTIVE",
+    "billingCycleEndDate": "2025-02-01",
+    "productCode": "CHAT"
+  },
+  "features": [
+    {
+      "code": "conversations.monthly",
+      "name": "Monthly Conversations",
+      "type": "usage_limit",
+      "limit": -1,
+      "currentUsage": 1250,
+      "enabled": true
+    },
+    {
+      "code": "api.access",
+      "name": "API Access",
+      "type": "usage_limit",
+      "enabled": true,
+      "rateLimitRpm": 3000
+    },
+    {
+      "code": "channels.allowed",
+      "name": "Allowed Channels",
+      "type": "list",
+      "enabled": true,
+      "allowedChannels": ["INSTAGRAM", "WHATSAPP", "FACEBOOK"]
+    }
+  ]
+}
+```
+
+### 8.3 Feature Types
+
+1. **Usage Limit Features** (`usage_limit`):
+   - Have a numeric limit (e.g., 5000 conversations/month)
+   - Track current usage
+   - Limit can be -1 for unlimited
+   - Example: `conversations.monthly`, `storage.gb`
+
+2. **Boolean Features** (`boolean`):
+   - Simply enabled or disabled
+   - No usage tracking
+   - Example: `custom.ai.training`
+
+3. **List Features** (`list`):
+   - Contain a list of allowed values
+   - Example: `channels.allowed` contains list of allowed channel codes
+
+4. **API Rate Limit Features** (`api.access`):
+   - Special usage_limit feature with RPM (requests per minute) rate limiting
+   - Default: 3000 RPM
+   - Managed via rate limiting service
+
+### 8.4 Usage Tracking for Microservices
+
+Microservices can update feature usage centrally via channel endpoints:
+
+**Increment Usage:**
+```bash
+POST /channel/accounts/{accountId}/usage/increment
+Authorization: Bearer <channel_jwt_token>
+Content-Type: application/json
+
+{
+  "featureCode": "conversations.monthly",
+  "increment": 1
+}
+```
+
+**Check Usage Before Operation:**
+```bash
+GET /channel/accounts/{accountId}/usage/check?featureCode=conversations.monthly
+Authorization: Bearer <channel_jwt_token>
+```
+
+**Response:**
+```json
+{
+  "allowed": true,
+  "currentUsage": 1250,
+  "limit": 5000,
+  "remaining": 3750,
+  "message": "Usage is within limit"
+}
+```
+
+### 8.5 Best Practices
+
+1. **Check Usage Before Operations**: Always check if usage is allowed before performing operations that consume features
+2. **Atomic Updates**: Use increment/decrement endpoints for atomic usage updates
+3. **Billing Cycle Awareness**: Usage resets at the start of each billing cycle
+4. **Error Handling**: Handle 403 responses when usage limits are exceeded
+5. **Cache Feature Data**: Cache subscription and feature data from session response to reduce API calls
+6. **Channel Authentication**: Always use Channel JWT tokens for usage tracking endpoints
+
+---
+
+## 8. Best Practices
+
+### 8.1 Caching
 - **Cache session validation results** for a short duration (e.g., 30 seconds) to reduce IAM service load
 - **Cache privilege check results** for 30-60 seconds
 - **Invalidate cache** when membership or role changes are detected
 
-### 6.2 Error Handling
+### 8.2 Error Handling
 - **Always validate sessions** before processing requests
 - **Log security events** for authentication/authorization failures
 - **Return appropriate HTTP status codes**: 401 (Unauthorized), 403 (Forbidden)
 
-### 6.3 Performance
+### 8.3 Performance
 - **Use connection pooling** for HTTP clients calling IAM service
 - **Implement circuit breakers** to handle IAM service unavailability
 - **Consider async validation** for non-critical paths
 - **Set reasonable timeouts** (e.g., 2-5 seconds) for IAM service calls
 
-### 6.4 Security
+### 8.4 Security
 - **Never trust client-provided user/account IDs** - always validate via IAM service
 - **Validate JWT signatures** - IAM service handles this, but verify responses
 - **Use HTTPS** for all communication with IAM service
 - **Implement rate limiting** on authentication endpoints
 - **Keep channel JWT secret keys secure** - use environment variables or key management services
 
-### 6.5 Monitoring
+### 8.5 Monitoring
 - **Log all authentication attempts** (success and failure)
 - **Monitor IAM service response times**
 - **Alert on authentication failure spikes**
 - **Track privilege check performance**
 - **Monitor cache hit rates**
 
-### 6.6 Testing
+### 8.6 Testing
 - **Mock IAM service** in unit tests
 - **Use test tokens** for integration tests
 - **Test both user and channel authentication flows**

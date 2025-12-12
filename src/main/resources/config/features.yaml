@@ -1,0 +1,45 @@
+features:
+  - code: "conversations.monthly"
+    name: "Monthly Conversations"
+    type: "usage_limit"
+    unit: "count"
+    description: "Number of conversations allowed per billing cycle"
+    products: ["CHAT", "SUPPORT"]
+  
+  - code: "team.members"
+    name: "Team Members"
+    type: "usage_limit"
+    unit: "count"
+    description: "Maximum number of team members"
+    products: ["CHAT", "SUPPORT"]
+  
+  - code: "api.access"
+    name: "API Access"
+    type: "usage_limit"
+    unit: "rpm"
+    defaultRateLimit: 3000
+    description: "API access with rate limiting (3000 RPM)"
+    products: ["CHAT", "SUPPORT"]
+  
+  - code: "channels.allowed"
+    name: "Allowed Channels"
+    type: "list"
+    unit: "channel_codes"
+    description: "List of allowed communication channels"
+    products: ["CHAT", "SUPPORT"]
+  
+  - code: "custom.ai.training"
+    name: "Custom AI Training"
+    type: "boolean"
+    description: "Enable custom AI model training"
+    products: ["CHAT"]
+  
+  - code: "storage.gb"
+    name: "Storage"
+    type: "usage_limit"
+    unit: "gb"
+    description: "Storage limit in GB"
+    products: ["CHAT", "SUPPORT"]
+
+
+
