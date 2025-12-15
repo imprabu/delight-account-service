@@ -180,11 +180,23 @@ public class ChannelController {
             throw new ApiException("error.session.invalid");
         }
 
+        Long accountIdLong = Long.valueOf(accountId);
+        
+        // Load subscription info
+        java.util.Optional<com.delight.account.dto.SubscriptionInfo> subscriptionOpt = 
+            subscriptionService.getSubscriptionInfo(accountIdLong);
+        
+        // Load active features
+        java.util.List<com.delight.account.dto.FeatureInfo> features = 
+            featureService.getActiveFeatures(accountIdLong);
+
         SessionResponse response = SessionResponse.builder()
-                .accountId(Long.valueOf(accountId))
+                .accountId(accountIdLong)
                 .isActive(true)
                 .sessionId("channel-" + accountId + "-" + System.currentTimeMillis())
                 .privileges(java.util.Collections.emptyList()) // Channel sessions don't have user privileges
+                .subscription(subscriptionOpt.orElse(null))
+                .features(features)
                 .build();
 
         return ResponseEntity.ok(response);

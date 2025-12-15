@@ -76,13 +76,24 @@ const routeToScreen: Record<string, Screen> = {
   '/analytics': 'analytics',
   '/conversations': 'conversations',
   '/contacts': 'contacts',
+  '/settings': 'settings',
+  '/settings/bot': 'bot',
+  '/settings/knowledge': 'knowledge',
+  '/settings/intents': 'intents',
+  '/settings/integrations': 'integrations',
+  '/settings/channels': 'channels',
+  '/settings/testing': 'testing',
+  '/settings/contact-settings': 'contactSettings',
+  '/settings/billing': 'billing',
+  '/settings/security': 'security',
+  '/settings/notifications': 'notifications',
+  // Backward compatibility - redirect old routes
   '/bot': 'bot',
   '/knowledge': 'knowledge',
   '/intents': 'intents',
   '/integrations': 'integrations',
   '/channels': 'channels',
   '/testing': 'testing',
-  '/settings': 'settings',
   '/contact-settings': 'contactSettings',
   '/billing': 'billing',
   '/security': 'security',
@@ -95,17 +106,17 @@ const screenToRoute: Record<Screen, string> = {
   analytics: '/analytics',
   conversations: '/conversations',
   contacts: '/contacts',
-  bot: '/bot',
-  knowledge: '/knowledge',
-  intents: '/intents',
-  integrations: '/integrations',
-  channels: '/channels',
-  testing: '/testing',
+  bot: '/settings/bot',
+  knowledge: '/settings/knowledge',
+  intents: '/settings/intents',
+  integrations: '/settings/integrations',
+  channels: '/settings/channels',
+  testing: '/settings/testing',
   settings: '/settings',
-  contactSettings: '/contact-settings',
-  billing: '/billing',
-  security: '/security',
-  notifications: '/notifications',
+  contactSettings: '/settings/contact-settings',
+  billing: '/settings/billing',
+  security: '/settings/security',
+  notifications: '/settings/notifications',
 };
 
 function AppContent() {
@@ -117,8 +128,27 @@ function AppContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedContactEmail, setSelectedContactEmail] = useState<string | null>(null);
 
-  // Get current screen from URL
-  const activeScreen = routeToScreen[location.pathname] || 'dashboard';
+  // Get current screen from URL - handle nested /settings/* routes
+  const getActiveScreen = (pathname: string): Screen => {
+    // Check exact match first
+    if (routeToScreen[pathname]) {
+      return routeToScreen[pathname];
+    }
+    // Check if it's a /settings/* route
+    if (pathname.startsWith('/settings/')) {
+      const settingsPath = pathname;
+      if (routeToScreen[settingsPath]) {
+        return routeToScreen[settingsPath];
+      }
+      // Default to settings if it's a /settings/* route we don't recognize
+      if (pathname !== '/settings') {
+        return 'settings';
+      }
+    }
+    return 'dashboard';
+  };
+  
+  const activeScreen = getActiveScreen(location.pathname);
 
   // Settings navigation - only show if user has system.admin or system.config privilege
   // Calculate this BEFORE any conditional returns to maintain hook order
@@ -169,9 +199,11 @@ function AppContent() {
     return titles[screen] || screen;
   };
 
-  // Navigation helper function
-  const handleNavigate = (screen: Screen) => {
-    const route = screenToRoute[screen];
+  // Navigation helper function - accepts Screen type or string (for Settings component compatibility)
+  const handleNavigate = (screen: Screen | string) => {
+    // Convert string to Screen type if it's a valid screen
+    const screenKey = screen as Screen;
+    const route = screenToRoute[screenKey];
     if (route) {
       navigate(route);
     }
@@ -389,12 +421,8 @@ function AppContent() {
               <Route path="/analytics" element={<Analytics currentPlan={currentPlan} onNavigate={handleNavigate} />} />
               <Route path="/conversations" element={<ConversationsEnhanced onNavigateToContact={handleNavigateToContact} />} />
               <Route path="/contacts" element={<ContactsSimple initialContactEmail={selectedContactEmail} onClearInitial={() => setSelectedContactEmail(null)} />} />
-              <Route path="/bot" element={<BotSettings onNavigate={handleNavigate} />} />
-              <Route path="/knowledge" element={<KnowledgeBase onNavigate={handleNavigate} />} />
-              <Route path="/intents" element={<IntentsFlows onNavigate={handleNavigate} />} />
-              <Route path="/integrations" element={<Integrations onNavigate={handleNavigate} />} />
-              <Route path="/channels" element={<Channels onNavigate={handleNavigate} />} />
-              <Route path="/testing" element={<Testing onNavigate={handleNavigate} />} />
+              
+              {/* Settings routes - all under /settings */}
               <Route 
                 path="/settings" 
                 element={
@@ -405,10 +433,29 @@ function AppContent() {
                   )
                 } 
               />
-              <Route path="/contact-settings" element={<ContactSettings onNavigate={handleNavigate} />} />
-              <Route path="/billing" element={<BillingSettings onNavigate={handleNavigate} />} />
-              <Route path="/security" element={<SecurityPermissions currentPlan={currentPlan} onNavigate={handleNavigate} />} />
-              <Route path="/notifications" element={<NotificationSettings onNavigate={handleNavigate} />} />
+              <Route path="/settings/bot" element={<BotSettings onNavigate={handleNavigate} />} />
+              <Route path="/settings/knowledge" element={<KnowledgeBase onNavigate={handleNavigate} />} />
+              <Route path="/settings/intents" element={<IntentsFlows onNavigate={handleNavigate} />} />
+              <Route path="/settings/integrations" element={<Integrations onNavigate={handleNavigate} />} />
+              <Route path="/settings/channels" element={<Channels onNavigate={handleNavigate} />} />
+              <Route path="/settings/testing" element={<Testing onNavigate={handleNavigate} />} />
+              <Route path="/settings/contact-settings" element={<ContactSettings onNavigate={handleNavigate} />} />
+              <Route path="/settings/billing" element={<BillingSettings onNavigate={handleNavigate} />} />
+              <Route path="/settings/security" element={<SecurityPermissions currentPlan={currentPlan} onNavigate={handleNavigate} />} />
+              <Route path="/settings/notifications" element={<NotificationSettings onNavigate={handleNavigate} />} />
+              
+              {/* Backward compatibility - redirect old routes to new /settings/* routes */}
+              <Route path="/bot" element={<Navigate to="/settings/bot" replace />} />
+              <Route path="/knowledge" element={<Navigate to="/settings/knowledge" replace />} />
+              <Route path="/intents" element={<Navigate to="/settings/intents" replace />} />
+              <Route path="/integrations" element={<Navigate to="/settings/integrations" replace />} />
+              <Route path="/channels" element={<Navigate to="/settings/channels" replace />} />
+              <Route path="/testing" element={<Navigate to="/settings/testing" replace />} />
+              <Route path="/contact-settings" element={<Navigate to="/settings/contact-settings" replace />} />
+              <Route path="/billing" element={<Navigate to="/settings/billing" replace />} />
+              <Route path="/security" element={<Navigate to="/settings/security" replace />} />
+              <Route path="/notifications" element={<Navigate to="/settings/notifications" replace />} />
+              
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>

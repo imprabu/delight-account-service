@@ -40,6 +40,67 @@ features:
     unit: "gb"
     description: "Storage limit in GB"
     products: ["CHAT", "SUPPORT"]
+  
+  - code: "rag.storage.gb"
+    name: "RAG Storage"
+    type: "usage_limit"
+    unit: "gb"
+    description: "Total storage limit in GB for knowledge documents"
+    products: ["CHAT"]
+  
+  - code: "rag.documents.max"
+    name: "RAG Documents"
+    type: "usage_limit"
+    unit: "count"
+    description: "Maximum number of documents allowed per account"
+    products: ["CHAT"]
+  
+  - code: "rag.queries.monthly"
+    name: "RAG Monthly Queries"
+    type: "usage_limit"
+    unit: "count"
+    description: "Monthly query limit for RAG queries"
+    products: ["CHAT"]
+  
+  - code: "rag.queries.rpm"
+    name: "RAG Queries Per Minute"
+    type: "usage_limit"
+    unit: "rpm"
+    description: "Rate limit for RAG queries (queries per minute) - feature limit tracked by RAG service"
+    products: ["CHAT"]
+  
+  - code: "rag.file.upload.max_mb"
+    name: "RAG File Upload Max Size"
+    type: "usage_limit"
+    unit: "mb"
+    description: "Maximum file size per upload in MB"
+    products: ["CHAT"]
+  
+  - code: "rag.embeddings.enabled"
+    name: "RAG Embeddings"
+    type: "boolean"
+    description: "Feature flag to enable/disable document embeddings"
+    products: ["CHAT"]
+  
+  - code: "rag.advanced.search"
+    name: "RAG Advanced Search"
+    type: "boolean"
+    description: "Feature flag for advanced search features"
+    products: ["CHAT"]
+  
+  - code: "integrations.mcp_limit"
+    name: "MCP Integrations Limit"
+    type: "usage_limit"
+    unit: "count"
+    description: "Maximum number of MCP (Model Context Protocol) integrations allowed per account"
+    products: ["CHAT"]
+  
+  - code: "integrations.custom_api_limit"
+    name: "Custom API Integrations Limit"
+    type: "usage_limit"
+    unit: "count"
+    description: "Maximum number of custom API integrations allowed per account"
+    products: ["CHAT"]
 
 
 

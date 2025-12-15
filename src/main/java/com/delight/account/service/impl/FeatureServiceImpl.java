@@ -8,6 +8,7 @@ import com.delight.account.repository.SubscriptionFeatureRepository;
 import com.delight.account.repository.SubscriptionRepository;
 import com.delight.account.service.FeatureConfigService;
 import com.delight.account.service.FeatureService;
+import com.delight.account.service.RagServiceClient;
 import com.delight.account.service.UsageTrackingService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,6 +28,7 @@ public class FeatureServiceImpl implements FeatureService {
     private final SubscriptionFeatureRepository subscriptionFeatureRepository;
     private final FeatureConfigService featureConfigService;
     private final UsageTrackingService usageTrackingService;
+    private final RagServiceClient ragServiceClient;
     private final ObjectMapper objectMapper;
     
     public FeatureServiceImpl(
@@ -34,11 +36,13 @@ public class FeatureServiceImpl implements FeatureService {
             SubscriptionFeatureRepository subscriptionFeatureRepository,
             FeatureConfigService featureConfigService,
             UsageTrackingService usageTrackingService,
+            RagServiceClient ragServiceClient,
             ObjectMapper objectMapper) {
         this.subscriptionRepository = subscriptionRepository;
         this.subscriptionFeatureRepository = subscriptionFeatureRepository;
         this.featureConfigService = featureConfigService;
         this.usageTrackingService = usageTrackingService;
+        this.ragServiceClient = ragServiceClient;
         this.objectMapper = objectMapper;
     }
     
@@ -77,15 +81,23 @@ public class FeatureServiceImpl implements FeatureService {
             if ("usage_limit".equals(feature.getType()) && subscriptionFeature.getLimitValue() != null) {
                 builder.limit(subscriptionFeature.getLimitValue());
                 
-                // Get current usage
-                Optional<com.delight.account.model.FeatureUsage> usageOpt = 
-                    usageTrackingService.getCurrentUsage(
-                        accountId, 
-                        subscription.getId(), 
-                        subscriptionFeature.getFeatureCode());
-                
-                Long currentUsage = usageOpt.map(com.delight.account.model.FeatureUsage::getUsageValue)
-                    .orElse(0L);
+                // Get current usage - use RAG service for RAG features, otherwise use IAM usage tracking
+                Long currentUsage;
+                if (feature.getCode().startsWith("rag.")) {
+                    // Get usage from RAG service
+                    Long ragUsage = ragServiceClient.getFeatureUsage(accountId, feature.getCode());
+                    currentUsage = ragUsage != null ? ragUsage : 0L;
+                } else {
+                    // Get usage from IAM usage tracking service
+                    Optional<com.delight.account.model.FeatureUsage> usageOpt = 
+                        usageTrackingService.getCurrentUsage(
+                            accountId, 
+                            subscription.getId(), 
+                            subscriptionFeature.getFeatureCode());
+                    
+                    currentUsage = usageOpt.map(com.delight.account.model.FeatureUsage::getUsageValue)
+                        .orElse(0L);
+                }
                 builder.currentUsage(currentUsage);
             }
             

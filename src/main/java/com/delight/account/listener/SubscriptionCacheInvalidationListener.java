@@ -4,6 +4,7 @@ import com.delight.account.cache.AccountCacheKeyManager;
 import com.delight.account.model.Subscription;
 import com.delight.account.service.CacheService;
 import com.delight.account.service.SessionService;
+import com.delight.account.service.SubscriptionEventPublisher;
 import com.delight.account.util.LoggingUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,9 @@ public class SubscriptionCacheInvalidationListener {
 
     @Autowired
     private SessionService sessionService;
+
+    @Autowired(required = false)
+    private SubscriptionEventPublisher subscriptionEventPublisher;
 
     @PostPersist
     @PostUpdate
@@ -65,6 +69,18 @@ public class SubscriptionCacheInvalidationListener {
             sessionService.invalidateAccountSessions(accountId);
             log.info("Invalidated all sessions for account: {}", accountId);
 
+            // Publish Kafka event for subscription change
+            if (subscriptionEventPublisher != null) {
+                String eventType = getEventType(operation);
+                try {
+                    subscriptionEventPublisher.publishSubscriptionChanged(subscription.getId(), eventType);
+                } catch (Exception e) {
+                    log.error("Failed to publish subscription event - SubscriptionId: {}, AccountId: {}, EventType: {}, Error: {}", 
+                        subscription.getId(), accountId, eventType, e.getMessage(), e);
+                    // Don't throw - event publishing failure shouldn't break cache invalidation
+                }
+            }
+
         } catch (Exception e) {
             log.error("Failed to invalidate subscription cache/sessions - SubscriptionId: {}, AccountId: {}, Error: {}", 
                 subscription.getId(), accountId, e.getMessage(), e);
@@ -80,6 +96,18 @@ public class SubscriptionCacheInvalidationListener {
             if (methodName.contains("PostRemove")) return "DELETE";
         }
         return "UNKNOWN";
+    }
+    
+    /**
+     * Map operation to Kafka event type.
+     */
+    private String getEventType(String operation) {
+        return switch (operation) {
+            case "CREATE" -> "subscription.created";
+            case "UPDATE" -> "subscription.updated";
+            case "DELETE" -> "subscription.cancelled";
+            default -> "subscription.updated"; // Default to updated for unknown operations
+        };
     }
 
     private void invalidateSubscriptionCache(Long accountId, Long subscriptionId, String operation) {

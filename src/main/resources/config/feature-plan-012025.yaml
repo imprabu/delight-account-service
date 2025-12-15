@@ -20,6 +20,24 @@ products:
             enabled: false
           - code: "storage.gb"
             limit: 10
+          - code: "rag.storage.gb"
+            limit: 10
+          - code: "rag.documents.max"
+            limit: 100
+          - code: "rag.queries.monthly"
+            limit: 1000
+          - code: "rag.queries.rpm"
+            limit: 60
+          - code: "rag.file.upload.max_mb"
+            limit: 10
+          - code: "rag.embeddings.enabled"
+            enabled: true
+          - code: "rag.advanced.search"
+            enabled: false
+          - code: "integrations.mcp_limit"
+            limit: 1
+          - code: "integrations.custom_api_limit"
+            limit: 5
       
       - code: "PROFESSIONAL"
         name: "Professional Plan"
@@ -37,6 +55,24 @@ products:
             enabled: true
           - code: "storage.gb"
             limit: 100
+          - code: "rag.storage.gb"
+            limit: 100
+          - code: "rag.documents.max"
+            limit: 1000
+          - code: "rag.queries.monthly"
+            limit: 10000
+          - code: "rag.queries.rpm"
+            limit: 300
+          - code: "rag.file.upload.max_mb"
+            limit: 50
+          - code: "rag.embeddings.enabled"
+            enabled: true
+          - code: "rag.advanced.search"
+            enabled: false
+          - code: "integrations.mcp_limit"
+            limit: 5
+          - code: "integrations.custom_api_limit"
+            limit: 20
       
       - code: "ENTERPRISE"
         name: "Enterprise Plan"
@@ -54,6 +90,24 @@ products:
             enabled: true
           - code: "storage.gb"
             limit: 1000
+          - code: "rag.storage.gb"
+            limit: 1000
+          - code: "rag.documents.max"
+            limit: 10000
+          - code: "rag.queries.monthly"
+            limit: 100000
+          - code: "rag.queries.rpm"
+            limit: 3000
+          - code: "rag.file.upload.max_mb"
+            limit: 100
+          - code: "rag.embeddings.enabled"
+            enabled: true
+          - code: "rag.advanced.search"
+            enabled: true
+          - code: "integrations.mcp_limit"
+            limit: 20
+          - code: "integrations.custom_api_limit"
+            limit: 100
   
   - code: "SUPPORT"
     name: "Support Product"
