@@ -16,6 +16,7 @@ export interface Document {
   tokenCount?: number;
   vectorId?: string;
   content?: string;
+  splitMethod?: 'auto' | 'paragraph' | 'section' | 'page';
 }
 
 export interface PaginatedResponse<T> {
@@ -111,10 +112,13 @@ class KnowledgeAPI {
     return apiGet<Document>(`${this.baseURL}/${id}`);
   }
 
-  async uploadDocument(file: File, title: string): Promise<Document> {
+  async uploadDocument(file: File, title: string, splitMethod?: string): Promise<Document> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
+    if (splitMethod) {
+      formData.append('splitMethod', splitMethod);
+    }
 
     // apiRequest will automatically detect FormData and not set Content-Type
     return apiRequest<Document>(`${this.baseURL}/upload`, {

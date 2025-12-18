@@ -69,6 +69,7 @@ export function KnowledgeBase({ onNavigate }: KnowledgeBaseProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadSplitMethod, setUploadSplitMethod] = useState<string>('auto');
   
   // Test query
   const [testQuery, setTestQuery] = useState('');
@@ -272,9 +273,10 @@ export function KnowledgeBase({ onNavigate }: KnowledgeBaseProps) {
     setUploading(true);
     setError(null);
     try {
-      await knowledgeAPI.uploadDocument(selectedFile, uploadTitle);
+      await knowledgeAPI.uploadDocument(selectedFile, uploadTitle, uploadSplitMethod);
       setUploadTitle('');
       setSelectedFile(null);
+      setUploadSplitMethod('auto'); // Reset to default
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -676,6 +678,25 @@ export function KnowledgeBase({ onNavigate }: KnowledgeBaseProps) {
                 onChange={(e) => setUploadTitle(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               />
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Chunk Split Method</label>
+                <select
+                  value={uploadSplitMethod}
+                  onChange={(e) => setUploadSplitMethod(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                  title="How to split this document into chunks for better search"
+                >
+                  <option value="auto">Auto (Recommended)</option>
+                  <option value="paragraph">Paragraph</option>
+                  <option value="section">Section</option>
+                  <option value="page">Page</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {botConfig?.splitMethod && uploadSplitMethod === 'auto' 
+                    ? `Will use account default: ${botConfig.splitMethod}` 
+                    : 'Determines how this document is broken into searchable pieces'}
+                </p>
+              </div>
               <button
                 onClick={handleUpload}
                 disabled={uploading || !selectedFile || !uploadTitle.trim()}
@@ -762,6 +783,22 @@ export function KnowledgeBase({ onNavigate }: KnowledgeBaseProps) {
                                   <span>{formatFileSize(doc.fileSize)}</span>
                                   <span>•</span>
                                   <span>Added {formatDate(doc.createdAt)}</span>
+                                  {doc.splitMethod && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="font-medium text-gray-700" title="Document-specific split method">
+                                        Split: {doc.splitMethod.charAt(0).toUpperCase() + doc.splitMethod.slice(1)}
+                                      </span>
+                                    </>
+                                  )}
+                                  {!doc.splitMethod && botConfig && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="italic text-gray-400" title="Using account-level default">
+                                        Split: Account Default ({botConfig.splitMethod || 'auto'})
+                                      </span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-3">
