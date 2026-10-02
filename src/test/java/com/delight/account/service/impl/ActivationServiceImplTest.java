@@ -79,10 +79,16 @@ class ActivationServiceImplTest {
         credential.setUser(existingUser);
         credential.setAccount(account);
 
+        // Create a mock RoleEntity for OWNER role
+        RoleEntity orgAdminRole = new RoleEntity();
+        orgAdminRole.setId(1L);
+        orgAdminRole.setCode("ORG_ADMIN");
+        orgAdminRole.setName("Org Admin");
+        
         Membership membership = new Membership();
         membership.setUser(existingUser);
         membership.setAccount(account);
-        membership.setRole(Role.OWNER);
+        membership.setRole(orgAdminRole);
         membership.setStatus(MembershipStatus.ACTIVE);
 
         when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));

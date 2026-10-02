@@ -2,7 +2,6 @@ package com.delight.account;
 
 import com.delight.account.model.Account;
 import com.delight.account.model.AccountStatus;
-import com.delight.account.model.PlanType;
 import com.delight.account.repository.AccountRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -41,10 +40,9 @@ public class TestAccountUpdate implements CommandLineRunner {
             // Create a test account
             Account account = new Account();
             account.setDomain("testdomain" + System.currentTimeMillis());
-            account.setPlan(PlanType.TRIAL);
             account.setStatus(AccountStatus.ACTIVE);
             account.setIndustryType("Technology");
-            account.setEmail("test@example.com");
+            // Note: plan and email are no longer on Account entity
             account.setCompanyName("Test Company");
             account = accountRepository.save(account);
             accountRepository.flush();

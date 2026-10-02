@@ -4,7 +4,7 @@ import com.delight.account.model.*;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.OrganizationRepository;
 import com.delight.account.repository.ProductRepository;
-import com.delight.account.service.MessagingService;
+import com.delight.account.service.KafkaEventPublisher;
 import com.delight.account.service.job.JobQueueService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,7 +42,7 @@ class AccountEventPublishingIntegrationTest {
     private JobQueueService jobQueueService;
 
     @MockBean
-    private MessagingService messagingService;
+    private KafkaEventPublisher kafkaEventPublisher;
 
     private Organization testOrganization;
     private Product testProduct;
@@ -66,15 +66,11 @@ class AccountEventPublishingIntegrationTest {
     @Test
     void accountCreated_TriggersEventPublishing() {
         // Given
-        when(messagingService.publishAccountEventWithRetry(anyString(), anyString(), any(), any()))
-            .thenReturn(true);
 
         Account account = new Account();
         account.setDomain("newaccount");
-        account.setPlan(PlanType.TRIAL);
         account.setStatus(AccountStatus.ACTIVE);
         account.setIndustryType("Technology");
-        account.setEmail("new@example.com");
         account.setCompanyName("New Company");
         account.setOrganization(testOrganization);
         account.setProduct(testProduct);
@@ -100,16 +96,12 @@ class AccountEventPublishingIntegrationTest {
     @Test
     void accountUpdated_TriggersEventPublishingWithChangeSet() {
         // Given
-        when(messagingService.publishAccountEventWithRetry(anyString(), anyString(), any(), any()))
-            .thenReturn(true);
 
         // Create account first
         Account account = new Account();
         account.setDomain("updateaccount");
-        account.setPlan(PlanType.TRIAL);
         account.setStatus(AccountStatus.ACTIVE);
         account.setIndustryType("Technology");
-        account.setEmail("update@example.com");
         account.setCompanyName("Update Company");
         account.setOrganization(testOrganization);
         account.setProduct(testProduct);
@@ -121,7 +113,6 @@ class AccountEventPublishingIntegrationTest {
 
         // When - update account
         savedAccount.setDomain("updateddomain");
-        savedAccount.setPlan(PlanType.PAID);
         savedAccount.setCompanyName("Updated Company");
         accountRepository.save(savedAccount);
         accountRepository.flush();
@@ -147,16 +138,12 @@ class AccountEventPublishingIntegrationTest {
     @Test
     void accountDeleted_TriggersEventPublishing() {
         // Given
-        when(messagingService.publishAccountEventWithRetry(anyString(), anyString(), any(), any()))
-            .thenReturn(true);
 
         // Create account first
         Account account = new Account();
         account.setDomain("deleteaccount");
-        account.setPlan(PlanType.TRIAL);
         account.setStatus(AccountStatus.ACTIVE);
         account.setIndustryType("Technology");
-        account.setEmail("delete@example.com");
         account.setCompanyName("Delete Company");
         account.setOrganization(testOrganization);
         account.setProduct(testProduct);
@@ -192,15 +179,11 @@ class AccountEventPublishingIntegrationTest {
     @Test
     void multipleAccountUpdates_TriggersMultipleEvents() {
         // Given
-        when(messagingService.publishAccountEventWithRetry(anyString(), anyString(), any(), any()))
-            .thenReturn(true);
 
         Account account = new Account();
         account.setDomain("multitest");
-        account.setPlan(PlanType.TRIAL);
         account.setStatus(AccountStatus.ACTIVE);
         account.setIndustryType("Technology");
-        account.setEmail("multi@example.com");
         account.setCompanyName("Multi Company");
         account.setOrganization(testOrganization);
         account.setProduct(testProduct);
@@ -214,7 +197,6 @@ class AccountEventPublishingIntegrationTest {
         accountRepository.save(savedAccount);
         accountRepository.flush();
 
-        savedAccount.setPlan(PlanType.PAID);
         accountRepository.save(savedAccount);
         accountRepository.flush();
 

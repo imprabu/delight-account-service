@@ -59,6 +59,10 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
     @Query("UPDATE Session s SET s.isActive = false WHERE s.expiresAt < :now")
     void deactivateExpiredSessions(@Param("now") OffsetDateTime now);
     
+    @Modifying
+    @Query("UPDATE Session s SET s.isActive = false WHERE s.account.id = :accountId AND s.isActive = true")
+    void deactivateAllByAccountId(@Param("accountId") Long accountId);
+    
     @Query("SELECT COUNT(s) FROM Session s WHERE s.user.id = :userId AND s.isActive = true")
     long countActiveSessionsByUserId(@Param("userId") Long userId);
     

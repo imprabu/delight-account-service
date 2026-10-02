@@ -59,4 +59,10 @@ public class SessionResponse {
     
     @Schema(description = "List of privilege codes accessible by the session user", example = "[\"user.create\", \"user.read\", \"account.update\"]")
     private java.util.List<String> privileges;
+    
+    @Schema(description = "Subscription information for the account")
+    private SubscriptionInfo subscription;
+    
+    @Schema(description = "List of active features with limits and usage")
+    private java.util.List<FeatureInfo> features;
 }

@@ -19,4 +19,14 @@ public interface AccountService {
      * @return list of all accounts information without user-specific data
      */
     List<AccountInfoResponse> getAllAccounts();
+    
+    /**
+     * Check if an account is active.
+     * An account is considered active if:
+     * - Account.status is ACTIVE
+     * - Subscription.status (for primary product) is TRIAL or ACTIVE
+     * @param accountId the account ID
+     * @return true if account is active, false otherwise
+     */
+    boolean isAccountActive(Long accountId);
 }

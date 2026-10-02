@@ -557,6 +557,321 @@
 			"description": "Account management endpoints"
 		},
 		{
+			"name": "Subscription Management",
+			"item": [
+				{
+					"name": "Get Current Subscription",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Subscription retrieved', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('planCode');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/{{accountId}}/subscription",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"{{accountId}}",
+								"subscription"
+							],
+							"variable": [
+								{
+									"key": "accountId",
+									"value": "1",
+									"description": "Account ID"
+								}
+							]
+						},
+						"description": "Returns the active subscription for an account. This endpoint is NOT rate-limited (uses direct path, not /api/*).\n\n**Authentication:**\n- Bearer token (Authorization header)\n- OR Session cookie (hrsession)\n\n**Response includes:**\n- planCode, planName, status\n- billingCycleStartDate, billingCycleEndDate, nextBillingDate\n- productCode"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Features",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Features retrieved', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(pm.response.json()).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/{{accountId}}/subscription/features",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"{{accountId}}",
+								"subscription",
+								"features"
+							],
+							"variable": [
+								{
+									"key": "accountId",
+									"value": "1",
+									"description": "Account ID"
+								}
+							]
+						},
+						"description": "Returns all active features with limits and current usage for an account. This endpoint is NOT rate-limited (uses direct path, not /api/*).\n\n**Response includes:**\n- Feature code, name, type\n- Limit and current usage (for usage_limit features)\n- Enabled status (for boolean features)\n- rateLimitRpm (for api.access feature)\n- allowedChannels (for channels.allowed feature)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Usage Statistics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Usage statistics retrieved', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('accountId');",
+									"    pm.expect(jsonData).to.have.property('features');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/{{accountId}}/subscription/usage",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"{{accountId}}",
+								"subscription",
+								"usage"
+							],
+							"variable": [
+								{
+									"key": "accountId",
+									"value": "1",
+									"description": "Account ID"
+								}
+							]
+						},
+						"description": "Returns usage statistics for all features. This endpoint is NOT rate-limited (uses direct path, not /api/*)."
+					},
+					"response": []
+				},
+				{
+					"name": "Upgrade Subscription (Stub)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Subscription upgrade initiated', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"planCode\": \"PROFESSIONAL\"\n}"
+						},
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/{{accountId}}/subscription/upgrade",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"{{accountId}}",
+								"subscription",
+								"upgrade"
+							],
+							"variable": [
+								{
+									"key": "accountId",
+									"value": "1",
+									"description": "Account ID"
+								}
+							]
+						},
+						"description": "Upgrades the subscription to a new plan. This is a stub implementation for development."
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Subscription (Stub)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Subscription cancellation initiated', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Host",
+								"value": "{{domain}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{domain}}:8080/accounts/{{accountId}}/subscription/cancel",
+							"protocol": "http",
+							"host": [
+								"{{domain}}"
+							],
+							"port": "8080",
+							"path": [
+								"accounts",
+								"{{accountId}}",
+								"subscription",
+								"cancel"
+							],
+							"variable": [
+								{
+									"key": "accountId",
+									"value": "1",
+									"description": "Account ID"
+								}
+							]
+						},
+						"description": "Cancels the active subscription. This is a stub implementation for development."
+					},
+					"response": []
+				}
+			],
+			"description": "Subscription and feature management endpoints. These endpoints are NOT rate-limited (use direct paths, not /api/*)."
+		},
+		{
 			"name": "User Management",
 			"item": [
 				{
@@ -953,6 +1268,359 @@
 							]
 						},
 						"description": "Validates a user session using JWT token provided in request body. **Channel authentication required** - this endpoint only works when accessed via `/channel/accounts/session/validate` URL path with Channel JWT token in Authorization header.\n\n**Authentication:**\n- Requires Channel JWT token (Bearer token) in Authorization header\n- User session JWT token in request body (`jwtToken` field)\n\n**Account Context Resolution:**\n- If `account_id` is in channel JWT → uses it directly\n- If `account_id` is NOT in channel JWT → extracts domain from Host header and looks up account\n- For domain lookup, include Host header: `Host: <domain>` (e.g., `Host: testcompany`)\n\n**User Context Resolution:**\n- If `user_id` is in channel JWT → uses it directly\n- If `user_id` is NOT in channel JWT → extracts `userId` from the user JWT token in request body\n\n**Note:** The URL must contain `/channel/` in the path. Accessing via `/accounts/session/validate` will be rejected."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Subscription (Channel)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Subscription retrieved via channel', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('planCode');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{channel_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/channel/accounts/{{accountId}}/subscription",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"channel",
+								"accounts",
+								"{{accountId}}",
+								"subscription"
+							],
+							"variable": [
+								{
+									"key": "accountId",
+									"value": "1",
+									"description": "Account ID"
+								}
+							]
+						},
+						"description": "Returns subscription details for an account. Channel authentication required."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Features (Channel)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Features retrieved via channel', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(pm.response.json()).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{channel_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/channel/accounts/{{accountId}}/features",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"channel",
+								"accounts",
+								"{{accountId}}",
+								"features"
+							],
+							"variable": [
+								{
+									"key": "accountId",
+									"value": "1",
+									"description": "Account ID"
+								}
+							]
+						},
+						"description": "Returns all active features with limits for an account. Channel authentication required."
+					},
+					"response": []
+				},
+				{
+					"name": "Increment Usage (Channel)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Usage incremented via channel', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"    pm.expect(jsonData).to.have.property('usageValue');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{channel_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"featureCode\": \"conversations.monthly\",\n    \"increment\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/channel/accounts/{{accountId}}/usage/increment",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"channel",
+								"accounts",
+								"{{accountId}}",
+								"usage",
+								"increment"
+							],
+							"variable": [
+								{
+									"key": "accountId",
+									"value": "1",
+									"description": "Account ID"
+								}
+							]
+						},
+						"description": "Increments the usage counter for a feature. Channel authentication required.\n\n**Request body:**\n- `featureCode`: Feature code (e.g., \"conversations.monthly\")\n- `increment`: Amount to increment (default: 1)"
+					},
+					"response": []
+				},
+				{
+					"name": "Decrement Usage (Channel)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Usage decremented via channel', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{channel_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"featureCode\": \"conversations.monthly\",\n    \"decrement\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/channel/accounts/{{accountId}}/usage/decrement",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"channel",
+								"accounts",
+								"{{accountId}}",
+								"usage",
+								"decrement"
+							],
+							"variable": [
+								{
+									"key": "accountId",
+									"value": "1",
+									"description": "Account ID"
+								}
+							]
+						},
+						"description": "Decrements the usage counter for a feature. Channel authentication required."
+					},
+					"response": []
+				},
+				{
+					"name": "Set Usage (Channel)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Usage set via channel', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{channel_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"featureCode\": \"conversations.monthly\",\n    \"value\": 100\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/channel/accounts/{{accountId}}/usage/set",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"channel",
+								"accounts",
+								"{{accountId}}",
+								"usage",
+								"set"
+							],
+							"variable": [
+								{
+									"key": "accountId",
+									"value": "1",
+									"description": "Account ID"
+								}
+							]
+						},
+						"description": "Sets the usage value for a feature. Channel authentication required."
+					},
+					"response": []
+				},
+				{
+					"name": "Check Usage (Channel)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Usage check completed via channel', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('allowed');",
+									"    pm.expect(jsonData).to.have.property('currentUsage');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{channel_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/channel/accounts/{{accountId}}/usage/check?featureCode=conversations.monthly",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"channel",
+								"accounts",
+								"{{accountId}}",
+								"usage",
+								"check"
+							],
+							"query": [
+								{
+									"key": "featureCode",
+									"value": "conversations.monthly",
+									"description": "Feature code to check"
+								}
+							],
+							"variable": [
+								{
+									"key": "accountId",
+									"value": "1",
+									"description": "Account ID"
+								}
+							]
+						},
+						"description": "Checks if usage is within limit for a feature. Channel authentication required.\n\n**Query parameters:**\n- `featureCode`: Feature code to check (required)\n\n**Response includes:**\n- `allowed`: Boolean indicating if usage is allowed\n- `currentUsage`: Current usage value\n- `limit`: Feature limit (-1 for unlimited)\n- `remaining`: Remaining usage\n- `message`: Status message"
 					},
 					"response": []
 				},

@@ -1,0 +1,106 @@
+features:
+  - code: "conversations.monthly"
+    name: "Monthly Conversations"
+    type: "usage_limit"
+    unit: "count"
+    description: "Number of conversations allowed per billing cycle"
+    products: ["CHAT", "SUPPORT"]
+  
+  - code: "team.members"
+    name: "Team Members"
+    type: "usage_limit"
+    unit: "count"
+    description: "Maximum number of team members"
+    products: ["CHAT", "SUPPORT"]
+  
+  - code: "api.access"
+    name: "API Access"
+    type: "usage_limit"
+    unit: "rpm"
+    defaultRateLimit: 3000
+    description: "API access with rate limiting (3000 RPM)"
+    products: ["CHAT", "SUPPORT"]
+  
+  - code: "channels.allowed"
+    name: "Allowed Channels"
+    type: "list"
+    unit: "channel_codes"
+    description: "List of allowed communication channels"
+    products: ["CHAT", "SUPPORT"]
+  
+  - code: "custom.ai.training"
+    name: "Custom AI Training"
+    type: "boolean"
+    description: "Enable custom AI model training"
+    products: ["CHAT"]
+  
+  - code: "storage.gb"
+    name: "Storage"
+    type: "usage_limit"
+    unit: "gb"
+    description: "Storage limit in GB"
+    products: ["CHAT", "SUPPORT"]
+  
+  - code: "rag.storage.gb"
+    name: "RAG Storage"
+    type: "usage_limit"
+    unit: "gb"
+    description: "Total storage limit in GB for knowledge documents"
+    products: ["CHAT"]
+  
+  - code: "rag.documents.max"
+    name: "RAG Documents"
+    type: "usage_limit"
+    unit: "count"
+    description: "Maximum number of documents allowed per account"
+    products: ["CHAT"]
+  
+  - code: "rag.queries.monthly"
+    name: "RAG Monthly Queries"
+    type: "usage_limit"
+    unit: "count"
+    description: "Monthly query limit for RAG queries"
+    products: ["CHAT"]
+  
+  - code: "rag.queries.rpm"
+    name: "RAG Queries Per Minute"
+    type: "usage_limit"
+    unit: "rpm"
+    description: "Rate limit for RAG queries (queries per minute) - feature limit tracked by RAG service"
+    products: ["CHAT"]
+  
+  - code: "rag.file.upload.max_mb"
+    name: "RAG File Upload Max Size"
+    type: "usage_limit"
+    unit: "mb"
+    description: "Maximum file size per upload in MB"
+    products: ["CHAT"]
+  
+  - code: "rag.embeddings.enabled"
+    name: "RAG Embeddings"
+    type: "boolean"
+    description: "Feature flag to enable/disable document embeddings"
+    products: ["CHAT"]
+  
+  - code: "rag.advanced.search"
+    name: "RAG Advanced Search"
+    type: "boolean"
+    description: "Feature flag for advanced search features"
+    products: ["CHAT"]
+  
+  - code: "integrations.mcp_limit"
+    name: "MCP Integrations Limit"
+    type: "usage_limit"
+    unit: "count"
+    description: "Maximum number of MCP (Model Context Protocol) integrations allowed per account"
+    products: ["CHAT"]
+  
+  - code: "integrations.custom_api_limit"
+    name: "Custom API Integrations Limit"
+    type: "usage_limit"
+    unit: "count"
+    description: "Maximum number of custom API integrations allowed per account"
+    products: ["CHAT"]
+
+
+

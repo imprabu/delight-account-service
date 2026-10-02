@@ -14,6 +14,30 @@ export function getHostHeader(): string {
 }
 
 /**
+ * Redirect to signin page when 401 is received
+ */
+function redirectToSignin() {
+  // Clear any stored session data
+  if (typeof window !== 'undefined' && window.localStorage) {
+    // Clear session storage (matches the key used in SessionStore)
+    window.localStorage.removeItem('delight_session_store');
+  }
+  
+  // Redirect to root path which will show login page
+  // Check if we're already on a signin-related page to avoid redirect loops
+  const currentPath = window.location.pathname;
+  const isSigninPage = currentPath.includes('/login') || 
+                       currentPath.includes('/signup') || 
+                       currentPath.includes('/activate');
+  
+  if (!isSigninPage) {
+    // Redirect to root - App.tsx will show Login component when !isAuthenticated
+    // Use window.location.href for full page reload to ensure session state is cleared
+    window.location.href = '/';
+  }
+}
+
+/**
  * Make an API request with automatic host header and credentials
  */
 export async function apiRequest<T = any>(
@@ -22,17 +46,39 @@ export async function apiRequest<T = any>(
 ): Promise<T> {
   const hostHeader = getHostHeader();
   
+  // Determine if body is FormData - if so, don't set Content-Type (browser will set it with boundary)
+  const isFormData = options.body instanceof FormData;
+  
+  const headers: HeadersInit = {
+    'Host': hostHeader,
+    ...options.headers,
+  };
+  
+  // Only set Content-Type for non-FormData requests
+  if (!isFormData && !options.headers?.['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
   const response = await fetch(endpoint, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Host': hostHeader,
-      ...options.headers,
-    },
+    headers,
     credentials: 'include', // Automatically includes cookies
   });
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - redirect to signin page
+    if (response.status === 401) {
+      redirectToSignin();
+      let errorMessage = 'Unauthorized. Please sign in again.';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch {
+        errorMessage = response.statusText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+    
     let errorMessage = 'Request failed';
     try {
       const errorData = await response.json();

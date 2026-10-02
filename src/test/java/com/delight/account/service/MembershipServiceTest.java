@@ -7,6 +7,7 @@ import com.delight.account.exception.ApiException;
 import com.delight.account.model.*;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.MembershipRepository;
+import com.delight.account.repository.RoleRepository;
 import com.delight.account.service.impl.MembershipServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,15 @@ class MembershipServiceTest {
     @Mock
     private CacheKeyManager cacheKeyManager;
 
+    @Mock
+    private RoleRepository roleRepository;
+
+    @Mock
+    private com.delight.account.service.AuthorizationService authorizationService;
+
+    @Mock
+    private com.delight.account.service.SessionService sessionService;
+
     @InjectMocks
     private MembershipServiceImpl membershipService;
 
@@ -49,6 +59,18 @@ class MembershipServiceTest {
     private Membership testMembership1;
     private Membership testMembership2;
     private UpdateMemberRequest updateRequest;
+    private RoleEntity orgAdminRole;
+    private RoleEntity accountAdminRole;
+    private RoleEntity agentRole;
+
+    private RoleEntity createRoleEntity(String code, String name, Long id) {
+        RoleEntity role = new RoleEntity();
+        role.setId(id);
+        role.setCode(code);
+        role.setName(name);
+        role.setAccount(testAccount);
+        return role;
+    }
 
     @BeforeEach
     void setUp() {
@@ -72,23 +94,33 @@ class MembershipServiceTest {
         testUser2.setFirstName("Jane");
         testUser2.setLastName("Smith");
 
+        // Create RoleEntity objects
+        orgAdminRole = createRoleEntity("ORG_ADMIN", "Org Admin", 1L);
+        accountAdminRole = createRoleEntity("ACCOUNT_ADMIN", "Account Admin", 2L);
+        agentRole = createRoleEntity("AGENT", "Agent", 3L);
+
         testMembership1 = new Membership();
         testMembership1.setId(1L);
         testMembership1.setUser(testUser1);
         testMembership1.setAccount(testAccount);
-        testMembership1.setRole(Role.OWNER);
+        testMembership1.setRole(orgAdminRole);
         testMembership1.setStatus(MembershipStatus.ACTIVE);
 
         testMembership2 = new Membership();
         testMembership2.setId(2L);
         testMembership2.setUser(testUser2);
         testMembership2.setAccount(testAccount);
-        testMembership2.setRole(Role.ADMIN);
+        testMembership2.setRole(accountAdminRole);
         testMembership2.setStatus(MembershipStatus.ACTIVE);
 
         updateRequest = new UpdateMemberRequest();
-        updateRequest.setRole(Role.AGENT);
+        updateRequest.setRoleId(3L); // AGENT role ID
         updateRequest.setStatus(MembershipStatus.SUSPENDED);
+
+        // Mock role repository
+        when(roleRepository.findById(1L)).thenReturn(Optional.of(orgAdminRole));
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(accountAdminRole));
+        when(roleRepository.findById(3L)).thenReturn(Optional.of(agentRole));
     }
 
     @Test
@@ -109,7 +141,7 @@ class MembershipServiceTest {
         assertThat(member1.getEmailAddress()).isEqualTo("owner@example.com");
         assertThat(member1.getFirstName()).isEqualTo("John");
         assertThat(member1.getLastName()).isEqualTo("Doe");
-        assertThat(member1.getRole()).isEqualTo(Role.OWNER);
+        assertThat(member1.getRoleCode()).isEqualTo("ORG_ADMIN");
         assertThat(member1.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
 
         MemberResponse member2 = result.get(1);
@@ -117,7 +149,7 @@ class MembershipServiceTest {
         assertThat(member2.getEmailAddress()).isEqualTo("user2@test.com");
         assertThat(member2.getFirstName()).isEqualTo("Jane");
         assertThat(member2.getLastName()).isEqualTo("Smith");
-        assertThat(member2.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(member2.getRoleCode()).isEqualTo("ACCOUNT_ADMIN");
         assertThat(member2.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
 
         verify(accountRepository).findById(1L);
@@ -160,15 +192,19 @@ class MembershipServiceTest {
         when(membershipRepository.save(any(Membership.class)))
                 .thenReturn(testMembership2);
 
-        MemberResponse result = membershipService.updateMember(1L, 2L, updateRequest, Role.ADMIN, "TEST_PRODUCT");
+        when(authorizationService.hasPrivilege(anyLong(), anyLong(), eq("user.update"))).thenReturn(true);
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(2L, 1L))
+                .thenReturn(Optional.of(testMembership2));
+
+        MemberResponse result = membershipService.updateMember(1L, 2L, updateRequest, Role.ACCOUNT_ADMIN);
 
         assertThat(result.getUserId()).isEqualTo(2L);
         assertThat(result.getEmailAddress()).isEqualTo("user2@test.com");
-        assertThat(result.getRole()).isEqualTo(Role.AGENT);
+        assertThat(result.getRoleCode()).isEqualTo("AGENT");
         assertThat(result.getStatus()).isEqualTo(MembershipStatus.SUSPENDED);
 
         // Verify the membership was updated
-        assertThat(testMembership2.getRole()).isEqualTo(Role.AGENT);
+        assertThat(testMembership2.getRole().getCode()).isEqualTo("AGENT");
         assertThat(testMembership2.getStatus()).isEqualTo(MembershipStatus.SUSPENDED);
 
         verify(accountRepository).findById(1L);
@@ -182,22 +218,23 @@ class MembershipServiceTest {
     @Test
     void updateMemberOnlyUpdatesRole() {
         UpdateMemberRequest roleOnlyRequest = new UpdateMemberRequest();
-        roleOnlyRequest.setRole(Role.ADMIN);
+        roleOnlyRequest.setRoleId(2L); // ACCOUNT_ADMIN role ID
 
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.of(testAccount));
-        when(membershipRepository.findByUserIdAndAccountId(2L, 1L))
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(2L, 1L))
                 .thenReturn(Optional.of(testMembership2));
         when(membershipRepository.save(any(Membership.class)))
                 .thenReturn(testMembership2);
+        when(authorizationService.hasPrivilege(anyLong(), anyLong(), eq("user.update"))).thenReturn(true);
 
-        MemberResponse result = membershipService.updateMember(1L, 2L, roleOnlyRequest, Role.ADMIN, "TEST_PRODUCT");
+        MemberResponse result = membershipService.updateMember(1L, 2L, roleOnlyRequest, Role.ACCOUNT_ADMIN);
 
-        assertThat(result.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(result.getRoleCode()).isEqualTo("ACCOUNT_ADMIN");
         assertThat(result.getStatus()).isEqualTo(MembershipStatus.ACTIVE); // Should remain unchanged
 
         verify(membershipRepository).save(testMembership2);
-        assertThat(testMembership2.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(testMembership2.getRole().getCode()).isEqualTo("ACCOUNT_ADMIN");
         assertThat(testMembership2.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
     }
 
@@ -213,13 +250,17 @@ class MembershipServiceTest {
         when(membershipRepository.save(any(Membership.class)))
                 .thenReturn(testMembership2);
 
-        MemberResponse result = membershipService.updateMember(1L, 2L, statusOnlyRequest, Role.OWNER, "TEST_PRODUCT");
+        when(authorizationService.hasPrivilege(anyLong(), anyLong(), eq("user.update"))).thenReturn(true);
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(2L, 1L))
+                .thenReturn(Optional.of(testMembership2));
 
-        assertThat(result.getRole()).isEqualTo(Role.ADMIN); // Should remain unchanged
+        MemberResponse result = membershipService.updateMember(1L, 2L, statusOnlyRequest, Role.ORG_ADMIN);
+
+        assertThat(result.getRoleCode()).isEqualTo("ACCOUNT_ADMIN"); // Should remain unchanged
         assertThat(result.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
 
         verify(membershipRepository).save(testMembership2);
-        assertThat(testMembership2.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(testMembership2.getRole().getCode()).isEqualTo("ACCOUNT_ADMIN");
         assertThat(testMembership2.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
     }
 
@@ -234,19 +275,23 @@ class MembershipServiceTest {
         when(membershipRepository.save(any(Membership.class)))
                 .thenReturn(testMembership2);
 
-        MemberResponse result = membershipService.updateMember(1L, 2L, emptyRequest, Role.ADMIN, "TEST_PRODUCT");
+        when(authorizationService.hasPrivilege(anyLong(), anyLong(), eq("user.update"))).thenReturn(true);
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(2L, 1L))
+                .thenReturn(Optional.of(testMembership2));
 
-        assertThat(result.getRole()).isEqualTo(Role.ADMIN); // Should remain unchanged
+        MemberResponse result = membershipService.updateMember(1L, 2L, emptyRequest, Role.ACCOUNT_ADMIN);
+
+        assertThat(result.getRoleCode()).isEqualTo("ACCOUNT_ADMIN"); // Should remain unchanged
         assertThat(result.getStatus()).isEqualTo(MembershipStatus.ACTIVE); // Should remain unchanged
 
         verify(membershipRepository).save(testMembership2);
-        assertThat(testMembership2.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(testMembership2.getRole().getCode()).isEqualTo("ACCOUNT_ADMIN");
         assertThat(testMembership2.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
     }
 
     @Test
     void updateMemberThrowsExceptionWhenActorRoleIsNull() {
-        assertThatThrownBy(() -> membershipService.updateMember(1L, 2L, updateRequest, null, "TEST_PRODUCT"))
+        assertThatThrownBy(() -> membershipService.updateMember(1L, 2L, updateRequest, null))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("error.authorization");
 
@@ -257,7 +302,7 @@ class MembershipServiceTest {
 
     @Test
     void updateMemberThrowsExceptionWhenActorRoleIsUser() {
-        assertThatThrownBy(() -> membershipService.updateMember(1L, 2L, updateRequest, Role.AGENT, "TEST_PRODUCT"))
+        assertThatThrownBy(() -> membershipService.updateMember(1L, 2L, updateRequest, Role.AGENT))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("error.authorization");
 
@@ -275,7 +320,10 @@ class MembershipServiceTest {
         when(membershipRepository.save(any(Membership.class)))
                 .thenReturn(testMembership2);
 
-        MemberResponse result = membershipService.updateMember(1L, 2L, updateRequest, Role.ADMIN, "TEST_PRODUCT");
+        when(authorizationService.hasPrivilege(anyLong(), anyLong(), eq("user.update"))).thenReturn(true);
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(2L, 1L))
+                .thenReturn(Optional.of(testMembership2));
+        MemberResponse result = membershipService.updateMember(1L, 2L, updateRequest, Role.ACCOUNT_ADMIN);
 
         assertThat(result).isNotNull();
         verify(accountRepository).findById(1L);
@@ -292,7 +340,10 @@ class MembershipServiceTest {
         when(membershipRepository.save(any(Membership.class)))
                 .thenReturn(testMembership2);
 
-        MemberResponse result = membershipService.updateMember(1L, 2L, updateRequest, Role.OWNER, "TEST_PRODUCT");
+        when(authorizationService.hasPrivilege(anyLong(), anyLong(), eq("user.update"))).thenReturn(true);
+        when(membershipRepository.findByUserIdAndAccountIdWithRole(2L, 1L))
+                .thenReturn(Optional.of(testMembership2));
+        MemberResponse result = membershipService.updateMember(1L, 2L, updateRequest, Role.ORG_ADMIN);
 
         assertThat(result).isNotNull();
         verify(accountRepository).findById(1L);
@@ -305,7 +356,7 @@ class MembershipServiceTest {
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> membershipService.updateMember(1L, 2L, updateRequest, Role.ADMIN, "TEST_PRODUCT"))
+        assertThatThrownBy(() -> membershipService.updateMember(1L, 2L, updateRequest, Role.ACCOUNT_ADMIN))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("error.account.notfound");
 
@@ -321,7 +372,7 @@ class MembershipServiceTest {
         when(membershipRepository.findByUserIdAndAccountId(2L, 1L))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> membershipService.updateMember(1L, 2L, updateRequest, Role.ADMIN, "TEST_PRODUCT"))
+        assertThatThrownBy(() -> membershipService.updateMember(1L, 2L, updateRequest, Role.ACCOUNT_ADMIN))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("error.user.notfound");
 
@@ -340,7 +391,7 @@ class MembershipServiceTest {
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.of(testAccount));
 
-        assertThatThrownBy(() -> membershipService.updateMember(1L, 2L, updateRequest, Role.OWNER, "EXPECTED_PRODUCT"))
+        assertThatThrownBy(() -> membershipService.updateMember(1L, 2L, updateRequest, Role.ORG_ADMIN))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("error.authorization");
 
@@ -352,30 +403,33 @@ class MembershipServiceTest {
     @Test
     void updateMemberUpdatesAllRoleTypes() {
         // Test updating to each role type
-        Role[] roles = {Role.AGENT, Role.ADMIN, Role.OWNER};
+        RoleEntity[] roles = {agentRole, accountAdminRole, orgAdminRole};
+        Long[] roleIds = {3L, 2L, 1L};
+        String[] roleCodes = {"AGENT", "ACCOUNT_ADMIN", "ORG_ADMIN"};
         
-        for (Role targetRole : roles) {
+        for (int i = 0; i < roles.length; i++) {
             UpdateMemberRequest roleRequest = new UpdateMemberRequest();
-            roleRequest.setRole(targetRole);
+            roleRequest.setRoleId(roleIds[i]);
             
             Membership testMembership = new Membership();
             testMembership.setId(2L);
             testMembership.setUser(testUser2);
             testMembership.setAccount(testAccount);
-            testMembership.setRole(Role.AGENT); // Start with AGENT role
+            testMembership.setRole(agentRole); // Start with AGENT role
             testMembership.setStatus(MembershipStatus.ACTIVE);
 
             when(accountRepository.findById(1L))
                     .thenReturn(Optional.of(testAccount));
-            when(membershipRepository.findByUserIdAndAccountId(2L, 1L))
+            when(membershipRepository.findByUserIdAndAccountIdWithRole(2L, 1L))
                     .thenReturn(Optional.of(testMembership));
             when(membershipRepository.save(any(Membership.class)))
                     .thenReturn(testMembership);
+            when(authorizationService.hasPrivilege(anyLong(), anyLong(), eq("user.update"))).thenReturn(true);
 
-            MemberResponse result = membershipService.updateMember(1L, 2L, roleRequest, Role.OWNER, "TEST_PRODUCT");
+            MemberResponse result = membershipService.updateMember(1L, 2L, roleRequest, Role.ORG_ADMIN);
 
-            assertThat(result.getRole()).isEqualTo(targetRole);
-            assertThat(testMembership.getRole()).isEqualTo(targetRole);
+            assertThat(result.getRoleCode()).isEqualTo(roleCodes[i]);
+            assertThat(testMembership.getRole().getCode()).isEqualTo(roleCodes[i]);
         }
     }
 
@@ -392,17 +446,18 @@ class MembershipServiceTest {
             testMembership.setId(2L);
             testMembership.setUser(testUser2);
             testMembership.setAccount(testAccount);
-            testMembership.setRole(Role.ADMIN);
+            testMembership.setRole(accountAdminRole);
             testMembership.setStatus(MembershipStatus.ACTIVE); // Start with ACTIVE status
 
             when(accountRepository.findById(1L))
                     .thenReturn(Optional.of(testAccount));
-            when(membershipRepository.findByUserIdAndAccountId(2L, 1L))
+            when(membershipRepository.findByUserIdAndAccountIdWithRole(2L, 1L))
                     .thenReturn(Optional.of(testMembership));
             when(membershipRepository.save(any(Membership.class)))
                     .thenReturn(testMembership);
+            when(authorizationService.hasPrivilege(anyLong(), anyLong(), eq("user.update"))).thenReturn(true);
 
-            MemberResponse result = membershipService.updateMember(1L, 2L, statusRequest, Role.ADMIN, "TEST_PRODUCT");
+            MemberResponse result = membershipService.updateMember(1L, 2L, statusRequest, Role.ACCOUNT_ADMIN);
 
             assertThat(result.getStatus()).isEqualTo(targetStatus);
             assertThat(testMembership.getStatus()).isEqualTo(targetStatus);

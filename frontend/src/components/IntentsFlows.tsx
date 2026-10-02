@@ -1,7 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Brain, Database, Target, Sparkles, Code, Link2, Zap, Settings as SettingsIcon, ChevronRight, HelpCircle, Save, X, CheckCircle, MessageSquare, User, FileText } from 'lucide-react';
 import { BackToSettings } from './BackToSettings';
 import { DemoBanner } from './DemoBanner';
+import { 
+  getIntentIntegrationMappings, 
+  createIntentIntegrationMapping, 
+  deleteIntentIntegrationMapping,
+  IntentIntegrationMapping,
+  McpResource
+} from '../utils/integrationsApi';
+import { apiGet } from '../utils/api';
 
 interface IntentsFlowsProps {
   onNavigate: (screen: string) => void;
@@ -983,6 +991,11 @@ function IntentEditor({ intent, onSave, onClose }: any) {
 // Action Form Component
 function ActionForm({ onSave, onClose }: { onSave: (action: any) => void; onClose: () => void }) {
   const [actionType, setActionType] = useState<'mcp' | 'api' | 'integration'>('mcp');
+  const [availableMcpResources, setAvailableMcpResources] = useState<McpResource[]>([]);
+  const [availableCustomApis, setAvailableCustomApis] = useState<any[]>([]);
+  const [actionMappings, setActionMappings] = useState<IntentIntegrationMapping[]>([]);
+  const [loadingMappings, setLoadingMappings] = useState(false);
+  const [loadingResources, setLoadingResources] = useState(false);
   const [description, setDescription] = useState('');
   
   // MCP fields
@@ -1000,44 +1013,87 @@ function ActionForm({ onSave, onClose }: { onSave: (action: any) => void; onClos
   const [integrationAction, setIntegrationAction] = useState('');
   const [integrationConfig, setIntegrationConfig] = useState('{}');
 
-  const mcpTools = [
-    { 
-      value: 'create_support_ticket', 
-      label: 'Create Support Ticket', 
-      description: 'Create a new support ticket in your system',
-      llmDescription: 'Create a support ticket when the user reports an issue that needs tracking, escalation, or follow-up. Use this for technical problems, bugs, or requests that cannot be immediately resolved.'
-    },
-    { 
-      value: 'get_order_status', 
-      label: 'Get Order Status', 
-      description: 'Fetch order information by order ID',
-      llmDescription: 'Retrieve order details when the user provides an order number or asks about their order status. Extract the order ID from the conversation.'
-    },
-    { 
-      value: 'get_tracking_info', 
-      label: 'Get Tracking Info', 
-      description: 'Get shipping tracking details',
-      llmDescription: 'Get shipping tracking information when the order has been shipped and the user wants delivery updates, tracking numbers, or estimated arrival times.'
-    },
-    { 
-      value: 'update_customer_profile', 
-      label: 'Update Customer Profile', 
-      description: 'Update customer information',
-      llmDescription: 'Update customer profile information when the user explicitly requests to change their details, such as email, phone number, address, or payment method.'
-    },
-    { 
-      value: 'search_knowledge_base', 
-      label: 'Search Knowledge Base', 
-      description: 'Perform custom knowledge search',
-      llmDescription: 'Search the knowledge base when the user asks questions that might be answered by documentation, FAQs, or help articles. Use this to find relevant information before responding.'
-    },
-    { 
-      value: 'create_calendar_event', 
-      label: 'Create Calendar Event', 
-      description: 'Schedule appointments or meetings',
-      llmDescription: 'Schedule a calendar event when the user provides a specific date and time for a meeting, demo, or appointment, or when they agree to a suggested time slot.'
-    },
-  ];
+  // Fetch MCP resources when MCP action type is selected
+  useEffect(() => {
+    if (actionType === 'mcp') {
+      loadMcpResources();
+    }
+  }, [actionType]);
+
+  const loadMcpResources = async () => {
+    try {
+      setLoadingResources(true);
+      // Fetch all MCP integrations first
+      const integrations = await apiGet<any[]>(`/rag/integrations?integrationType=mcp`);
+      
+      // Fetch resources from all MCP integrations
+      const allResources: McpResource[] = [];
+      for (const integration of integrations || []) {
+        try {
+          const resources = await getMcpResources(integration.id, 'tool');
+          allResources.push(...resources);
+        } catch (err) {
+          console.error(`Error loading resources for integration ${integration.id}:`, err);
+        }
+      }
+      
+      setAvailableMcpResources(allResources);
+    } catch (err: any) {
+      console.error('Error loading MCP resources:', err);
+      setAvailableMcpResources([]);
+    } finally {
+      setLoadingResources(false);
+    }
+  };
+
+  // Fallback to hardcoded tools if no resources are available
+  const mcpTools = availableMcpResources.length > 0
+    ? availableMcpResources
+        .filter(r => r.contentType === 'tool')
+        .map(r => ({
+          value: r.mcpIdentifier,
+          label: r.name,
+          description: r.description || '',
+          llmDescription: r.useCases || r.description || ''
+        }))
+    : [
+        { 
+          value: 'create_support_ticket', 
+          label: 'Create Support Ticket', 
+          description: 'Create a new support ticket in your system',
+          llmDescription: 'Create a support ticket when the user reports an issue that needs tracking, escalation, or follow-up. Use this for technical problems, bugs, or requests that cannot be immediately resolved.'
+        },
+        { 
+          value: 'get_order_status', 
+          label: 'Get Order Status', 
+          description: 'Fetch order information by order ID',
+          llmDescription: 'Retrieve order details when the user provides an order number or asks about their order status. Extract the order ID from the conversation.'
+        },
+        { 
+          value: 'get_tracking_info', 
+          label: 'Get Tracking Info', 
+          description: 'Get shipping tracking details',
+          llmDescription: 'Get shipping tracking information when the order has been shipped and the user wants delivery updates, tracking numbers, or estimated arrival times.'
+        },
+        { 
+          value: 'update_customer_profile', 
+          label: 'Update Customer Profile', 
+          description: 'Update customer information',
+          llmDescription: 'Update customer profile information when the user explicitly requests to change their details, such as email, phone number, address, or payment method.'
+        },
+        { 
+          value: 'search_knowledge_base', 
+          label: 'Search Knowledge Base', 
+          description: 'Perform custom knowledge search',
+          llmDescription: 'Search the knowledge base when the user asks questions that might be answered by documentation, FAQs, or help articles. Use this to find relevant information before responding.'
+        },
+        { 
+          value: 'create_calendar_event', 
+          label: 'Create Calendar Event', 
+          description: 'Schedule appointments or meetings',
+          llmDescription: 'Schedule a calendar event when the user provides a specific date and time for a meeting, demo, or appointment, or when they agree to a suggested time slot.'
+        },
+      ];
 
   const integrations = [
     { 
@@ -1223,28 +1279,41 @@ function ActionForm({ onSave, onClose }: { onSave: (action: any) => void; onClos
             <div className="space-y-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
               <div>
                 <label className="block text-gray-700 mb-2 text-sm">Select MCP Tool</label>
-                <select
-                  value={mcpTool}
-                  onChange={(e) => {
-                    setMcpTool(e.target.value);
-                    const selectedTool = mcpTools.find(t => t.value === e.target.value);
-                    if (selectedTool?.llmDescription && !description) {
-                      setDescription(selectedTool.llmDescription);
-                    }
-                  }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="">Choose a tool...</option>
-                  {mcpTools.map(tool => (
-                    <option key={tool.value} value={tool.value}>
-                      {tool.label}
-                    </option>
-                  ))}
-                </select>
-                {mcpTool && (
-                  <p className="text-xs text-gray-600 mt-1">
-                    {mcpTools.find(t => t.value === mcpTool)?.description}
-                  </p>
+                {loadingResources ? (
+                  <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-500">
+                    Loading MCP resources...
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      value={mcpTool}
+                      onChange={(e) => {
+                        setMcpTool(e.target.value);
+                        const selectedTool = mcpTools.find(t => t.value === e.target.value);
+                        if (selectedTool?.llmDescription && !description) {
+                          setDescription(selectedTool.llmDescription);
+                        }
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="">Choose a tool...</option>
+                      {mcpTools.map(tool => (
+                        <option key={tool.value} value={tool.value}>
+                          {tool.label}
+                        </option>
+                      ))}
+                    </select>
+                    {mcpTool && (
+                      <p className="text-xs text-gray-600 mt-1">
+                        {mcpTools.find(t => t.value === mcpTool)?.description}
+                      </p>
+                    )}
+                    {availableMcpResources.length === 0 && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        No MCP resources found. Sync resources in the Integrations page first.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -1543,7 +1612,8 @@ function ActionForm({ onSave, onClose }: { onSave: (action: any) => void; onClos
               disabled={
                 (actionType === 'mcp' && !mcpTool) ||
                 (actionType === 'api' && !apiEndpoint) ||
-                (actionType === 'integration' && (!integrationService || !integrationAction))
+                (actionType === 'integration' && (!integrationService || !integrationAction)) ||
+                loadingResources
               }
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full sm:w-auto"
             >

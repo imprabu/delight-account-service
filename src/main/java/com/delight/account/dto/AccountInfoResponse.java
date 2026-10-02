@@ -1,7 +1,6 @@
 package com.delight.account.dto;
 
 import com.delight.account.model.AccountStatus;
-import com.delight.account.model.PlanType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,8 +15,8 @@ public class AccountInfoResponse {
     private Long id;
     @Schema(description = "Account domain used for routing and access", example = "acme-corp.delight.com")
     private String domain;
-    @Schema(description = "Subscription plan type for the account", example = "PREMIUM")
-    private PlanType plan;
+    @Schema(description = "Subscription plan code for the account (fetched from subscription)", example = "ENTERPRISE")
+    private String plan;
     @Schema(description = "Current status of the account", example = "ACTIVE")
     private AccountStatus status;
     @Schema(description = "Industry type or business category", example = "Software")

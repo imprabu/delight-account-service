@@ -96,10 +96,9 @@ class SignupServiceImplTest {
         verify(accountRepository).save(accountCaptor.capture());
         Account savedAccount = accountCaptor.getValue();
         assertThat(savedAccount.getDomain()).isEqualTo("testco");
-        assertThat(savedAccount.getPlan()).isEqualTo(PlanType.TRIAL);
         assertThat(savedAccount.getStatus()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(savedAccount.getIndustryType()).isEqualTo("IT");
-        assertThat(savedAccount.getEmail()).isEqualTo("test@example.com");
+        // Note: email is no longer on Account entity
         assertThat(savedAccount.getCompanyName()).isEqualTo("TestCo");
         assertThat(savedAccount.getOrganization()).isNotNull();
         assertThat(savedAccount.getProduct()).isEqualTo(chatProduct);
@@ -121,7 +120,9 @@ class SignupServiceImplTest {
         Membership savedMembership = membershipCaptor.getValue();
         assertThat(savedMembership.getAccount()).isEqualTo(savedAccount);
         assertThat(savedMembership.getUser()).isEqualTo(savedUser);
-        assertThat(savedMembership.getRole()).isEqualTo(Role.OWNER);
+        // Note: role is now RoleEntity, not Role enum
+        assertThat(savedMembership.getRole()).isNotNull();
+        assertThat(savedMembership.getRole().getCode()).isEqualTo("ORG_ADMIN");
         assertThat(savedMembership.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
 
         // Verify cache warming for the newly created user

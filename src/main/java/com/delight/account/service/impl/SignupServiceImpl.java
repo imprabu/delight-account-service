@@ -11,7 +11,6 @@ import com.delight.account.model.Product;
 import com.delight.account.model.User;
 import com.delight.account.model.AccountStatus;
 import com.delight.account.model.MembershipStatus;
-import com.delight.account.model.PlanType;
 import com.delight.account.model.RoleEntity;
 import com.delight.account.model.UserStatus;
 import com.delight.account.repository.AccountRepository;
@@ -20,8 +19,11 @@ import com.delight.account.repository.OrganizationRepository;
 import com.delight.account.repository.ProductRepository;
 import com.delight.account.repository.RoleRepository;
 import com.delight.account.repository.UserRepository;
+import com.delight.account.service.AccountService;
 import com.delight.account.service.CacheService;
+import com.delight.account.service.FeatureConfigService;
 import com.delight.account.service.SignupService;
+import com.delight.account.service.SubscriptionService;
 import com.delight.account.service.cache.IProductCacheService;
 import com.delight.account.util.LoggingUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -48,6 +51,9 @@ public class SignupServiceImpl implements SignupService {
 
     @Autowired
     private AccountRepository accountRepository;
+    
+    @Autowired
+    private AccountService accountService;
 
     @Autowired
     private OrganizationRepository organizationRepository;
@@ -75,6 +81,12 @@ public class SignupServiceImpl implements SignupService {
 
     @Autowired
     private com.delight.account.service.NotificationService notificationService;
+
+    @Autowired
+    private SubscriptionService subscriptionService;
+
+    @Autowired
+    private FeatureConfigService featureConfigService;
 
     @Value("${signup.common.email.providers:gmail.com,yahoo.com,outlook.com,yandex.com,rediff.com,zoho.com}")
     private String commonEmailProvidersConfig;
@@ -141,12 +153,16 @@ public class SignupServiceImpl implements SignupService {
             }
             
             String base = domain;
-            for (int i = 0; i < 5 && accountRepository
-                    .findByDomainAndStatus(domain, AccountStatus.ACTIVE)
-                    .isPresent(); i++) {
-                domain = base + random.nextInt(10_000);
+            for (int i = 0; i < 5; i++) {
+                Optional<Account> existingAccountOpt = accountRepository.findByDomain(domain);
+                if (existingAccountOpt.isPresent() && accountService.isAccountActive(existingAccountOpt.get().getId())) {
+                    domain = base + random.nextInt(10_000);
+                } else {
+                    break;
+                }
             }
-            if (accountRepository.findByDomainAndStatus(domain, AccountStatus.ACTIVE).isPresent()) {
+            Optional<Account> finalCheckOpt = accountRepository.findByDomain(domain);
+            if (finalCheckOpt.isPresent() && accountService.isAccountActive(finalCheckOpt.get().getId())) {
                 throw new ApiException("Unable to generate unique domain after 5 retries");
             }
             // Look up product from database using productCode from request
@@ -173,7 +189,7 @@ public class SignupServiceImpl implements SignupService {
             account.setOrganization(org);
             account.setProduct(product);
             account.setDomain(domain);
-            account.setPlan(PlanType.TRIAL);
+            // Account status will be set to ACTIVE when subscription is created (subscription status is TRIAL)
             account.setStatus(AccountStatus.ACTIVE);
             account.setIndustryType(request.getIndustryType());
             account.setCompanyName(request.getCompanyName());
@@ -217,6 +233,36 @@ public class SignupServiceImpl implements SignupService {
             membership.setStatus(MembershipStatus.ACTIVE);
             membershipRepository.save(membership);
             logger.debug("✅ [SIGNUP] ORG_ADMIN membership created. Membership ID: {} (user has all privileges including account admin)", membership.getId());
+            
+            // Create subscription with ENTERPRISE plan for the product
+            try {
+                String productCode = product.getCode();
+                logger.debug("🔄 [SIGNUP] Creating ENTERPRISE subscription for account: {}, product: {}", 
+                    account.getId(), productCode);
+                
+                // Verify ENTERPRISE plan exists for this product
+                var planConfigOpt = featureConfigService.getPlanConfig(productCode, "ENTERPRISE");
+                if (planConfigOpt.isEmpty()) {
+                    logger.warn("⚠️ [SIGNUP] ENTERPRISE plan not found for product: {}. Skipping subscription creation.", 
+                        productCode);
+                } else {
+                    com.delight.account.model.Subscription subscription = subscriptionService.createSubscription(
+                        account.getId(), 
+                        productCode, 
+                        "ENTERPRISE"
+                    );
+                    logger.info("✅ [SIGNUP] ENTERPRISE subscription created. Subscription ID: {}, Account ID: {}, Product: {}", 
+                        subscription.getId(), account.getId(), productCode);
+                }
+            } catch (Exception e) {
+                // Log error but don't fail signup if subscription creation fails
+                logger.error("⚠️ [SIGNUP] Failed to create ENTERPRISE subscription for account: {}, product: {}. Error: {}", 
+                    account.getId(), product.getCode(), e.getMessage(), e);
+                LoggingUtils.logBusinessOperation(logger, "CREATE_SUBSCRIPTION", "FAILED", 
+                    "accountId", account.getId(), 
+                    "productCode", product.getCode(),
+                    "error", e.getMessage());
+            }
             
             // Generate activation token and send welcome email with activation link
             try {

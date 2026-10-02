@@ -8,10 +8,10 @@ import com.delight.account.model.ActivationToken;
 import com.delight.account.model.User;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.UserRepository;
+import com.delight.account.service.AccountService;
 import com.delight.account.service.ActivationService;
 import com.delight.account.service.ActivationTokenService;
 import com.delight.account.model.Account;
-import com.delight.account.model.AccountStatus;
 import com.delight.account.util.LoggingUtils;
 import com.delight.account.util.DomainHelper;
 import jakarta.validation.Valid;
@@ -42,16 +42,18 @@ public class ActivationController {
     private final ActivationService activationService;
     private final MessageSource messageSource;
     private final AccountRepository accountRepository;
+    private final AccountService accountService;
     private final DomainHelper domainHelper;
     private final ActivationTokenService activationTokenService;
     private final UserRepository userRepository;
 
     public ActivationController(ActivationService activationService, MessageSource messageSource, 
-                                AccountRepository accountRepository, DomainHelper domainHelper,
+                                AccountRepository accountRepository, AccountService accountService, DomainHelper domainHelper,
                                 ActivationTokenService activationTokenService, UserRepository userRepository) {
         this.activationService = activationService;
         this.messageSource = messageSource;
         this.accountRepository = accountRepository;
+        this.accountService = accountService;
         this.domainHelper = domainHelper;
         this.activationTokenService = activationTokenService;
         this.userRepository = userRepository;
@@ -142,12 +144,18 @@ public class ActivationController {
             // Traditional domain-based activation
             String domain = domainHelper.extractSubdomainFromServerName(attr.getRequest());
             
-            Optional<Account> accountOpt = accountRepository.findByDomainAndStatus(domain, AccountStatus.ACTIVE);
+            Optional<Account> accountOpt = accountRepository.findByDomain(domain);
             if (accountOpt.isEmpty()) {
                 throw new ApiException("error.account.notfound");
             }
             
-            accountId = accountOpt.get().getId();
+            Account account = accountOpt.get();
+            // Check if account is active (account.status is ACTIVE and subscription.status is TRIAL or ACTIVE)
+            if (!accountService.isAccountActive(account.getId())) {
+                throw new ApiException("error.account.notfound");
+            }
+            
+            accountId = account.getId();
         }
         
         // Get locale from request (Spring's LocaleResolver handles Accept-Language header properly)

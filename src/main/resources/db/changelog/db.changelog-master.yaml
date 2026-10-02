@@ -39,3 +39,13 @@ databaseChangeLog:
       file: db/changelog/20251201-add-sessions-last-active-index.yaml
   - include:
       file: db/changelog/20251208-create-activation-tokens.yaml
+  - include:
+      file: db/changelog/20250101-create-subscriptions.yaml
+  - include:
+      file: db/changelog/20250101-create-subscription-features.yaml
+  - include:
+      file: db/changelog/20250101-create-feature-usage.yaml
+  - include:
+      file: db/changelog/20250112-remove-account-plan-column.yaml
+  - include:
+      file: db/changelog/20250112-make-subscription-billing-nullable.yaml

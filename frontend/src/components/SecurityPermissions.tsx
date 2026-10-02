@@ -1,20 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Users, Plus, Search, Mail, Shield, Crown, User, Settings, Trash2, X, Check, Edit2, Copy, ChevronDown, AlertCircle, Lock, Unlock, Key, Clock, Globe, FileText, Eye, Activity, Smartphone } from 'lucide-react';
 import { BackToSettings } from './BackToSettings';
 import { DemoBanner } from './DemoBanner';
-import { apiGet, apiPost, apiPatch, apiDelete } from '../utils/api';
-import { MemberResponse, RoleResponse, InviteMemberRequest, UpdateMemberRequest } from '../types/member';
 
 interface SecurityPermissionsProps {
   currentPlan?: 'free' | 'professional' | 'enterprise';
   onNavigate?: (screen: string) => void;
 }
 
-// Role interface is now RoleResponse from API
-type Role = RoleResponse;
+interface Role {
+  id: string;
+  name: string;
+  description: string;
+  isCustom: boolean;
+  basedOn?: string;
+  permissions: {
+    [key: string]: boolean;
+  };
+}
 
-// TeamMember interface matches MemberResponse from API
-type TeamMember = MemberResponse;
+interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: 'active' | 'invited' | 'inactive';
+  avatar?: string;
+  lastActive?: string;
+  invitedAt?: string;
+  twoFactorEnabled?: boolean;
+}
 
 interface AuditLog {
   id: string;
@@ -64,7 +79,6 @@ const DEFAULT_PERMISSIONS = {
 };
 
 export function SecurityPermissions({ currentPlan = 'professional', onNavigate }: SecurityPermissionsProps) {
-  // All state declarations must be at the top, before any useEffect hooks or functions that use them
   const [searchQuery, setSearchQuery] = useState('');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
@@ -80,13 +94,71 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
   const [ipWhitelistEnabled, setIpWhitelistEnabled] = useState(false);
   const [ipWhitelist, setIpWhitelist] = useState<string[]>(['192.168.1.0/24']);
 
-  // Data state - must be declared before useEffect hooks that use them
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [roles, setRoles] = useState<RoleResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
-  const [showEditRoleModal, setShowEditRoleModal] = useState(false);
+  // Check plan capabilities
+  const canManageUsers = currentPlan !== 'free';
+  const canCreateCustomRoles = currentPlan === 'enterprise';
+  const hasAdvancedSecurity = currentPlan === 'enterprise';
+
+  // Default roles based on plan
+  const [roles, setRoles] = useState<Role[]>([
+    {
+      id: 'account_admin',
+      name: 'Account Admin',
+      description: 'Full access to all features and settings',
+      isCustom: false,
+      permissions: Object.keys(DEFAULT_PERMISSIONS).reduce((acc, key) => {
+        acc[key] = true;
+        return acc;
+      }, {} as { [key: string]: boolean })
+    },
+    ...(currentPlan !== 'free' ? [{
+      id: 'agent',
+      name: 'Agent',
+      description: 'Can handle conversations and view contacts',
+      isCustom: false,
+      permissions: {
+        view_conversations: true,
+        reply_conversations: true,
+        assign_conversations: true,
+        view_contacts: true,
+        edit_contacts: true,
+        view_analytics: true,
+        view_bot_settings: true,
+        view_channels: true,
+        view_settings: true,
+      }
+    }] : []),
+  ]);
+
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
+    {
+      id: '1',
+      name: 'John Doe',
+      email: 'john@company.com',
+      role: 'account_admin',
+      status: 'active',
+      lastActive: '2 minutes ago',
+      twoFactorEnabled: true
+    },
+    {
+      id: '2',
+      name: 'Sarah Smith',
+      email: 'sarah@company.com',
+      role: 'agent',
+      status: 'active',
+      lastActive: '1 hour ago',
+      twoFactorEnabled: true
+    },
+    {
+      id: '3',
+      name: 'Mike Johnson',
+      email: 'mike@company.com',
+      role: 'agent',
+      status: 'invited',
+      invitedAt: '2 days ago',
+      twoFactorEnabled: false
+    },
+  ]);
 
   const [auditLogs] = useState<AuditLog[]>([
     {
@@ -137,76 +209,26 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
   ]);
 
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<string>('');
-  const [editRoleId, setEditRoleId] = useState<number | null>(null);
+  const [inviteRole, setInviteRole] = useState('agent');
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDescription, setNewRoleDescription] = useState('');
   const [newRoleBasedOn, setNewRoleBasedOn] = useState('agent');
   const [newRolePermissions, setNewRolePermissions] = useState<{ [key: string]: boolean }>({});
 
-  // Check plan capabilities
-  const canManageUsers = currentPlan !== 'free';
-  const canCreateCustomRoles = currentPlan === 'enterprise';
-  const hasAdvancedSecurity = currentPlan === 'enterprise';
-
-  // Load team members and roles on mount
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Initialize inviteRole when roles are loaded
-  useEffect(() => {
-    if (roles.length > 0 && !inviteRole) {
-      // Default to first non-ORG_ADMIN role, or first role if all are ORG_ADMIN
-      const defaultRole = roles.find(r => r.code !== 'ORG_ADMIN') || roles[0];
-      if (defaultRole) {
-        setInviteRole(defaultRole.id.toString());
-      }
-    }
-  }, [roles, inviteRole]);
-
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [membersData, rolesData] = await Promise.all([
-        apiGet<MemberResponse[]>('/accounts/members'),
-        apiGet<RoleResponse[]>('/accounts/roles')
-      ]);
-      setTeamMembers(membersData);
-      setRoles(rolesData);
-    } catch (err) {
-      console.error('Error loading team members:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load team members');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleInvite = async () => {
-    try {
-      const selectedRole = roles.find(r => r.id.toString() === inviteRole);
-      if (!selectedRole) {
-        setError('Please select a valid role');
-        return;
-      }
-
-      const request: InviteMemberRequest = {
-        emailAddress: inviteEmail,
-        roleId: selectedRole.id,
-        firstName: inviteEmail.split('@')[0], // Default to email prefix if not provided
-      };
-
-      const newMember = await apiPost<MemberResponse>('/accounts/members/invite', request);
-      setTeamMembers([...teamMembers, newMember]);
-      setInviteEmail('');
-      setInviteRole(roles.length > 0 ? roles[0].id.toString() : '');
-      setShowInviteModal(false);
-      setError(null);
-    } catch (err) {
-      console.error('Error inviting member:', err);
-      setError(err instanceof Error ? err.message : 'Failed to invite member');
-    }
+  const handleInvite = () => {
+    const newMember: TeamMember = {
+      id: Date.now().toString(),
+      name: inviteEmail.split('@')[0],
+      email: inviteEmail,
+      role: inviteRole,
+      status: 'invited',
+      invitedAt: 'Just now',
+      twoFactorEnabled: false
+    };
+    setTeamMembers([...teamMembers, newMember]);
+    setInviteEmail('');
+    setInviteRole('agent');
+    setShowInviteModal(false);
   };
 
   const handleCreateCustomRole = () => {
@@ -232,90 +254,20 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
     }
   };
 
-  const handleDeleteMember = async (userId: number) => {
-    if (!confirm('Are you sure you want to remove this team member?')) {
-      return;
-    }
-
-    try {
-      await apiDelete(`/accounts/members/${userId}`);
-      setTeamMembers(teamMembers.filter(m => m.userId !== userId));
-      setError(null);
-    } catch (err) {
-      console.error('Error removing member:', err);
-      setError(err instanceof Error ? err.message : 'Failed to remove member');
+  const handleDeleteMember = (memberId: string) => {
+    if (confirm('Are you sure you want to remove this team member?')) {
+      setTeamMembers(teamMembers.filter(m => m.id !== memberId));
     }
   };
 
-  const handleEditRole = async (member: TeamMember, newRoleId: number) => {
-    try {
-      const request: UpdateMemberRequest = {
-        roleId: newRoleId,
-      };
-      const updatedMember = await apiPatch<MemberResponse>(`/accounts/members/${member.userId}`, request);
-      setTeamMembers(teamMembers.map(m => m.userId === member.userId ? updatedMember : m));
-      setShowEditRoleModal(false);
-      setEditingMember(null);
-      setError(null);
-    } catch (err) {
-      console.error('Error updating member role:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update member role');
-    }
-  };
-
-  const getRoleById = (roleId: number) => {
+  const getRoleById = (roleId: string) => {
     return roles.find(r => r.id === roleId);
   };
 
-  const getMemberDisplayName = (member: TeamMember): string => {
-    if (member.firstName && member.lastName) {
-      return `${member.firstName} ${member.lastName}`;
-    }
-    return member.emailAddress;
-  };
-
-  const formatLastActive = (lastActiveAt?: string): string => {
-    if (!lastActiveAt) return 'Never';
-    try {
-      const date = new Date(lastActiveAt);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      const diffDays = Math.floor(diffMs / 86400000);
-
-      if (diffMins < 1) return 'Just now';
-      if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
-      if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-      if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-      return date.toLocaleDateString();
-    } catch {
-      return 'Unknown';
-    }
-  };
-
-  const formatInvitedAt = (invitedAt?: string): string => {
-    if (!invitedAt) return 'Unknown';
-    try {
-      const date = new Date(invitedAt);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffDays = Math.floor(diffMs / 86400000);
-
-      if (diffDays === 0) return 'today';
-      if (diffDays === 1) return 'yesterday';
-      if (diffDays < 7) return `${diffDays} days ago`;
-      return date.toLocaleDateString();
-    } catch {
-      return 'Unknown';
-    }
-  };
-
-  const filteredMembers = teamMembers.filter(member => {
-    const displayName = getMemberDisplayName(member);
-    return displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.emailAddress.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  const filteredMembers = teamMembers.filter(member =>
+    member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    member.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Group permissions by category
   const groupedPermissions = Object.entries(DEFAULT_PERMISSIONS).reduce((acc, [key, value]) => {
@@ -412,196 +364,107 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
       {/* Team Members Tab */}
       {selectedTab === 'members' && (
         <>
-          {/* Error Message */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
-          {/* Loading State */}
-          {loading && (
-            <div className="mb-6 text-center py-8">
-              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-              <p className="text-gray-600">Loading team members...</p>
-            </div>
-          )}
-
           {/* Actions Bar */}
-          {!loading && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search team members..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <button
-                onClick={() => setShowInviteModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
-              >
-                <Plus className="w-4 h-4" />
-                Invite Member
-              </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search team members..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
-          )}
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
+            >
+              <Plus className="w-4 h-4" />
+              Invite Member
+            </button>
+          </div>
 
           {/* Team Members List */}
-          {!loading && (
-            <div className="bg-white rounded-xl border border-gray-200">
-              {/* Desktop Table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-6 text-sm text-gray-700">Member</th>
-                      <th className="text-left py-3 px-6 text-sm text-gray-700">Role</th>
-                      <th className="text-left py-3 px-6 text-sm text-gray-700">Status</th>
-                      <th className="text-left py-3 px-6 text-sm text-gray-700">2FA</th>
-                      <th className="text-left py-3 px-6 text-sm text-gray-700">Last Active</th>
-                      <th className="text-right py-3 px-6 text-sm text-gray-700">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredMembers.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-8 text-center text-gray-500">
-                          No team members found
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredMembers.map((member) => {
-                        const role = getRoleById(member.roleId);
-                        const displayName = getMemberDisplayName(member);
-                        const isOrgAdmin = member.roleCode === 'ORG_ADMIN';
-                        return (
-                          <tr key={member.userId} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-4 px-6">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white">
-                                  {displayName.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                  <div className="text-gray-900 font-medium">{displayName}</div>
-                                  <div className="text-sm text-gray-500">{member.emailAddress}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-4 px-6">
-                              <div className="flex items-center gap-2">
-                                {isOrgAdmin ? (
-                                  <Crown className="w-4 h-4 text-yellow-600" />
-                                ) : role?.isCustom ? (
-                                  <Settings className="w-4 h-4 text-purple-600" />
-                                ) : (
-                                  <User className="w-4 h-4 text-blue-600" />
-                                )}
-                                <span className="text-gray-700">{member.roleName || role?.name || 'Unknown'}</span>
-                              </div>
-                            </td>
-                            <td className="py-4 px-6">
-                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
-                                member.status === 'ACTIVE'
-                                  ? 'bg-green-100 text-green-700'
-                                  : member.status === 'INVITED'
-                                  ? 'bg-yellow-100 text-yellow-700'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}>
-                                {member.status === 'ACTIVE' && <Check className="w-3 h-3" />}
-                                {member.status === 'INVITED' && <Mail className="w-3 h-3" />}
-                                {member.status.charAt(0) + member.status.slice(1).toLowerCase()}
-                              </span>
-                            </td>
-                            <td className="py-4 px-6">
-                              {member.twoFactorEnabled ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-green-100 text-green-700">
-                                  <Shield className="w-3 h-3" />
-                                  Enabled
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
-                                  <AlertCircle className="w-3 h-3" />
-                                  Disabled
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-4 px-6 text-sm text-gray-600">
-                              {member.status === 'ACTIVE' 
-                                ? formatLastActive(member.lastActiveAt) 
-                                : member.invitedAt 
-                                  ? `Invited ${formatInvitedAt(member.invitedAt)}`
-                                  : 'N/A'}
-                            </td>
-                            <td className="py-4 px-6">
-                              <div className="flex items-center justify-end gap-2">
-                                <button 
-                                  onClick={() => {
-                                    setEditingMember(member);
-                                    setShowEditRoleModal(true);
-                                  }}
-                                  className="p-2 hover:bg-gray-100 rounded transition-colors" 
-                                  title="Edit role"
-                                >
-                                  <Edit2 className="w-4 h-4 text-gray-600" />
-                                </button>
-                                {!isOrgAdmin && (
-                                  <button
-                                    onClick={() => handleDeleteMember(member.userId)}
-                                    className="p-2 hover:bg-red-50 rounded transition-colors"
-                                    title="Remove member"
-                                  >
-                                    <Trash2 className="w-4 h-4 text-red-600" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile Card View */}
-              <div className="md:hidden divide-y divide-gray-200">
-                {filteredMembers.length === 0 ? (
-                  <div className="p-8 text-center text-gray-500">
-                    No team members found
-                  </div>
-                ) : (
-                  filteredMembers.map((member) => {
-                    const role = getRoleById(member.roleId);
-                    const displayName = getMemberDisplayName(member);
-                    const isOrgAdmin = member.roleCode === 'ORG_ADMIN';
+          <div className="bg-white rounded-xl border border-gray-200">
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-6 text-sm text-gray-700">Member</th>
+                    <th className="text-left py-3 px-6 text-sm text-gray-700">Role</th>
+                    <th className="text-left py-3 px-6 text-sm text-gray-700">Status</th>
+                    <th className="text-left py-3 px-6 text-sm text-gray-700">2FA</th>
+                    <th className="text-left py-3 px-6 text-sm text-gray-700">Last Active</th>
+                    <th className="text-right py-3 px-6 text-sm text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMembers.map((member) => {
+                    const role = getRoleById(member.role);
                     return (
-                      <div key={member.userId} className="p-4">
-                        <div className="flex items-start gap-3 mb-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                            {displayName.charAt(0).toUpperCase()}
+                      <tr key={member.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white">
+                              {member.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="text-gray-900 font-medium">{member.name}</div>
+                              <div className="text-sm text-gray-500">{member.email}</div>
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-gray-900 font-medium">{displayName}</div>
-                            <div className="text-sm text-gray-500 truncate">{member.emailAddress}</div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-2">
+                            {member.role === 'account_admin' ? (
+                              <Crown className="w-4 h-4 text-yellow-600" />
+                            ) : role?.isCustom ? (
+                              <Settings className="w-4 h-4 text-purple-600" />
+                            ) : (
+                              <User className="w-4 h-4 text-blue-600" />
+                            )}
+                            <span className="text-gray-700">{role?.name}</span>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <button 
-                              onClick={() => {
-                                setEditingMember(member);
-                                setShowEditRoleModal(true);
-                              }}
-                              className="p-2 hover:bg-gray-100 rounded transition-colors" 
-                              title="Edit role"
-                            >
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
+                            member.status === 'active'
+                              ? 'bg-green-100 text-green-700'
+                              : member.status === 'invited'
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {member.status === 'active' && <Check className="w-3 h-3" />}
+                            {member.status === 'invited' && <Mail className="w-3 h-3" />}
+                            {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          {member.twoFactorEnabled ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-green-100 text-green-700">
+                              <Shield className="w-3 h-3" />
+                              Enabled
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
+                              <AlertCircle className="w-3 h-3" />
+                              Disabled
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4 px-6 text-sm text-gray-600">
+                          {member.status === 'active' ? member.lastActive : `Invited ${member.invitedAt}`}
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center justify-end gap-2">
+                            <button className="p-2 hover:bg-gray-100 rounded transition-colors" title="Edit role">
                               <Edit2 className="w-4 h-4 text-gray-600" />
                             </button>
-                            {!isOrgAdmin && (
+                            {member.role !== 'account_admin' && (
                               <button
-                                onClick={() => handleDeleteMember(member.userId)}
+                                onClick={() => handleDeleteMember(member.id)}
                                 className="p-2 hover:bg-red-50 rounded transition-colors"
                                 title="Remove member"
                               >
@@ -609,67 +472,97 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
                               </button>
                             )}
                           </div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">Role</span>
-                            <div className="flex items-center gap-2">
-                              {isOrgAdmin ? (
-                                <Crown className="w-4 h-4 text-yellow-600" />
-                              ) : role?.isCustom ? (
-                                <Settings className="w-4 h-4 text-purple-600" />
-                              ) : (
-                                <User className="w-4 h-4 text-blue-600" />
-                              )}
-                              <span className="text-sm text-gray-900">{member.roleName || role?.name || 'Unknown'}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">Status</span>
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
-                              member.status === 'ACTIVE'
-                                ? 'bg-green-100 text-green-700'
-                                : member.status === 'INVITED'
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : 'bg-gray-100 text-gray-700'
-                            }`}>
-                              {member.status === 'ACTIVE' && <Check className="w-3 h-3" />}
-                              {member.status === 'INVITED' && <Mail className="w-3 h-3" />}
-                              {member.status.charAt(0) + member.status.slice(1).toLowerCase()}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">2FA</span>
-                            {member.twoFactorEnabled ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-green-100 text-green-700">
-                                <Shield className="w-3 h-3" />
-                                Enabled
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
-                                <AlertCircle className="w-3 h-3" />
-                                Disabled
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">Last Active</span>
-                            <span className="text-sm text-gray-900">
-                              {member.status === 'ACTIVE' 
-                                ? formatLastActive(member.lastActiveAt) 
-                                : member.invitedAt 
-                                  ? `Invited ${formatInvitedAt(member.invitedAt)}`
-                                  : 'N/A'}
-                            </span>
-                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-gray-200">
+              {filteredMembers.map((member) => {
+                const role = getRoleById(member.role);
+                return (
+                  <div key={member.id} className="p-4">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white flex-shrink-0">
+                        {member.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-gray-900 font-medium">{member.name}</div>
+                        <div className="text-sm text-gray-500 truncate">{member.email}</div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button className="p-2 hover:bg-gray-100 rounded transition-colors" title="Edit role">
+                          <Edit2 className="w-4 h-4 text-gray-600" />
+                        </button>
+                        {member.role !== 'account_admin' && (
+                          <button
+                            onClick={() => handleDeleteMember(member.id)}
+                            className="p-2 hover:bg-red-50 rounded transition-colors"
+                            title="Remove member"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Role</span>
+                        <div className="flex items-center gap-2">
+                          {member.role === 'account_admin' ? (
+                            <Crown className="w-4 h-4 text-yellow-600" />
+                          ) : role?.isCustom ? (
+                            <Settings className="w-4 h-4 text-purple-600" />
+                          ) : (
+                            <User className="w-4 h-4 text-blue-600" />
+                          )}
+                          <span className="text-sm text-gray-900">{role?.name}</span>
                         </div>
                       </div>
-                    );
-                  })
-                )}
-              </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Status</span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
+                          member.status === 'active'
+                            ? 'bg-green-100 text-green-700'
+                            : member.status === 'invited'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {member.status === 'active' && <Check className="w-3 h-3" />}
+                          {member.status === 'invited' && <Mail className="w-3 h-3" />}
+                          {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">2FA</span>
+                        {member.twoFactorEnabled ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-green-100 text-green-700">
+                            <Shield className="w-3 h-3" />
+                            Enabled
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
+                            <AlertCircle className="w-3 h-3" />
+                            Disabled
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Last Active</span>
+                        <span className="text-sm text-gray-900">
+                          {member.status === 'active' ? member.lastActive : `Invited ${member.invitedAt}`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </div>
 
           {/* Team Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
@@ -726,13 +619,13 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                      role.code === 'ORG_ADMIN'
+                      role.id === 'account_admin'
                         ? 'bg-yellow-100'
                         : role.isCustom
                         ? 'bg-purple-100'
                         : 'bg-blue-100'
                     }`}>
-                      {role.code === 'ORG_ADMIN' ? (
+                      {role.id === 'account_admin' ? (
                         <Crown className="w-6 h-6 text-yellow-600" />
                       ) : role.isCustom ? (
                         <Settings className="w-6 h-6 text-purple-600" />
@@ -757,7 +650,7 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
                         <Edit2 className="w-4 h-4 text-gray-600" />
                       </button>
                       <button
-                        onClick={() => handleDeleteRole(role.id.toString())}
+                        onClick={() => handleDeleteRole(role.id)}
                         className="p-1.5 hover:bg-red-50 rounded transition-colors"
                       >
                         <Trash2 className="w-4 h-4 text-red-600" />
@@ -766,16 +659,36 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
                   )}
                 </div>
 
+                {role.isCustom && role.basedOn && (
+                  <div className="mb-3 text-xs text-gray-500 flex items-center gap-1">
+                    <Copy className="w-3 h-3" />
+                    Based on {roles.find(r => r.id === role.basedOn)?.name}
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  <div className="text-xs text-gray-600 font-medium">
-                    Type: <span className="font-normal">{role.roleType}</span> | Level: <span className="font-normal">{role.hierarchyLevel}</span>
+                  <div className="text-xs text-gray-600 font-medium">Permissions:</div>
+                  <div className="flex flex-wrap gap-1">
+                    {Object.entries(role.permissions)
+                      .filter(([_, enabled]) => enabled)
+                      .slice(0, 4)
+                      .map(([key]) => (
+                        <span key={key} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                          {DEFAULT_PERMISSIONS[key]?.label}
+                        </span>
+                      ))}
+                    {Object.values(role.permissions).filter(Boolean).length > 4 && (
+                      <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                        +{Object.values(role.permissions).filter(Boolean).length - 4} more
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">
-                      {teamMembers.filter(m => m.roleId === role.id).length} members
+                      {teamMembers.filter(m => m.role === role.id).length} members
                     </span>
                     <button
                       onClick={() => {
@@ -1124,15 +1037,14 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
                   onChange={(e) => setInviteRole(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="">Select a role</option>
                   {roles.map((role) => (
-                    <option key={role.id} value={role.id.toString()}>
+                    <option key={role.id} value={role.id}>
                       {role.name}
                     </option>
                   ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  {roles.find(r => r.id.toString() === inviteRole)?.description}
+                  {roles.find(r => r.id === inviteRole)?.description}
                 </p>
               </div>
             </div>
@@ -1146,7 +1058,7 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
               </button>
               <button
                 onClick={handleInvite}
-                disabled={!inviteEmail || !inviteRole}
+                disabled={!inviteEmail}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Send Invite
@@ -1204,12 +1116,13 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
                   value={newRoleBasedOn}
                   onChange={(e) => {
                     setNewRoleBasedOn(e.target.value);
-                    // Permissions will be managed via API when custom role creation is implemented
+                    const baseRole = roles.find(r => r.id === e.target.value);
+                    setNewRolePermissions(baseRole?.permissions || {});
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
                   {roles.filter(r => !r.isCustom).map((role) => (
-                    <option key={role.id} value={role.id.toString()}>
+                    <option key={role.id} value={role.id}>
                       {role.name}
                     </option>
                   ))}
@@ -1282,13 +1195,13 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                  editingRole.code === 'ORG_ADMIN'
+                  editingRole.id === 'account_admin'
                     ? 'bg-yellow-100'
                     : editingRole.isCustom
                     ? 'bg-purple-100'
                     : 'bg-blue-100'
                 }`}>
-                  {editingRole.code === 'ORG_ADMIN' ? (
+                  {editingRole.id === 'account_admin' ? (
                     <Crown className="w-6 h-6 text-yellow-600" />
                   ) : editingRole.isCustom ? (
                     <Settings className="w-6 h-6 text-purple-600" />
@@ -1316,25 +1229,31 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
               <div className="p-3 bg-gray-50 rounded-lg">
                 <div className="text-sm text-gray-600 mb-1">Team Members</div>
                 <div className="text-xl text-gray-900">
-                  {teamMembers.filter(m => m.roleId === editingRole.id).length} users
+                  {teamMembers.filter(m => m.role === editingRole.id).length} users
                 </div>
               </div>
 
               <div>
-                <h4 className="text-sm font-medium text-gray-900 mb-3">Role Information</h4>
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Permissions</h4>
                 <div className="space-y-3">
-                  <div className="border border-gray-200 rounded-lg p-3">
-                    <div className="text-sm font-medium text-gray-900 mb-2">Details</div>
-                    <div className="space-y-1 text-sm text-gray-700">
-                      <div><span className="font-medium">Code:</span> {editingRole.code}</div>
-                      <div><span className="font-medium">Type:</span> {editingRole.roleType}</div>
-                      <div><span className="font-medium">Hierarchy Level:</span> {editingRole.hierarchyLevel}</div>
-                      <div><span className="font-medium">Members:</span> {teamMembers.filter(m => m.roleId === editingRole.id).length}</div>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 italic">
-                    Permission details will be available when the privileges API is implemented.
-                  </p>
+                  {Object.entries(groupedPermissions).map(([category, permissions]) => {
+                    const enabledPerms = permissions.filter(p => editingRole.permissions[p.key]);
+                    if (enabledPerms.length === 0) return null;
+                    
+                    return (
+                      <div key={category} className="border border-gray-200 rounded-lg p-3">
+                        <div className="text-sm font-medium text-gray-900 mb-2">{category}</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {enabledPerms.map((perm) => (
+                            <div key={perm.key} className="flex items-center gap-2 text-sm text-gray-700">
+                              <Check className="w-4 h-4 text-green-600" />
+                              {perm.label}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1348,73 +1267,6 @@ export function SecurityPermissions({ currentPlan = 'professional', onNavigate }
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Role Modal */}
-      {showEditRoleModal && editingMember && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-gray-900">Edit Member Role</h3>
-              <button 
-                onClick={() => {
-                  setShowEditRoleModal(false);
-                  setEditingMember(null);
-                  setEditRoleId(null);
-                }} 
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-2">
-                Change role for <span className="font-medium text-gray-900">{getMemberDisplayName(editingMember)}</span>
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Role</label>
-                <select
-                  value={editRoleId || editingMember.roleId}
-                  onChange={(e) => setEditRoleId(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  {roles.find(r => r.id === (editRoleId || editingMember.roleId))?.description}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowEditRoleModal(false);
-                  setEditingMember(null);
-                  setEditRoleId(null);
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleEditRole(editingMember, editRoleId || editingMember.roleId)}
-                disabled={!editRoleId || editRoleId === editingMember.roleId}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Save Changes
               </button>
             </div>
           </div>

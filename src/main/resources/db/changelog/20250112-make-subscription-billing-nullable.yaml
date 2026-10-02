@@ -1,0 +1,49 @@
+databaseChangeLog:
+  - changeSet:
+      id: make-subscription-billing-nullable
+      author: system
+      comment: Make billing columns nullable in subscriptions table - TRIAL subscriptions have null billing dates
+      preConditions:
+        - onFail: MARK_RAN
+        - columnExists:
+            tableName: subscriptions
+            columnName: billing_cycle_start_date
+      changes:
+        - modifyDataType:
+            tableName: subscriptions
+            columnName: billing_cycle_start_date
+            newDataType: date
+            constraints:
+              nullable: true
+        - modifyDataType:
+            tableName: subscriptions
+            columnName: billing_cycle_end_date
+            newDataType: date
+            constraints:
+              nullable: true
+      rollback:
+        - sql:
+            sql: |
+              -- Note: Rollback may fail if there are null values
+              -- Update null values to current date before making NOT NULL
+              UPDATE subscriptions 
+              SET billing_cycle_start_date = CURRENT_DATE 
+              WHERE billing_cycle_start_date IS NULL;
+              UPDATE subscriptions 
+              SET billing_cycle_end_date = CURRENT_DATE 
+              WHERE billing_cycle_end_date IS NULL;
+        - modifyDataType:
+            tableName: subscriptions
+            columnName: billing_cycle_start_date
+            newDataType: date
+            constraints:
+              nullable: false
+        - modifyDataType:
+            tableName: subscriptions
+            columnName: billing_cycle_end_date
+            newDataType: date
+            constraints:
+              nullable: false
+
+
+

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { SessionStore, SessionResponse, SessionData, UserData, AccountData, PrivilegeData } from '../types/session';
+import { SessionStore, SessionResponse, SessionData, UserData, AccountData, PrivilegeData, SubscriptionInfo, FeatureInfo } from '../types/session';
 import { apiGet } from '../utils/api';
 
 interface SessionContextType {
@@ -7,6 +7,8 @@ interface SessionContextType {
   user: UserData | null;
   account: AccountData | null;
   privileges: PrivilegeData | null;
+  subscription: SubscriptionInfo | null;
+  features: FeatureInfo[];
   isLoading: boolean;
   isAuthenticated: boolean;
   updateSession: (sessionResponse: SessionResponse) => void;
@@ -90,6 +92,8 @@ function sessionResponseToStore(response: SessionResponse): SessionStore {
     privileges: {
       privileges: response.privileges || [],
     },
+    subscription: response.subscription || null,
+    features: response.features || [],
   };
 }
 
@@ -184,6 +188,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
     user: store?.user || null,
     account: store?.account || null,
     privileges: store?.privileges || null,
+    subscription: store?.subscription || null,
+    features: store?.features || [],
     isLoading,
     isAuthenticated: !!store?.session?.isActive,
     updateSession,

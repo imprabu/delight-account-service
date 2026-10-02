@@ -157,7 +157,7 @@ class MembershipControllerTest {
                 .emailAddress("test@example.com")
                 .firstName("Test")
                 .lastName("User")
-                .role(Role.AGENT)
+                .roleCode("AGENT")
                 .status(MembershipStatus.ACTIVE)
                 .build();
 
@@ -166,14 +166,14 @@ class MembershipControllerTest {
                 .emailAddress("admin@example.com")
                 .firstName("Admin")
                 .lastName("User")
-                .role(Role.ADMIN)
+                .roleCode("ACCOUNT_ADMIN")
                 .status(MembershipStatus.ACTIVE)
                 .build();
 
         mockMembers = Arrays.asList(mockMember, adminMember);
 
         updateRequest = new UpdateMemberRequest();
-        updateRequest.setRole(Role.ADMIN);
+        updateRequest.setRoleId(2L); // ACCOUNT_ADMIN role ID
         updateRequest.setStatus(MembershipStatus.ACTIVE);
     }
 
@@ -257,11 +257,11 @@ class MembershipControllerTest {
                 .emailAddress("user@example.com")
                 .firstName("Bob")
                 .lastName("Johnson")
-                .role(Role.ADMIN)
+                .roleCode("ACCOUNT_ADMIN")
                 .status(MembershipStatus.ACTIVE)
                 .build();
 
-        when(membershipService.updateMember(1L, 2L, updateRequest, Role.OWNER, "TEST_PRODUCT"))
+        when(membershipService.updateMember(1L, 2L, updateRequest, Role.ORG_ADMIN))
                 .thenReturn(updatedMember);
 
         MockHttpServletRequestBuilder request = patch("/account/members/2")
@@ -282,24 +282,24 @@ class MembershipControllerTest {
                 .andExpect(jsonPath("$.role").value("ADMIN"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
-        verify(membershipService).updateMember(1L, 2L, updateRequest, Role.OWNER, "TEST_PRODUCT");
+        verify(membershipService).updateMember(1L, 2L, updateRequest, Role.ORG_ADMIN);
     }
 
     @Test
     void updateMemberWithOnlyRole() throws Exception {
         UpdateMemberRequest roleOnlyRequest = new UpdateMemberRequest();
-        roleOnlyRequest.setRole(Role.AGENT);
+        roleOnlyRequest.setRoleId(3L); // AGENT role ID
 
         MemberResponse updatedMember = MemberResponse.builder()
                 .userId(2L)
                 .emailAddress("user@example.com")
                 .firstName("Bob")
                 .lastName("Johnson")
-                .role(Role.AGENT)
+                .roleCode("AGENT")
                 .status(MembershipStatus.ACTIVE)
                 .build();
 
-        when(membershipService.updateMember(1L, 2L, roleOnlyRequest, Role.ADMIN, "TEST_PRODUCT"))
+        when(membershipService.updateMember(1L, 2L, roleOnlyRequest, Role.ACCOUNT_ADMIN))
                 .thenReturn(updatedMember);
 
         MockHttpServletRequestBuilder request = patch("/account/members/2")
@@ -314,7 +314,7 @@ class MembershipControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("USER"));
 
-        verify(membershipService).updateMember(1L, 2L, roleOnlyRequest, Role.ADMIN, "TEST_PRODUCT");
+        verify(membershipService).updateMember(1L, 2L, roleOnlyRequest, Role.ACCOUNT_ADMIN);
     }
 
     @Test
@@ -327,11 +327,11 @@ class MembershipControllerTest {
                 .emailAddress("user@example.com")
                 .firstName("Bob")
                 .lastName("Johnson")
-                .role(Role.AGENT)
+                .roleCode("AGENT")
                 .status(MembershipStatus.SUSPENDED)
                 .build();
 
-        when(membershipService.updateMember(1L, 2L, statusOnlyRequest, Role.OWNER, "TEST_PRODUCT"))
+        when(membershipService.updateMember(1L, 2L, statusOnlyRequest, Role.ORG_ADMIN))
                 .thenReturn(updatedMember);
 
         MockHttpServletRequestBuilder request = patch("/account/members/2")
@@ -346,7 +346,7 @@ class MembershipControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SUSPENDED"));
 
-        verify(membershipService).updateMember(1L, 2L, statusOnlyRequest, Role.OWNER, "TEST_PRODUCT");
+        verify(membershipService).updateMember(1L, 2L, statusOnlyRequest, Role.ORG_ADMIN);
     }
 
     @Test
@@ -361,7 +361,7 @@ class MembershipControllerTest {
         mockMvc.perform(request)
                 .andExpect(status().isBadRequest());
 
-        verify(membershipService, never()).updateMember(anyLong(), anyLong(), any(), any(), anyString());
+        verify(membershipService, never()).updateMember(anyLong(), anyLong(), any(), any());
     }
 
     @Test
@@ -376,7 +376,7 @@ class MembershipControllerTest {
         mockMvc.perform(request)
                 .andExpect(status().isBadRequest());
 
-        verify(membershipService, never()).updateMember(anyLong(), anyLong(), any(), any(), anyString());
+        verify(membershipService, never()).updateMember(anyLong(), anyLong(), any(), any());
     }
 
     @Test
@@ -391,12 +391,12 @@ class MembershipControllerTest {
         mockMvc.perform(request)
                 .andExpect(status().isBadRequest());
 
-        verify(membershipService, never()).updateMember(anyLong(), anyLong(), any(), any(), anyString());
+        verify(membershipService, never()).updateMember(anyLong(), anyLong(), any(), any());
     }
 
     @Test
     void updateMemberHandlesUserNotFound() throws Exception {
-        when(membershipService.updateMember(1L, 999L, updateRequest, Role.OWNER, "TEST_PRODUCT"))
+        when(membershipService.updateMember(1L, 999L, updateRequest, Role.ORG_ADMIN))
                 .thenThrow(new ApiException("error.user.notfound"));
 
         MockHttpServletRequestBuilder request = patch("/account/members/999")
@@ -410,12 +410,12 @@ class MembershipControllerTest {
         mockMvc.perform(request)
                 .andExpect(status().isBadRequest());
 
-        verify(membershipService).updateMember(1L, 999L, updateRequest, Role.OWNER, "TEST_PRODUCT");
+        verify(membershipService).updateMember(1L, 999L, updateRequest, Role.ORG_ADMIN);
     }
 
     @Test
     void updateMemberHandlesAuthorizationError() throws Exception {
-        when(membershipService.updateMember(1L, 2L, updateRequest, Role.AGENT, "TEST_PRODUCT"))
+        when(membershipService.updateMember(1L, 2L, updateRequest, Role.AGENT))
                 .thenThrow(new ApiException("error.authorization"));
 
         MockHttpServletRequestBuilder request = patch("/account/members/2")
@@ -429,7 +429,7 @@ class MembershipControllerTest {
         mockMvc.perform(request)
                 .andExpect(status().isBadRequest());
 
-        verify(membershipService).updateMember(1L, 2L, updateRequest, Role.AGENT, "TEST_PRODUCT");
+        verify(membershipService).updateMember(1L, 2L, updateRequest, Role.AGENT);
     }
 
     @Test
@@ -441,11 +441,11 @@ class MembershipControllerTest {
                 .emailAddress("user@example.com")
                 .firstName("Bob")
                 .lastName("Johnson")
-                .role(Role.AGENT)
+                .roleCode("AGENT")
                 .status(MembershipStatus.ACTIVE)
                 .build();
 
-        when(membershipService.updateMember(1L, 2L, emptyRequest, Role.OWNER, "TEST_PRODUCT"))
+        when(membershipService.updateMember(1L, 2L, emptyRequest, Role.ORG_ADMIN))
                 .thenReturn(unchangedMember);
 
         MockHttpServletRequestBuilder request = patch("/account/members/2")
@@ -462,7 +462,7 @@ class MembershipControllerTest {
                 .andExpect(jsonPath("$.role").value("USER"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
-        verify(membershipService).updateMember(1L, 2L, emptyRequest, Role.OWNER, "TEST_PRODUCT");
+        verify(membershipService).updateMember(1L, 2L, emptyRequest, Role.ORG_ADMIN);
     }
 
     @Test
@@ -478,7 +478,7 @@ class MembershipControllerTest {
         mockMvc.perform(request)
                 .andExpect(status().isBadRequest());
 
-        verify(membershipService, never()).updateMember(anyLong(), anyLong(), any(), any(), anyString());
+        verify(membershipService, never()).updateMember(anyLong(), anyLong(), any(), any());
     }
 
     @Test
@@ -493,7 +493,7 @@ class MembershipControllerTest {
         mockMvc.perform(request)
                 .andExpect(status().isUnsupportedMediaType());
 
-        verify(membershipService, never()).updateMember(anyLong(), anyLong(), any(), any(), anyString());
+        verify(membershipService, never()).updateMember(anyLong(), anyLong(), any(), any());
     }
 
     @Test
@@ -509,6 +509,6 @@ class MembershipControllerTest {
         mockMvc.perform(request)
                 .andExpect(status().isBadRequest());
 
-        verify(membershipService, never()).updateMember(anyLong(), anyLong(), any(), any(), anyString());
+        verify(membershipService, never()).updateMember(anyLong(), anyLong(), any(), any());
     }
 }

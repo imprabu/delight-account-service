@@ -3,7 +3,6 @@ package com.delight.account.controller;
 import com.delight.account.dto.SigninRequest;
 import com.delight.account.model.Account;
 import com.delight.account.model.AccountStatus;
-import com.delight.account.model.PlanType;
 import com.delight.account.model.User;
 import com.delight.account.model.UserCredential;
 import com.delight.account.model.UserStatus;
@@ -57,7 +56,6 @@ class SigninControllerTest {
         // Create active account with localhost domain
         activeAccount = new Account();
         activeAccount.setDomain("localhost");
-        activeAccount.setPlan(PlanType.TRIAL);
         activeAccount.setStatus(AccountStatus.ACTIVE);
         accountRepository.save(activeAccount);
 
@@ -122,7 +120,6 @@ class SigninControllerTest {
         // Create inactive account - needs to be ACTIVE for TenantFilter but we'll test the signin logic
         Account inactiveAccount = new Account();
         inactiveAccount.setDomain("inactive");
-        inactiveAccount.setPlan(PlanType.TRIAL);
         inactiveAccount.setStatus(AccountStatus.ACTIVE); // Must be ACTIVE for TenantFilter
         accountRepository.save(inactiveAccount);
 
@@ -185,7 +182,6 @@ class SigninControllerTest {
         // Create account with different domain
         Account differentAccount = new Account();
         differentAccount.setDomain("different.com");
-        differentAccount.setPlan(PlanType.TRIAL);
         differentAccount.setStatus(AccountStatus.ACTIVE);
         accountRepository.save(differentAccount);
 

@@ -231,4 +231,199 @@ public class RateLimitingServiceImpl implements RateLimitingService {
         String key = String.format("account:%d:%s:%s", accountId, endpoint, clientKey);
         return getRemainingRequests(key, maxRequests, windowSeconds);
     }
+    
+    @Override
+    public com.delight.account.dto.AccountRateLimitResponse getAccountRateLimitConfig(Long accountId) {
+        // Get default configuration
+        com.delight.account.dto.AccountRateLimitResponse.RateLimitConfig defaultConfig = 
+            getDefaultAccountRateLimitConfig();
+        
+        // Get account-specific rate limiting configuration
+        java.util.Optional<java.util.Map<String, Object>> accountConfigOpt = 
+            accountConfigService.getConfig(accountId, RATE_LIMITING_CONFIG_TYPE);
+        
+        java.util.Map<String, com.delight.account.dto.AccountRateLimitResponse.RateLimitConfig> endpointOverrides = 
+            new java.util.HashMap<>();
+        
+        if (accountConfigOpt.isPresent()) {
+            java.util.Map<String, Object> config = accountConfigOpt.get();
+            
+            // Extract endpoint-specific overrides
+            // Config keys are in format: "{endpoint}.maxRequests" and "{endpoint}.windowSeconds"
+            java.util.Set<String> endpoints = new java.util.HashSet<>();
+            
+            for (String key : config.keySet()) {
+                if (key.endsWith(".maxRequests") || key.endsWith(".windowSeconds")) {
+                    String endpoint = key.substring(0, key.lastIndexOf('.'));
+                    endpoints.add(endpoint);
+                }
+            }
+            
+            // Build rate limit config for each endpoint
+            for (String endpoint : endpoints) {
+                Integer maxRequests = accountConfigService.getConfigValue(
+                    accountId, RATE_LIMITING_CONFIG_TYPE, endpoint + ".maxRequests", null);
+                Integer windowSeconds = accountConfigService.getConfigValue(
+                    accountId, RATE_LIMITING_CONFIG_TYPE, endpoint + ".windowSeconds", null);
+                
+                if (maxRequests != null || windowSeconds != null) {
+                    // Use defaults if not specified
+                    if (maxRequests == null) {
+                        maxRequests = defaultPerAccountMaxRequests;
+                    }
+                    if (windowSeconds == null) {
+                        windowSeconds = defaultPerAccountWindowSeconds;
+                    }
+                    
+                    endpointOverrides.put(endpoint, 
+                        com.delight.account.dto.AccountRateLimitResponse.RateLimitConfig.builder()
+                            .maxRequests(maxRequests)
+                            .windowSeconds(windowSeconds)
+                            .build());
+                }
+            }
+        }
+        
+        return com.delight.account.dto.AccountRateLimitResponse.builder()
+            .accountId(accountId)
+            .defaultConfig(defaultConfig)
+            .endpointOverrides(endpointOverrides)
+            .build();
+    }
+    
+    @Override
+    public com.delight.account.dto.AccountRateLimitResponse.RateLimitConfig getDefaultAccountRateLimitConfig() {
+        return com.delight.account.dto.AccountRateLimitResponse.RateLimitConfig.builder()
+            .maxRequests(defaultPerAccountMaxRequests)
+            .windowSeconds(defaultPerAccountWindowSeconds)
+            .build();
+    }
+    
+    @Override
+    public com.delight.account.dto.RateLimitCheckResponse checkAndIncrementAccountRateLimit(Long accountId, String endpoint, String clientKey) {
+        LoggingUtils.logMethodEntry(logger, "checkAndIncrementAccountRateLimit", 
+            "accountId", accountId, 
+            "endpoint", endpoint, 
+            "clientKey", clientKey);
+        
+        try {
+            // Get account-specific rate limiting configuration
+            Integer maxRequests = accountConfigService.getConfigValue(
+                accountId, RATE_LIMITING_CONFIG_TYPE, endpoint + ".maxRequests", null);
+            Integer windowSeconds = accountConfigService.getConfigValue(
+                accountId, RATE_LIMITING_CONFIG_TYPE, endpoint + ".windowSeconds", null);
+            
+            // Use defaults if no custom configuration
+            if (maxRequests == null) {
+                maxRequests = defaultPerAccountMaxRequests;
+            }
+            if (windowSeconds == null) {
+                windowSeconds = defaultPerAccountWindowSeconds;
+            }
+            
+            // Atomically check and increment (if allowed)
+            boolean allowed = isAccountEndpointAllowed(accountId, endpoint, clientKey);
+            
+            // Get remaining requests after the check/increment
+            int remainingRequests = getAccountEndpointRemainingRequests(accountId, endpoint, clientKey);
+            
+            // Calculate current count
+            int currentCount = maxRequests - remainingRequests;
+            
+            // Calculate reset timestamp (current time + window seconds)
+            long currentTime = Instant.now().getEpochSecond();
+            long resetAt = currentTime + windowSeconds;
+            
+            com.delight.account.dto.RateLimitCheckResponse response = com.delight.account.dto.RateLimitCheckResponse.builder()
+                .allowed(allowed)
+                .remainingRequests(remainingRequests)
+                .currentCount(currentCount)
+                .maxRequests(maxRequests)
+                .windowSeconds(windowSeconds)
+                .resetAt(resetAt)
+                .build();
+            
+            LoggingUtils.logMethodExit(logger, "checkAndIncrementAccountRateLimit", 
+                String.format("allowed=%s, remainingRequests=%d, currentCount=%d", allowed, remainingRequests, currentCount));
+            
+            return response;
+        } catch (Exception e) {
+            logger.error("Error checking and incrementing rate limit for accountId: {}, endpoint: {}, clientKey: {}", 
+                accountId, endpoint, clientKey, e);
+            // Fail open - return allowed=true to avoid blocking legitimate requests
+            long currentTime = Instant.now().getEpochSecond();
+            return com.delight.account.dto.RateLimitCheckResponse.builder()
+                .allowed(true)
+                .remainingRequests(Integer.MAX_VALUE)
+                .currentCount(0)
+                .maxRequests(defaultPerAccountMaxRequests)
+                .windowSeconds(defaultPerAccountWindowSeconds)
+                .resetAt(currentTime + defaultPerAccountWindowSeconds)
+                .build();
+        }
+    }
+    
+    @Override
+    public com.delight.account.dto.RateLimitCheckResponse getAccountRateLimitStatus(Long accountId, String endpoint, String clientKey) {
+        LoggingUtils.logMethodEntry(logger, "getAccountRateLimitStatus", 
+            "accountId", accountId, 
+            "endpoint", endpoint, 
+            "clientKey", clientKey);
+        
+        try {
+            // Get account-specific rate limiting configuration
+            Integer maxRequests = accountConfigService.getConfigValue(
+                accountId, RATE_LIMITING_CONFIG_TYPE, endpoint + ".maxRequests", null);
+            Integer windowSeconds = accountConfigService.getConfigValue(
+                accountId, RATE_LIMITING_CONFIG_TYPE, endpoint + ".windowSeconds", null);
+            
+            // Use defaults if no custom configuration
+            if (maxRequests == null) {
+                maxRequests = defaultPerAccountMaxRequests;
+            }
+            if (windowSeconds == null) {
+                windowSeconds = defaultPerAccountWindowSeconds;
+            }
+            
+            // Get remaining requests without incrementing
+            int remainingRequests = getAccountEndpointRemainingRequests(accountId, endpoint, clientKey);
+            
+            // Calculate current count
+            int currentCount = maxRequests - remainingRequests;
+            
+            // Determine if a new request would be allowed
+            boolean allowed = remainingRequests > 0;
+            
+            // Calculate reset timestamp (current time + window seconds)
+            long currentTime = Instant.now().getEpochSecond();
+            long resetAt = currentTime + windowSeconds;
+            
+            com.delight.account.dto.RateLimitCheckResponse response = com.delight.account.dto.RateLimitCheckResponse.builder()
+                .allowed(allowed)
+                .remainingRequests(remainingRequests)
+                .currentCount(currentCount)
+                .maxRequests(maxRequests)
+                .windowSeconds(windowSeconds)
+                .resetAt(resetAt)
+                .build();
+            
+            LoggingUtils.logMethodExit(logger, "getAccountRateLimitStatus", 
+                String.format("allowed=%s, remainingRequests=%d, currentCount=%d", allowed, remainingRequests, currentCount));
+            
+            return response;
+        } catch (Exception e) {
+            logger.error("Error getting rate limit status for accountId: {}, endpoint: {}, clientKey: {}", 
+                accountId, endpoint, clientKey, e);
+            // Fail open - return allowed=true to avoid blocking legitimate requests
+            long currentTime = Instant.now().getEpochSecond();
+            return com.delight.account.dto.RateLimitCheckResponse.builder()
+                .allowed(true)
+                .remainingRequests(Integer.MAX_VALUE)
+                .currentCount(0)
+                .maxRequests(defaultPerAccountMaxRequests)
+                .windowSeconds(defaultPerAccountWindowSeconds)
+                .resetAt(currentTime + defaultPerAccountWindowSeconds)
+                .build();
+        }
+    }
 }

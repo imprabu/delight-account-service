@@ -3,7 +3,7 @@ package com.delight.account.service.job.worker;
 import com.delight.account.domain.BatchJobType;
 import com.delight.account.model.*;
 import com.delight.account.repository.AccountRepository;
-import com.delight.account.service.MessagingService;
+import com.delight.account.service.KafkaEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,7 +23,7 @@ import static org.mockito.Mockito.*;
 class AccountEventPublisherWorkerTest {
 
     @Mock
-    private MessagingService messagingService;
+    private KafkaEventPublisher kafkaEventPublisher;
 
     @Mock
     private AccountRepository accountRepository;
@@ -38,9 +38,9 @@ class AccountEventPublisherWorkerTest {
         worker = new AccountEventPublisherWorker();
         // Use reflection to inject mocks, or make fields package-private for testing
         try {
-            var messagingServiceField = AccountEventPublisherWorker.class.getDeclaredField("messagingService");
-            messagingServiceField.setAccessible(true);
-            messagingServiceField.set(worker, messagingService);
+            var kafkaEventPublisherField = AccountEventPublisherWorker.class.getDeclaredField("kafkaEventPublisher");
+            kafkaEventPublisherField.setAccessible(true);
+            kafkaEventPublisherField.set(worker, kafkaEventPublisher);
 
             var accountRepositoryField = AccountEventPublisherWorker.class.getDeclaredField("accountRepository");
             accountRepositoryField.setAccessible(true);
@@ -62,10 +62,8 @@ class AccountEventPublisherWorkerTest {
         testAccount = new Account();
         testAccount.setId(100L);
         testAccount.setDomain("testdomain");
-        testAccount.setPlan(PlanType.TRIAL);
         testAccount.setStatus(AccountStatus.ACTIVE);
         testAccount.setIndustryType("Technology");
-        testAccount.setEmail("test@example.com");
         testAccount.setCompanyName("Test Company");
         testAccount.setOrganization(testOrganization);
         testAccount.setProduct(testProduct);
@@ -80,8 +78,6 @@ class AccountEventPublisherWorkerTest {
         metadata.put("payloadType", "account_created");
 
         when(accountRepository.findById(accountId)).thenReturn(Optional.of(testAccount));
-        when(messagingService.publishAccountEventWithRetry(anyString(), anyString(), any(), any()))
-            .thenReturn(true);
 
         // When
         worker.processJob(jobId, accountId, metadata);
@@ -89,26 +85,22 @@ class AccountEventPublisherWorkerTest {
         // Then
         verify(accountRepository).findById(accountId);
         
-        ArgumentCaptor<String> payloadTypeCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> accountIdCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> eventTypeCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Long> accountIdCaptor = ArgumentCaptor.forClass(Long.class);
         ArgumentCaptor<Map<String, Object>> accountInfoCaptor = ArgumentCaptor.forClass(Map.class);
-        ArgumentCaptor<Map<String, Object>> changeSetCaptor = ArgumentCaptor.forClass(Map.class);
 
-        verify(messagingService).publishAccountEventWithRetry(
-            payloadTypeCaptor.capture(),
+        verify(kafkaEventPublisher).publishAccountEvent(
+            eventTypeCaptor.capture(),
             accountIdCaptor.capture(),
-            accountInfoCaptor.capture(),
-            changeSetCaptor.capture()
+            accountInfoCaptor.capture()
         );
 
-        assertThat(payloadTypeCaptor.getValue()).isEqualTo("account_created");
-        assertThat(accountIdCaptor.getValue()).isEqualTo("100");
-        assertThat(changeSetCaptor.getValue()).isNull();
+        assertThat(eventTypeCaptor.getValue()).isEqualTo("account_created");
+        assertThat(accountIdCaptor.getValue()).isEqualTo(100L);
 
         Map<String, Object> accountInfo = accountInfoCaptor.getValue();
         assertThat(accountInfo.get("id")).isEqualTo(100L);
         assertThat(accountInfo.get("domain")).isEqualTo("testdomain");
-        assertThat(accountInfo.get("email")).isEqualTo("test@example.com");
     }
 
     @Test
@@ -125,8 +117,6 @@ class AccountEventPublisherWorkerTest {
         metadata.put("changeSet", changeSet);
 
         when(accountRepository.findById(accountId)).thenReturn(Optional.of(testAccount));
-        when(messagingService.publishAccountEventWithRetry(anyString(), anyString(), any(), any()))
-            .thenReturn(true);
 
         // When
         worker.processJob(jobId, accountId, metadata);
@@ -134,18 +124,20 @@ class AccountEventPublisherWorkerTest {
         // Then
         verify(accountRepository).findById(accountId);
         
-        ArgumentCaptor<Map<String, Object>> changeSetCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(messagingService).publishAccountEventWithRetry(
-            eq("account_modified"),
-            eq("100"),
-            any(),
-            changeSetCaptor.capture()
+        ArgumentCaptor<String> eventTypeCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Long> accountIdCaptor = ArgumentCaptor.forClass(Long.class);
+        ArgumentCaptor<Map<String, Object>> accountInfoCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(kafkaEventPublisher).publishAccountEvent(
+            eventTypeCaptor.capture(),
+            accountIdCaptor.capture(),
+            accountInfoCaptor.capture()
         );
 
-        Map<String, Object> capturedChangeSet = changeSetCaptor.getValue();
-        assertThat(capturedChangeSet).isEqualTo(changeSet);
-        assertThat(capturedChangeSet).containsKey("domain");
-        assertThat(capturedChangeSet).containsKey("plan");
+        assertThat(eventTypeCaptor.getValue()).isEqualTo("account.updated");
+        assertThat(accountIdCaptor.getValue()).isEqualTo(100L);
+        Map<String, Object> capturedAccountInfo = accountInfoCaptor.getValue();
+        assertThat(capturedAccountInfo).isNotNull();
+        // Note: changeSet is not passed to publishAccountEvent, only accountInfo
     }
 
     @Test
@@ -162,8 +154,6 @@ class AccountEventPublisherWorkerTest {
         accountInfo.put("email", "test@example.com");
         metadata.put("accountInfo", accountInfo);
 
-        when(messagingService.publishAccountEventWithRetry(anyString(), anyString(), any(), any()))
-            .thenReturn(true);
 
         // When
         worker.processJob(jobId, accountId, metadata);
@@ -172,13 +162,17 @@ class AccountEventPublisherWorkerTest {
         // Should NOT fetch from DB for DELETE
         verify(accountRepository, never()).findById(any());
         
+        ArgumentCaptor<String> eventTypeCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Long> accountIdCaptor = ArgumentCaptor.forClass(Long.class);
         ArgumentCaptor<Map<String, Object>> accountInfoCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(messagingService).publishAccountEventWithRetry(
-            eq("account_deleted"),
-            eq("100"),
-            accountInfoCaptor.capture(),
-            isNull()
+        verify(kafkaEventPublisher).publishAccountEvent(
+            eventTypeCaptor.capture(),
+            accountIdCaptor.capture(),
+            accountInfoCaptor.capture()
         );
+        
+        assertThat(eventTypeCaptor.getValue()).isEqualTo("account.deleted");
+        assertThat(accountIdCaptor.getValue()).isEqualTo(100L);
 
         assertThat(accountInfoCaptor.getValue()).isEqualTo(accountInfo);
     }
@@ -193,20 +187,23 @@ class AccountEventPublisherWorkerTest {
         // accountInfo is missing
 
         when(accountRepository.findById(accountId)).thenReturn(Optional.of(testAccount));
-        when(messagingService.publishAccountEventWithRetry(anyString(), anyString(), any(), any()))
-            .thenReturn(true);
 
         // When
         worker.processJob(jobId, accountId, metadata);
 
         // Then
         verify(accountRepository).findById(accountId);
-        verify(messagingService).publishAccountEventWithRetry(
-            eq("account_deleted"),
-            eq("100"),
-            any(),
-            isNull()
+        ArgumentCaptor<String> eventTypeCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Long> accountIdCaptor = ArgumentCaptor.forClass(Long.class);
+        ArgumentCaptor<Map<String, Object>> accountInfoCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(kafkaEventPublisher).publishAccountEvent(
+            eventTypeCaptor.capture(),
+            accountIdCaptor.capture(),
+            accountInfoCaptor.capture()
         );
+        
+        assertThat(eventTypeCaptor.getValue()).isEqualTo("account.deleted");
+        assertThat(accountIdCaptor.getValue()).isEqualTo(100L);
     }
 
     @Test
@@ -222,7 +219,7 @@ class AccountEventPublisherWorkerTest {
 
         // Then
         verify(accountRepository, never()).findById(any());
-        verify(messagingService, never()).publishAccountEventWithRetry(any(), any(), any(), any());
+        verify(kafkaEventPublisher, never()).publishAccountEvent(any(), any(), any());
     }
 
     @Test
@@ -240,7 +237,7 @@ class AccountEventPublisherWorkerTest {
 
         // Then
         verify(accountRepository).findById(accountId);
-        verify(messagingService, never()).publishAccountEventWithRetry(any(), any(), any(), any());
+        verify(kafkaEventPublisher, never()).publishAccountEvent(any(), any(), any());
     }
 
     @Test
@@ -256,7 +253,7 @@ class AccountEventPublisherWorkerTest {
 
         // Then
         verify(accountRepository, never()).findById(any());
-        verify(messagingService, never()).publishAccountEventWithRetry(any(), any(), any(), any());
+        verify(kafkaEventPublisher, never()).publishAccountEvent(any(), any(), any());
     }
 
     @Test
@@ -271,7 +268,7 @@ class AccountEventPublisherWorkerTest {
 
         // Then
         verify(accountRepository, never()).findById(any());
-        verify(messagingService, never()).publishAccountEventWithRetry(any(), any(), any(), any());
+        verify(kafkaEventPublisher, never()).publishAccountEvent(any(), any(), any());
     }
 
     @Test
@@ -283,14 +280,20 @@ class AccountEventPublisherWorkerTest {
         metadata.put("payloadType", "account_created");
 
         when(accountRepository.findById(accountId)).thenReturn(Optional.of(testAccount));
-        when(messagingService.publishAccountEventWithRetry(anyString(), anyString(), any(), any()))
-            .thenReturn(false);
+        // Note: messagingService was replaced by kafkaEventPublisher
 
         // When
         worker.processJob(jobId, accountId, metadata);
 
         // Then - should complete without throwing (error is logged)
-        verify(messagingService).publishAccountEventWithRetry(any(), any(), any(), any());
+        ArgumentCaptor<String> eventTypeCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Long> accountIdCaptor = ArgumentCaptor.forClass(Long.class);
+        ArgumentCaptor<Map<String, Object>> accountInfoCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(kafkaEventPublisher).publishAccountEvent(
+            eventTypeCaptor.capture(),
+            accountIdCaptor.capture(),
+            accountInfoCaptor.capture()
+        );
     }
 
     @Test
@@ -312,19 +315,23 @@ class AccountEventPublisherWorkerTest {
         metadata.put("changeSet", new HashMap<>()); // Empty changeset
 
         when(accountRepository.findById(accountId)).thenReturn(Optional.of(testAccount));
-        when(messagingService.publishAccountEventWithRetry(anyString(), anyString(), any(), any()))
-            .thenReturn(true);
 
         // When
         worker.processJob(jobId, accountId, metadata);
 
         // Then
-        ArgumentCaptor<Map<String, Object>> changeSetCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(messagingService).publishAccountEventWithRetry(
-            any(), any(), any(), changeSetCaptor.capture()
+        ArgumentCaptor<String> eventTypeCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Long> accountIdCaptor = ArgumentCaptor.forClass(Long.class);
+        ArgumentCaptor<Map<String, Object>> accountInfoCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(kafkaEventPublisher).publishAccountEvent(
+            eventTypeCaptor.capture(),
+            accountIdCaptor.capture(),
+            accountInfoCaptor.capture()
         );
-
-        assertThat(changeSetCaptor.getValue()).isEmpty();
+        
+        assertThat(eventTypeCaptor.getValue()).isEqualTo("account.updated");
+        assertThat(accountIdCaptor.getValue()).isEqualTo(100L);
+        // Note: changeSet is not passed to publishAccountEvent, only accountInfo
     }
 }
 

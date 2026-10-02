@@ -13,3 +13,7 @@ public interface PrivilegeRepository extends JpaRepository<Privilege, Long> {
 
 
 
+
+
+
+

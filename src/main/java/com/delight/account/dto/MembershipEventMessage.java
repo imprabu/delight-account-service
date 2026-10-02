@@ -27,3 +27,7 @@ public class MembershipEventMessage {
     private Map<String, Object> data; // Membership information payload
 }
 
+
+
+
+
