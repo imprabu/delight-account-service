@@ -41,49 +41,40 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional
     public RoleEntity initializeDefaultRolesForAccount(Long accountId) {
-        LoggingUtils.info(logger,"Initializing default roles for account: {}", accountId);
+        LoggingUtils.info(logger,"Initializing PlantPulse default roles for account: {}", accountId);
         
         Account account = accountRepository.findById(accountId)
             .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
 
-        // Get all privileges (they are global, not account-spcific)
         List<Privilege> allPrivileges = privilegeRepository.findAll();
         
-        // Create ORG_ADMIN role (highest level - all privileges)
-        RoleEntity orgAdminRole = createRole(account, Role.ORG_ADMIN.getCode(), Role.ORG_ADMIN.getDisplayName(),
-            Role.ORG_ADMIN.getDescription(), RoleType.SYSTEM, null, 1);
-        assignAllPrivileges(orgAdminRole, allPrivileges);
-        
-        // Create ACCOUNT_ADMIN role (management privileges)
+        // ACCOUNT_ADMIN — full privileges (creator)
         RoleEntity accountAdminRole = createRole(account, Role.ACCOUNT_ADMIN.getCode(), Role.ACCOUNT_ADMIN.getDisplayName(),
-            Role.ACCOUNT_ADMIN.getDescription(), RoleType.SYSTEM, orgAdminRole, 2);
-        assignManagementPrivileges(accountAdminRole, allPrivileges);
+            Role.ACCOUNT_ADMIN.getDescription(), RoleType.SYSTEM, null, 1);
+        assignAllPrivileges(accountAdminRole, allPrivileges);
         
-        // Create AGENT role (basic privileges)
-        RoleEntity agentRole = createRole(account, Role.AGENT.getCode(), Role.AGENT.getDisplayName(),
-            Role.AGENT.getDescription(), RoleType.SYSTEM, accountAdminRole, 3);
-        assignBasicPrivileges(agentRole, allPrivileges);
+        // ADMIN — management on assigned sites
+        RoleEntity adminRole = createRole(account, Role.ADMIN.getCode(), Role.ADMIN.getDisplayName(),
+            Role.ADMIN.getDescription(), RoleType.SYSTEM, accountAdminRole, 2);
+        assignManagementPrivileges(adminRole, allPrivileges);
+        
+        // USER — read / basic
+        RoleEntity userRole = createRole(account, Role.USER.getCode(), Role.USER.getDisplayName(),
+            Role.USER.getDescription(), RoleType.SYSTEM, adminRole, 3);
+        assignBasicPrivileges(userRole, allPrivileges);
 
-        LoggingUtils.info(logger,"✅ [ROLE-SERVICE] Default roles initialized for account: {} - ORG_ADMIN, ACCOUNT_ADMIN, AGENT", accountId);
+        LoggingUtils.info(logger,"Default roles initialized for account: {} - ACCOUNT_ADMIN, ADMIN, USER", accountId);
         
-        // Reload Casbin policies once after all roles and privileges are created
-        // This is more efficient than reloading on each RolePrivilege @PostPersist
-        // Clear Redis cache for this account and reload policies
         if (authorizationService != null) {
-            LoggingUtils.debug(logger,"🔄 [ROLE-SERVICE] About to reload Casbin policies after role initialization for account: {}", accountId);
             try {
                 authorizationService.reloadPolicies(accountId);
-                LoggingUtils.info(logger,"✅ [ROLE-SERVICE] Casbin policies reloaded (Redis cache cleared) after default role initialization for account: {}", accountId);
             } catch (Exception e) {
-                LoggingUtils.error(logger,"❌ [ROLE-SERVICE] Failed to reload Casbin policies after role initialization for account {}: {}",
+                LoggingUtils.error(logger,"Failed to reload Casbin policies after role initialization for account {}: {}",
                     accountId, e.getMessage(), e);
-                // Don't fail the transaction if policy reload fails - but log the error
             }
-        } else {
-            LoggingUtils.warn(logger,"⚠️ [ROLE-SERVICE] AuthorizationService is null - cannot reload policies");
         }
         
-        return orgAdminRole;
+        return accountAdminRole;
     }
 
     private RoleEntity createRole(Account account, String code, String name, String description,
@@ -115,10 +106,13 @@ public class RoleServiceImpl implements RoleService {
         // Excludes: user.delete, account.delete, org.delete, system privileges
         String[] allowedCodes = {
             "user.create", "user.read", "user.update", "user.invite", "user.activate", "user.suspend",
-            "account.read", "account.update", "account.billing", "account.settings",
-            "role.create", "role.read", "role.update", "role.delete", "role.assign",
-            "org.read",
-            "data.read", "data.write", "data.delete", "data.export"
+            "account.read", "account.update",
+            "role.read", "role.assign",
+            "member.invite", "member.manage",
+            "site.update", "site.view",
+            "device.provision", "device.view",
+            "measurement.read", "measurement.export",
+            "data.read", "data.write", "data.export"
         };
         
         for (Privilege privilege : privileges) {
@@ -141,8 +135,10 @@ public class RoleServiceImpl implements RoleService {
             "user.read",
             "account.read",
             "role.read",
-            "org.read",
-            "data.read", "data.write"
+            "site.view",
+            "device.view",
+            "measurement.read",
+            "data.read"
         };
         
         for (Privilege privilege : privileges) {

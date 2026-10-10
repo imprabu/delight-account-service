@@ -20,5 +20,10 @@ public class PrivilegeCheckRequest {
     
     @NotNull(message = "privilegeCode is required")
     private String privilegeCode;
-}
 
+    /** Optional site UUID for site-scoped checks */
+    private String siteId;
+
+    /** Optional stable site code (MQTT path segment) */
+    private String siteCode;
+}

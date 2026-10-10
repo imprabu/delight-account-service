@@ -103,14 +103,20 @@ public class AuthorizationController {
         logger.debug("🔐 [AUTHORIZATION] Checking privilege: userId={}, accountId={}, privilegeCode={}", 
                 request.getUserId(), request.getAccountId(), request.getPrivilegeCode());
         
-        // Check privilege using AuthorizationService
-        // Note: AuthorizationService.isChannelRequest() will return true for channel requests,
-        // and hasPrivilege() will skip the check and return true automatically
         boolean authorized = authorizationService.hasPrivilege(
                 request.getUserId(),
                 request.getAccountId(),
                 request.getPrivilegeCode()
         );
+
+        if (authorized && (request.getSiteId() != null || request.getSiteCode() != null)) {
+            authorized = authorizationService.hasSiteAccess(
+                    request.getUserId(),
+                    request.getAccountId(),
+                    request.getSiteId(),
+                    request.getSiteCode()
+            );
+        }
         
         PrivilegeCheckResponse response = PrivilegeCheckResponse.builder()
                 .authorized(authorized)

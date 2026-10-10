@@ -208,11 +208,11 @@ public class MembershipController {
             String roleCode = roleAttr.toString();
             Role actorRole;
             try {
-                actorRole = Role.valueOf(roleCode);
+                actorRole = Role.fromCode(roleCode);
                 logger.info("=== updateMember: Using role enum: {} ===", actorRole);
             } catch (IllegalArgumentException e) {
-                logger.warn("Unknown role code: {}, defaulting to AGENT", roleCode);
-                actorRole = Role.AGENT;
+                logger.warn("Unknown role code: {}, defaulting to USER", roleCode);
+                actorRole = Role.USER;
             }
             //String productCode = productCodeAttr.toString();
             logger.info("=== updateMember: Mapped role: {}, productCode: {} ===", actorRole);
@@ -326,7 +326,7 @@ public class MembershipController {
     @DeleteMapping(value = "/{userId}", produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @Operation(
         summary = "Remove team member",
-        description = "Removes a member from the account by setting their status to REMOVED. Cannot remove the last ORG_ADMIN. Requires user.update privilege.",
+        description = "Removes a member from the account by setting their status to REMOVED. Cannot remove the last ACCOUNT_ADMIN. Requires user.update privilege.",
         responses = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "204",

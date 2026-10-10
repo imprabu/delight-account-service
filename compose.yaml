@@ -1,8 +1,22 @@
 services:
-  tidb:
-    image: 'pingcap/tidb:latest'
+  postgres:
+    image: 'postgres:16'
     ports:
-      - '4000:4000'
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: plantpulse_accounts
+      POSTGRES_USER: plantpulse
+      POSTGRES_PASSWORD: plantpulse
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U plantpulse -d plantpulse_accounts']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  # Legacy TiDB kept commented for reference during migration
+  # tidb:
+  #   image: 'pingcap/tidb:latest'
+  #   ports:
+  #     - '4000:4000'
   redis:
     image: 'redis:latest'
     ports:

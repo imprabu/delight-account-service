@@ -24,10 +24,10 @@ public class SessionResponse {
     @Schema(description = "Role ID", example = "1")
     private Long roleId;
     
-    @Schema(description = "Role code", example = "ORG_ADMIN")
+    @Schema(description = "Role code", example = "ACCOUNT_ADMIN")
     private String roleCode;
     
-    @Schema(description = "Role name", example = "Org Admin")
+    @Schema(description = "Role name", example = "Account Admin")
     private String roleName;
     
     @Schema(description = "User's email address", example = "john.doe@acme.com")
@@ -59,4 +59,7 @@ public class SessionResponse {
     
     @Schema(description = "List of privilege codes accessible by the session user", example = "[\"user.create\", \"user.read\", \"account.update\"]")
     private java.util.List<String> privileges;
+
+    @Schema(description = "Site access scope for this session")
+    private SiteScopeDto siteScope;
 }

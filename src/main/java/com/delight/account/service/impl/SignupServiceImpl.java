@@ -11,6 +11,7 @@ import com.delight.account.model.Product;
 import com.delight.account.model.User;
 import com.delight.account.model.AccountStatus;
 import com.delight.account.model.MembershipStatus;
+import com.delight.account.model.SiteScopeMode;
 import com.delight.account.model.PlanType;
 import com.delight.account.model.RoleEntity;
 import com.delight.account.model.UserStatus;
@@ -191,32 +192,21 @@ public class SignupServiceImpl implements SignupService {
             user.setStatus(UserStatus.INSERTED);
             userRepository.save(user);
 
-            // Initialize default roles for this account (ORG_ADMIN, ACCOUNT_ADMIN, AGENT)
-            // The account creator gets ORG_ADMIN role (which has all privileges including account admin privileges)
+            // Initialize PlantPulse default roles (ACCOUNT_ADMIN, ADMIN, USER); creator is ACCOUNT_ADMIN
             logger.debug("🔄 [SIGNUP] Initializing default roles for account: {}", account.getId());
-            RoleEntity orgAdminRole = roleService.initializeDefaultRolesForAccount(account.getId());
-            logger.debug("✅ [SIGNUP] Default roles initialized. Org Admin role ID: {}", orgAdminRole.getId());
+            RoleEntity accountAdminRole = roleService.initializeDefaultRolesForAccount(account.getId());
+            logger.debug("✅ [SIGNUP] Default roles initialized. Account Admin role ID: {}", accountAdminRole.getId());
 
-            // Get ACCOUNT_ADMIN role for this account to verify it exists
-            RoleEntity accountAdminRole = roleRepository.findByAccountIdAndCode(account.getId(), "ACCOUNT_ADMIN")
-                .orElseThrow(() -> {
-                    logger.error("ACCOUNT_ADMIN role not found for account: {}", account.getId());
-                    return new ApiException("error.role.notfound", "ACCOUNT_ADMIN");
-                });
-            logger.debug("✅ [SIGNUP] ACCOUNT_ADMIN role verified. Role ID: {}", accountAdminRole.getId());
-
-            // Create membership for ORG_ADMIN role
-            // Note: ORG_ADMIN has all privileges including ACCOUNT_ADMIN privileges (user.invite, etc.)
-            // The user is both Org Admin and effectively Account Admin through the ORG_ADMIN role
-            logger.debug("🔄 [SIGNUP] Creating ORG_ADMIN membership for user: {}, account: {}, role: {}", 
-                user.getId(), account.getId(), orgAdminRole.getId());
+            logger.debug("🔄 [SIGNUP] Creating ACCOUNT_ADMIN membership for user: {}, account: {}, role: {}",
+                user.getId(), account.getId(), accountAdminRole.getId());
             Membership membership = new Membership();
             membership.setAccount(account);
             membership.setUser(user);
-            membership.setRole(orgAdminRole);
+            membership.setRole(accountAdminRole);
+            membership.setSiteScopeMode(SiteScopeMode.ALL_SITES);
             membership.setStatus(MembershipStatus.ACTIVE);
             membershipRepository.save(membership);
-            logger.debug("✅ [SIGNUP] ORG_ADMIN membership created. Membership ID: {} (user has all privileges including account admin)", membership.getId());
+            logger.debug("✅ [SIGNUP] ACCOUNT_ADMIN membership created. Membership ID: {}", membership.getId());
             
             // Generate activation token and send welcome email with activation link
             try {

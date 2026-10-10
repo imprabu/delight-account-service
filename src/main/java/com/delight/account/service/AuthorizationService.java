@@ -24,6 +24,11 @@ public interface AuthorizationService {
      * @return true if authorized, false otherwise
      */
     boolean hasPrivilege(Long userId, Long accountId, String privilegeCode);
+
+    /**
+     * Check whether the user may access the given site within the account.
+     */
+    boolean hasSiteAccess(Long userId, Long accountId, String siteId, String siteCode);
     
     /**
      * Reload policies from the database.
@@ -49,7 +54,7 @@ public interface AuthorizationService {
     
     /**
      * Check if the current request is a channel-authenticated request.
-     * Channel requests bypass privilege checks as they are authenticated via Channel JWT tokens.
+     * Detects Channel JWT requests (does not bypass privilege checks).
      * 
      * @return true if the request is channel-authenticated, false otherwise
      */

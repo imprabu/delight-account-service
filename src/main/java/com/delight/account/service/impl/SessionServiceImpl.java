@@ -1,13 +1,19 @@
 package com.delight.account.service.impl;
 
 import com.delight.account.dto.SessionResponse;
+import com.delight.account.dto.SiteScopeDto;
 import com.delight.account.model.Account;
 import com.delight.account.model.ClientType;
+import com.delight.account.model.Membership;
 import com.delight.account.model.Privilege;
+import com.delight.account.model.Role;
 import com.delight.account.model.RoleEntity;
 import com.delight.account.model.RolePrivilege;
 import com.delight.account.model.Session;
+import com.delight.account.model.SiteScopeMode;
 import com.delight.account.model.User;
+import com.delight.account.repository.MembershipRepository;
+import com.delight.account.repository.MembershipSiteRepository;
 import com.delight.account.repository.SessionRepository;
 import com.delight.account.service.SessionService;
 import com.delight.account.util.LoggingUtils;
@@ -27,9 +33,15 @@ import java.util.stream.Collectors;
 public class SessionServiceImpl implements SessionService {
     
     private final SessionRepository sessionRepository;
+    private final MembershipRepository membershipRepository;
+    private final MembershipSiteRepository membershipSiteRepository;
     
-    public SessionServiceImpl(SessionRepository sessionRepository) {
+    public SessionServiceImpl(SessionRepository sessionRepository,
+                              MembershipRepository membershipRepository,
+                              MembershipSiteRepository membershipSiteRepository) {
         this.sessionRepository = sessionRepository;
+        this.membershipRepository = membershipRepository;
+        this.membershipSiteRepository = membershipSiteRepository;
     }
     
     @Override
@@ -200,6 +212,7 @@ public class SessionServiceImpl implements SessionService {
         
         RoleEntity role = session.getRole();
         List<String> privileges = extractPrivileges(role);
+        SiteScopeDto siteScope = buildSiteScope(session.getUser().getId(), session.getAccount().getId(), role);
         
         return SessionResponse.builder()
                 .sessionId(session.getSessionId())
@@ -217,6 +230,26 @@ public class SessionServiceImpl implements SessionService {
                 .lastAccessedAt(session.getLastAccessedAt())
                 .isActive(session.getIsActive())
                 .privileges(privileges)
+                .siteScope(siteScope)
+                .build();
+    }
+
+    private SiteScopeDto buildSiteScope(Long userId, Long accountId, RoleEntity role) {
+        if (role != null && Role.ACCOUNT_ADMIN.getCode().equals(role.getCode())) {
+            return SiteScopeDto.builder().mode(SiteScopeMode.ALL_SITES.name()).build();
+        }
+        Membership membership = membershipRepository.findByUserIdAndAccountId(userId, accountId).orElse(null);
+        if (membership == null) {
+            return SiteScopeDto.builder().mode(SiteScopeMode.SELECTED.name()).build();
+        }
+        if (membership.getSiteScopeMode() == SiteScopeMode.ALL_SITES) {
+            return SiteScopeDto.builder().mode(SiteScopeMode.ALL_SITES.name()).build();
+        }
+        var links = membershipSiteRepository.findByMembershipIdWithSite(membership.getId());
+        return SiteScopeDto.builder()
+                .mode(SiteScopeMode.SELECTED.name())
+                .siteIds(links.stream().map(ms -> ms.getSite().getId().toString()).collect(Collectors.toList()))
+                .siteCodes(links.stream().map(ms -> ms.getSite().getCode()).collect(Collectors.toList()))
                 .build();
     }
     

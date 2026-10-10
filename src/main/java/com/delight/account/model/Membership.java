@@ -38,6 +38,10 @@ public class Membership {
     @Column(nullable = false)
     private MembershipStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "site_scope_mode", nullable = false, length = 32)
+    private SiteScopeMode siteScopeMode = SiteScopeMode.SELECTED;
+
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
@@ -53,6 +57,9 @@ public class Membership {
     public void prePersist() {
         if (createdAt == null) {
             createdAt = OffsetDateTime.now();
+        }
+        if (siteScopeMode == null) {
+            siteScopeMode = SiteScopeMode.SELECTED;
         }
     }
 

@@ -23,5 +23,8 @@ public class InviteMemberRequest {
 
     @Schema(description = "Last name of the member (optional)", example = "Doe")
     private String lastName;
+
+    @Schema(description = "Site UUIDs required for ADMIN and USER roles", example = "[\"uuid-1\"]")
+    private java.util.List<String> siteIds;
 }
 

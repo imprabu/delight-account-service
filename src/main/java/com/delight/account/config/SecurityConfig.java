@@ -24,7 +24,6 @@ public class SecurityConfig {
                 .requestMatchers("/accounts/session", "/accounts/validate-session", "/accounts/signout", "/accounts/invalidate-all-sessions", "/accounts/logout", "/accounts/logout-all").permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
-                .requestMatchers("/test/**").permitAll() // Test endpoints for development
                 .requestMatchers("/channel/**").hasRole("CHANNEL") // Channel endpoints require ROLE_CHANNEL
                 // Allow static resources (CSS, JS, images, etc.) from frontend build
                 .requestMatchers("/assets/**", "/*.js", "/*.css", "/*.html", "/index.html", "/*.ico", "/*.png", "/*.jpg", "/*.jpeg", 

@@ -1,0 +1,141 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260326-seed-plantpulse-product
+      author: plantpulse
+      comment: Seed PLANTPULSE product
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO products(code, name, active, updated_at)
+              SELECT 'PLANTPULSE', 'PlantPulse', true, CURRENT_TIMESTAMP
+              WHERE NOT EXISTS (SELECT 1 FROM products WHERE code = 'PLANTPULSE');
+
+  - changeSet:
+      id: 20260326-plantpulse-privileges
+      author: plantpulse
+      comment: PlantPulse site/device/measurement privileges
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO privileges (code, name, description, category, is_system_privilege)
+              SELECT v.code, v.name, v.description, v.category, false
+              FROM (
+                SELECT 'member.invite' AS code, 'Invite Member' AS name, 'Invite members' AS description, 'member' AS category UNION ALL
+                SELECT 'member.manage', 'Manage Members', 'Manage members', 'member' UNION ALL
+                SELECT 'site.create', 'Create Site', 'Create sites', 'site' UNION ALL
+                SELECT 'site.update', 'Update Site', 'Update or archive sites', 'site' UNION ALL
+                SELECT 'site.view', 'View Site', 'View sites', 'site' UNION ALL
+                SELECT 'device.provision', 'Provision Device', 'Provision gateways and analysers', 'device' UNION ALL
+                SELECT 'device.view', 'View Device', 'View device registry', 'device' UNION ALL
+                SELECT 'measurement.read', 'Read Measurements', 'Read measurement data', 'measurement' UNION ALL
+                SELECT 'measurement.export', 'Export Measurements', 'Export measurement data', 'measurement'
+              ) v
+              WHERE NOT EXISTS (SELECT 1 FROM privileges p WHERE p.code = v.code);
+
+  - changeSet:
+      id: 20260326-create-sites
+      author: plantpulse
+      changes:
+        - createTable:
+            tableName: sites
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: account_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: code
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: timezone
+                  type: varchar(64)
+                  defaultValue: UTC
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(32)
+                  defaultValue: ACTIVE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+        - addUniqueConstraint:
+            tableName: sites
+            columnNames: account_id, code
+            constraintName: uk_sites_account_code
+        - createIndex:
+            tableName: sites
+            indexName: idx_sites_account_id
+            columns:
+              - column:
+                  name: account_id
+
+  - changeSet:
+      id: 20260326-membership-site-scope
+      author: plantpulse
+      changes:
+        - addColumn:
+            tableName: memberships
+            columns:
+              - column:
+                  name: site_scope_mode
+                  type: varchar(32)
+                  defaultValue: SELECTED
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 20260326-membership-sites
+      author: plantpulse
+      changes:
+        - createTable:
+            tableName: membership_sites
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: membership_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: site_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: membership_sites
+            columnNames: membership_id, site_id
+            constraintName: uk_membership_sites
+        - createIndex:
+            tableName: membership_sites
+            indexName: idx_membership_sites_membership
+            columns:
+              - column:
+                  name: membership_id

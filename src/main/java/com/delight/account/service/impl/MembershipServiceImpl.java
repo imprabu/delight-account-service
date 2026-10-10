@@ -6,6 +6,9 @@ import com.delight.account.dto.UpdateMemberRequest;
 import com.delight.account.exception.ApiException;
 import com.delight.account.model.Membership;
 import com.delight.account.model.MembershipStatus;
+import com.delight.account.model.MembershipSite;
+import com.delight.account.model.Site;
+import com.delight.account.model.SiteScopeMode;
 import com.delight.account.model.Role;
 import com.delight.account.model.RoleEntity;
 import com.delight.account.model.User;
@@ -13,6 +16,8 @@ import com.delight.account.model.UserStatus;
 import com.delight.account.repository.MembershipRepository;
 import com.delight.account.repository.AccountRepository;
 import com.delight.account.repository.RoleRepository;
+import com.delight.account.repository.SiteRepository;
+import com.delight.account.repository.MembershipSiteRepository;
 import com.delight.account.repository.SessionRepository;
 import com.delight.account.repository.UserRepository;
 import com.delight.account.domain.BatchJobType;
@@ -44,6 +49,8 @@ public class MembershipServiceImpl implements MembershipService {
     private final MembershipRepository membershipRepository;
     private final AccountRepository accountRepository;
     private final RoleRepository roleRepository;
+    private final SiteRepository siteRepository;
+    private final MembershipSiteRepository membershipSiteRepository;
     private final AuthorizationService authorizationService;
     private final SessionRepository sessionRepository;
     private final UserRepository userRepository;
@@ -57,6 +64,8 @@ public class MembershipServiceImpl implements MembershipService {
     public MembershipServiceImpl(MembershipRepository membershipRepository, 
                                  AccountRepository accountRepository, 
                                  RoleRepository roleRepository,
+                                 SiteRepository siteRepository,
+                                 MembershipSiteRepository membershipSiteRepository,
                                  AuthorizationService authorizationService,
                                  SessionRepository sessionRepository,
                                  UserRepository userRepository,
@@ -69,6 +78,8 @@ public class MembershipServiceImpl implements MembershipService {
         this.membershipRepository = membershipRepository;
         this.accountRepository = accountRepository;
         this.roleRepository = roleRepository;
+        this.siteRepository = siteRepository;
+        this.membershipSiteRepository = membershipSiteRepository;
         this.authorizationService = authorizationService;
         this.sessionRepository = sessionRepository;
         this.userRepository = userRepository;
@@ -273,7 +284,32 @@ public class MembershipServiceImpl implements MembershipService {
         membership.setRole(role);
         membership.setStatus(MembershipStatus.INVITED);
         membership.setInvitedBy(actorUser);
+
+        String roleCode = role.getCode();
+        if (Role.ACCOUNT_ADMIN.getCode().equals(roleCode)) {
+            membership.setSiteScopeMode(SiteScopeMode.ALL_SITES);
+        } else if (Role.ADMIN.getCode().equals(roleCode) || Role.USER.getCode().equals(roleCode)) {
+            if (request.getSiteIds() == null || request.getSiteIds().isEmpty()) {
+                throw new ApiException("error.site.required", "siteIds required for ADMIN and USER invites");
+            }
+            membership.setSiteScopeMode(SiteScopeMode.SELECTED);
+        } else {
+            membership.setSiteScopeMode(SiteScopeMode.SELECTED);
+        }
+
         membership = membershipRepository.save(membership);
+
+        if (membership.getSiteScopeMode() == SiteScopeMode.SELECTED && request.getSiteIds() != null) {
+            for (String siteIdStr : request.getSiteIds()) {
+                java.util.UUID siteUuid = java.util.UUID.fromString(siteIdStr);
+                Site site = siteRepository.findByIdAndAccountId(siteUuid, accountId)
+                    .orElseThrow(() -> new ApiException("error.site.notfound", siteIdStr));
+                MembershipSite msLink = new MembershipSite();
+                msLink.setMembership(membership);
+                msLink.setSite(site);
+                membershipSiteRepository.save(msLink);
+            }
+        }
         
         logger.info("User {} invited to account {} with role {}", request.getEmailAddress(), accountId, role.getCode());
         

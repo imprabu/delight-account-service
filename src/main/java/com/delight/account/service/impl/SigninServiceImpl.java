@@ -161,12 +161,12 @@ public class SigninServiceImpl implements SigninService {
         
         Membership membership = membershipOpt.orElse(null);
 
-        // Get default AGENT role for this account if membership doesn't have a role
-        RoleEntity defaultRole = roleRepository.findByAccountIdAndCodeAndRoleType(accountId, "AGENT", RoleType.SYSTEM)
+        // Get default USER role for this account if membership doesn't have a role
+        RoleEntity defaultRole = roleRepository.findByAccountIdAndCodeAndRoleType(accountId, "USER", RoleType.SYSTEM)
             .orElseGet(() -> {
                 // If roles not initialized, initialize them now and return AGENT
                 roleService.initializeDefaultRolesForAccount(accountId);
-                return roleRepository.findByAccountIdAndCodeAndRoleType(accountId, "AGENT", RoleType.SYSTEM)
+                return roleRepository.findByAccountIdAndCodeAndRoleType(accountId, "USER", RoleType.SYSTEM)
                     .orElseThrow(() -> new ApiException("error.role.notfound"));
             });
         
@@ -182,12 +182,12 @@ public class SigninServiceImpl implements SigninService {
                         && validRole.get().getAccount().getId().equals(accountId)) {
                         role = validRole.get();
                     } else {
-                        LoggingUtils.warn(logger, "Membership has invalid role_id={} for accountId={}, using default AGENT role", 
+                        LoggingUtils.warn(logger, "Membership has invalid role_id={} for accountId={}, using default USER role", 
                             membershipRole.getId(), accountId);
                     }
                 }
             } catch (Exception e) {
-                LoggingUtils.warn(logger, "Error validating membership role, using default AGENT role: {}", e.getMessage());
+                LoggingUtils.warn(logger, "Error validating membership role, using default USER role: {}", e.getMessage());
             }
         }
 

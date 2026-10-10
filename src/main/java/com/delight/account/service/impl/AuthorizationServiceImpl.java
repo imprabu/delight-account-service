@@ -1,6 +1,13 @@
 package com.delight.account.service.impl;
 
 import com.delight.account.config.RedisCasbinAdapter;
+import com.delight.account.model.Membership;
+import com.delight.account.model.Role;
+import com.delight.account.model.Site;
+import com.delight.account.model.SiteScopeMode;
+import com.delight.account.repository.MembershipRepository;
+import com.delight.account.repository.MembershipSiteRepository;
+import com.delight.account.repository.SiteRepository;
 import com.delight.account.service.AuthorizationService;
 import com.delight.account.service.CasbinPolicyCacheService;
 import org.casbin.jcasbin.main.Enforcer;
@@ -29,6 +36,9 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     private final Model casbinModel;
     private final RedisCasbinAdapter redisCasbinAdapter;
     private final CasbinPolicyCacheService policyCacheService;
+    private final MembershipRepository membershipRepository;
+    private final MembershipSiteRepository membershipSiteRepository;
+    private final SiteRepository siteRepository;
     
     // Per-account enforcer cache
     private final ConcurrentHashMap<Long, Enforcer> enforcerCache = new ConcurrentHashMap<>();
@@ -37,10 +47,16 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     @Autowired
     public AuthorizationServiceImpl(Model casbinModel, 
                                    RedisCasbinAdapter redisCasbinAdapter,
-                                   CasbinPolicyCacheService policyCacheService) {
+                                   CasbinPolicyCacheService policyCacheService,
+                                   MembershipRepository membershipRepository,
+                                   MembershipSiteRepository membershipSiteRepository,
+                                   SiteRepository siteRepository) {
         this.casbinModel = casbinModel;
         this.redisCasbinAdapter = redisCasbinAdapter;
         this.policyCacheService = policyCacheService;
+        this.membershipRepository = membershipRepository;
+        this.membershipSiteRepository = membershipSiteRepository;
+        this.siteRepository = siteRepository;
         logger.info("AuthorizationService initialized with Redis-based Casbin policy caching");
     }
     
@@ -133,13 +149,6 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 
     @Override
     public boolean checkPermission(Long userId, Long accountId, String resource, String action) {
-        // Skip privilege checks for channel-authenticated requests
-        if (isChannelRequest()) {
-            logger.debug("Skipping privilege check for channel request: user={}, account={}, resource={}, action={}", 
-                        userId, accountId, resource, action);
-            return true;
-        }
-        
         if (accountId == null) {
             logger.warn("Authorization check failed: accountId is null");
             return false;
@@ -162,13 +171,6 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 
     @Override
     public boolean hasPrivilege(Long userId, Long accountId, String privilegeCode) {
-        // Skip privilege checks for channel-authenticated requests
-        if (isChannelRequest()) {
-            logger.debug("Skipping privilege check for channel request: user={}, account={}, privilege={}", 
-                        userId, accountId, privilegeCode);
-            return true;
-        }
-        
         // Parse privilege code (e.g., "user.create" -> resource="user", action="create")
         String[] parts = privilegeCode.split("\\.");
         if (parts.length != 2) {
@@ -246,6 +248,40 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         } finally {
             lock.unlock();
         }
+    }
+
+    @Override
+    public boolean hasSiteAccess(Long userId, Long accountId, String siteId, String siteCode) {
+        if (userId == null || accountId == null) {
+            return false;
+        }
+        Membership membership = membershipRepository.findByUserIdAndAccountId(userId, accountId).orElse(null);
+        if (membership == null) {
+            return false;
+        }
+        if (membership.getRole() != null && Role.ACCOUNT_ADMIN.getCode().equals(membership.getRole().getCode())) {
+            return true;
+        }
+        if (membership.getSiteScopeMode() == SiteScopeMode.ALL_SITES) {
+            return true;
+        }
+        Site site = null;
+        if (siteId != null && !siteId.isBlank()) {
+            try {
+                site = siteRepository.findByIdAndAccountId(java.util.UUID.fromString(siteId), accountId).orElse(null);
+            } catch (IllegalArgumentException e) {
+                logger.warn("Invalid siteId UUID: {}", siteId);
+                return false;
+            }
+        } else if (siteCode != null && !siteCode.isBlank()) {
+            site = siteRepository.findByAccountIdAndCode(accountId, siteCode).orElse(null);
+        }
+        if (site == null) {
+            return false;
+        }
+        java.util.UUID targetId = site.getId();
+        return membershipSiteRepository.findByMembershipIdWithSite(membership.getId()).stream()
+                .anyMatch(ms -> ms.getSite().getId().equals(targetId));
     }
 }
 

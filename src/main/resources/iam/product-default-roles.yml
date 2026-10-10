@@ -1,0 +1,13 @@
+products:
+  PLANTPULSE:
+    creatorRole: ACCOUNT_ADMIN
+    roles:
+      - ACCOUNT_ADMIN
+      - ADMIN
+      - USER
+  CHAT:
+    creatorRole: ACCOUNT_ADMIN
+    roles:
+      - ACCOUNT_ADMIN
+      - ADMIN
+      - USER
